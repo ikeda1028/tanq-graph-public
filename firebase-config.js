@@ -12,4 +12,12 @@
 //   appId: "..."
 // };
 
-window.TANQ_FIREBASE_CONFIG = null;
+window.TANQ_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDkBwH2Ev65USrwjWZo0EbBibSs9_PX4XU",
+  authDomain: "tanqgraph.firebaseapp.com",
+  projectId: "tanqgraph",
+  storageBucket: "tanqgraph.firebasestorage.app",
+  messagingSenderId: "924757219137",
+  appId: "1:924757219137:web:eb1f8b17f4833948b4f3c0",
+  measurementId: "G-6VPZCL2J50"
+};
