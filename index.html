@@ -26,6 +26,7 @@
       letter-spacing: 0;
     }
     button, input, select, textarea { font: inherit; }
+    body.login-pending .shell { display: none; }
     .shell { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; }
     aside { border-right: 1px solid var(--line); padding: 24px 18px; background: rgba(255,253,247,.74); position: sticky; top: 0; height: 100vh; }
     main { padding: 32px; max-width: 1240px; width: 100%; }
@@ -38,6 +39,21 @@
     .nav { display: grid; gap: 8px; }
     .nav button { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; }
     .nav button.active { background: var(--panel); border-color: var(--line); color: var(--ink); box-shadow: 0 8px 20px rgba(54,45,30,.08); }
+    .session-box { margin-top: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); display: grid; gap: 8px; }
+    .session-box button { width: 100%; }
+    .login-screen { min-height: 100vh; padding: 32px; display: grid; place-items: center; }
+    body:not(.login-pending) .login-screen { display: none; }
+    .login-wrap { max-width: 1120px; width: 100%; display: grid; gap: 18px; }
+    .login-hero { display: grid; gap: 12px; }
+    .login-hero h1 { max-width: 900px; }
+    .login-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .login-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 22px; display: grid; gap: 14px; box-shadow: 0 12px 30px rgba(54,45,30,.08); }
+    .login-card.active { border-color: rgba(37,107,87,.58); background: linear-gradient(180deg, rgba(37,107,87,.1), var(--panel)); }
+    .login-mark { width: 54px; height: 54px; border-radius: 14px; display: inline-grid; place-items: center; color: #fffdf7; font-weight: 500; background: var(--green); }
+    .login-mark.org { background: var(--blue); }
+    .login-form { display: none; gap: 12px; }
+    .login-form.active { display: grid; }
+    .login-note { border: 1px solid rgba(169,120,37,.32); border-radius: 8px; padding: 12px; color: var(--muted); background: rgba(169,120,37,.09); line-height: 1.6; }
     .hero { display: grid; gap: 18px; margin-bottom: 18px; }
     .hero-copy, .panel, .card, .tool, .metric, .timeline-item, .step, .graph-box, .graph-item { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
     .hero-copy { padding: 28px; box-shadow: var(--shadow); }
@@ -159,7 +175,7 @@
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       .nav { grid-template-columns: repeat(2, 1fr); }
       main { padding: 20px; }
-      .interfaces, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip { grid-template-columns: 1fr; }
+      .interfaces, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip, .login-choice-grid { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .project-material { grid-template-columns: 1fr; }
       .graph-box { display: grid; gap: 10px; min-height: auto; padding: 12px; }
@@ -168,7 +184,55 @@
     }
   </style>
 </head>
-<body>
+<body class="login-pending">
+  <section class="login-screen" aria-label="TANQ Graph login">
+    <div class="login-wrap">
+      <div class="login-hero">
+        <p class="eyebrow">TANQ Graph entry</p>
+        <h1>最初に利用者の種類を選んでください</h1>
+        <p class="lead">ポートフォリオを育てる個人利用者と、成果物・資格・評価を接続する登録団体で、入口と初期画面を切り分けます。</p>
+      </div>
+      <div class="login-choice-grid">
+        <div class="login-card active" data-login-card="person">
+          <span class="login-mark">ID</span>
+          <h2>ポートフォリオ利用者</h2>
+          <small>生徒、学生、社会人、Proofolio Encore利用者。年齢からKids / Passport / Proofolio / Encoreを自動振り分けします。</small>
+          <div class="login-form active" id="person-login-form">
+            <div class="form-grid">
+              <label>名前<input id="entry-person-name" placeholder="表示名"></label>
+              <label>年齢<input id="entry-person-age" type="number" min="0" max="120" placeholder="例: 16"></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="enter-person">ポートフォリオを開く</button>
+            </div>
+          </div>
+        </div>
+        <div class="login-card" data-login-card="organization">
+          <span class="login-mark org">OR</span>
+          <h2>登録団体</h2>
+          <small>学校、大学、教育機関、企業。APIキー、提出物、資格・認定、外部評価の接続管理へ入ります。</small>
+          <div class="login-form" id="org-entry-form">
+            <div class="form-grid">
+              <label>団体名<input id="entry-org-name" placeholder="例: 探究推進機構"></label>
+              <label>種別<select id="entry-org-type">
+                <option>学校</option>
+                <option>大学</option>
+                <option>教育機関</option>
+                <option>企業</option>
+                <option>NPO / DAO</option>
+                <option>自治体</option>
+              </select></label>
+            </div>
+            <label>担当者メール<input id="entry-org-email" placeholder="contact@example.jp"></label>
+            <div class="actions">
+              <button class="primary" id="enter-org">団体管理へ進む</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="login-note">公開デモでは実認証を行わず、選択した入口をブラウザ内に保存します。本番では個人はSSO/OAuth、団体は組織審査・権限・APIスコープ管理に接続します。</div>
+    </div>
+  </section>
   <div class="shell">
     <aside>
       <div class="brand">
@@ -184,6 +248,10 @@
         <button data-tab="drive">Drive</button>
         <button data-tab="views">Kids / Passport / Proofolio</button>
       </nav>
+      <div class="session-box">
+        <small id="entry-session-label">未選択</small>
+        <button class="secondary" id="switch-entry">入口を切り替え</button>
+      </div>
     </aside>
 
     <main>
@@ -656,6 +724,7 @@
     let activeProjectId = "project_local_ppp_001";
     let selectedLocalFile = null;
     let orgSessionId = null;
+    let entrySession = null;
     const defaultProfile = { name: "", age: "", interfaceMode: "passport", routing: "auto" };
     const interfaceLabels = { kids: "TANQ Pass Kids", passport: "TANQ Passport", proofolio: "Proofolio", encore: "Proofolio Encore" };
     const statusLabels = { connected: "基盤接続中", next: "次に接続", external: "外部証明・外部データ" };
@@ -701,10 +770,23 @@
     ];
     const $ = (selector) => document.querySelector(selector);
 
+    function setActiveTab(tabId) {
+      document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabId));
+      document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+    }
+
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
-        document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
-        document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+        setActiveTab(button.dataset.tab);
+      });
+    });
+
+    document.querySelectorAll("[data-login-card]").forEach((card) => {
+      card.addEventListener("click", () => {
+        const role = card.dataset.loginCard;
+        document.querySelectorAll("[data-login-card]").forEach((item) => item.classList.toggle("active", item === card));
+        $("#person-login-form").classList.toggle("active", role === "person");
+        $("#org-entry-form").classList.toggle("active", role === "organization");
       });
     });
 
@@ -770,6 +852,45 @@
       const clean = { tools: store.tools, events: store.events, projects: store.projects || defaultProjects, profile: normalizeProfile(store.profile), apiKeys: store.apiKeys || [], organizations: store.organizations || [] };
       localStorage.setItem("tanq-graph-public-demo-state", JSON.stringify(clean));
       return { ...clean, summary: summarize(clean) };
+    }
+
+    function readEntrySession() {
+      try {
+        return JSON.parse(localStorage.getItem("tanq-graph-entry-session") || "null");
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function saveEntrySession(session) {
+      entrySession = session;
+      localStorage.setItem("tanq-graph-entry-session", JSON.stringify(session));
+      applyEntrySession();
+    }
+
+    function clearEntrySession() {
+      entrySession = null;
+      orgSessionId = null;
+      localStorage.removeItem("tanq-graph-entry-session");
+      document.body.classList.add("login-pending");
+      $("#entry-session-label").textContent = "未選択";
+    }
+
+    function applyEntrySession() {
+      if (!entrySession) {
+        document.body.classList.add("login-pending");
+        $("#entry-session-label").textContent = "未選択";
+        return;
+      }
+      document.body.classList.remove("login-pending");
+      if (entrySession.role === "organization") {
+        orgSessionId = entrySession.orgId || orgSessionId;
+        $("#entry-session-label").textContent = `登録団体: ${entrySession.name || "団体"}`;
+        setActiveTab("org-login");
+      } else {
+        $("#entry-session-label").textContent = `利用者: ${entrySession.name || "ポートフォリオ"}`;
+        setActiveTab("dashboard");
+      }
     }
 
     async function localApi(path, options = {}) {
@@ -1590,6 +1711,7 @@
     $("#reset-state").addEventListener("click", async () => {
       state = await api("/api/reset", { method: "POST" });
       lastAction = null;
+      clearEntrySession();
       render();
       setStatus("reset");
     });
@@ -1699,6 +1821,61 @@
       setStatus("org api key issued");
     });
 
+    $("#enter-person").addEventListener("click", async () => {
+      const name = $("#entry-person-name").value.trim() || "ポートフォリオ利用者";
+      const age = $("#entry-person-age").value;
+      const profile = {
+        name,
+        age,
+        routing: "auto",
+        interfaceMode: recommendedInterface(age)
+      };
+      state = await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
+      saveEntrySession({
+        role: "person",
+        name,
+        age,
+        interfaceMode: state.profile.interfaceMode,
+        started_at: new Date().toISOString()
+      });
+      render();
+      setStatus("portfolio user entered");
+    });
+
+    $("#enter-org").addEventListener("click", async () => {
+      const name = $("#entry-org-name").value.trim() || "登録団体";
+      const type = $("#entry-org-type").value;
+      const email = $("#entry-org-email").value.trim();
+      const result = await api("/api/orgs", {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          type,
+          email,
+          purpose: "API利用・成果物接続"
+        })
+      });
+      state = result.state;
+      orgSessionId = result.organization.id;
+      saveEntrySession({
+        role: "organization",
+        name: result.organization.name,
+        type: result.organization.type,
+        orgId: result.organization.id,
+        loginCode: result.organization.loginCode,
+        started_at: new Date().toISOString()
+      });
+      $("#org-login-id").value = result.organization.id;
+      $("#org-login-code").value = result.organization.loginCode;
+      render();
+      $("#api-key-secret").textContent = JSON.stringify({
+        organization: result.organization.name,
+        loginCode: result.organization.loginCode,
+        note: "公開デモでは入口で団体セッションを作成します。本番では審査済み団体ログインに置き換えます。"
+      }, null, 2);
+      setStatus("organization entered");
+    });
+
     $("#create-project").addEventListener("click", async () => {
       const name = $("#new-project-name").value.trim();
       const question = $("#new-project-question").value.trim();
@@ -1726,6 +1903,7 @@
     });
 
     $("#save-profile").addEventListener("click", saveProfile);
+    $("#switch-entry").addEventListener("click", clearEntrySession);
     $("#profile-age").addEventListener("input", () => {
       updateProfileDraftUI();
       closeAndClearMaterialForm();
@@ -1897,7 +2075,9 @@
 
     async function boot() {
       state = await api("/api/state");
+      entrySession = readEntrySession();
       render();
+      applyEntrySession();
     }
 
     boot().catch((error) => {
