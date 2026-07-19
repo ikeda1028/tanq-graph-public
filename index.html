@@ -938,6 +938,10 @@
       badge.className = `badge ${connected ? "green" : ""}`;
     }
 
+    function activeDbLabel() {
+      return firebaseDb ? "Firestore + Demo DB" : "Demo DB";
+    }
+
     async function connectFirebase(config) {
       const cleanConfig = normalizeFirebaseConfig(config);
       if (!cleanConfig.projectId || !cleanConfig.appId || !cleanConfig.apiKey) {
@@ -2033,10 +2037,10 @@
         personId: person.id,
         loginCode: person.loginCode,
         interfaceMode: state.profile.interfaceMode,
-        db: "localStorage demo DB",
+        db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
-      $("#database-status").textContent = `Demo DBに新規登録しました。利用者ID: ${person.id} / ログインコード: ${person.loginCode}`;
+      $("#database-status").textContent = `${activeDbLabel()}に新規登録しました。利用者ID: ${person.id} / ログインコード: ${person.loginCode}`;
       render();
       setStatus("person registered");
     });
@@ -2060,10 +2064,10 @@
         age: person.age,
         personId: person.id,
         interfaceMode: state.profile.interfaceMode,
-        db: "localStorage demo DB",
+        db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
-      $("#database-status").textContent = `Demo DBから ${person.name} としてログインしました。`;
+      $("#database-status").textContent = `${activeDbLabel()}から ${person.name} としてログインしました。`;
       render();
       setStatus("person logged in");
     });
@@ -2072,35 +2076,25 @@
       const name = $("#entry-org-name").value.trim() || "登録団体";
       const type = $("#entry-org-type").value;
       const email = $("#entry-org-email").value.trim();
-      const existingOrg = await saveOrganizationRecord({
-        id: `org_${Date.now()}`,
-        name,
-        type,
-        email,
-        purpose: "API利用・成果物接続",
-        status: "active",
-        loginCode: generateOrgCode(),
-        created_at: new Date().toISOString()
-      });
       const result = await api("/api/orgs", {
         method: "POST",
         body: JSON.stringify({
-          name: existingOrg.name,
-          type: existingOrg.type,
-          email: existingOrg.email,
-          purpose: existingOrg.purpose
+          name,
+          type,
+          email,
+          purpose: "API利用・成果物接続"
         })
       });
       state = result.state;
       orgSessionId = result.organization.id;
-      const dbOrg = await saveOrganizationRecord({ ...existingOrg, id: result.organization.id, loginCode: result.organization.loginCode, email_lower: String(existingOrg.email || "").toLowerCase() });
+      const dbOrg = await saveOrganizationRecord({ ...result.organization, email_lower: String(result.organization.email || "").toLowerCase() });
       saveEntrySession({
         role: "organization",
         name: result.organization.name,
         type: result.organization.type,
         orgId: result.organization.id,
         loginCode: result.organization.loginCode,
-        db: "localStorage demo DB",
+        db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
       $("#org-login-id").value = result.organization.id;
@@ -2111,7 +2105,7 @@
         loginCode: result.organization.loginCode,
         note: "公開デモでは入口で団体セッションを作成します。本番では審査済み団体ログインに置き換えます。"
       }, null, 2);
-      $("#database-status").textContent = `Demo DBに団体を新規登録しました。団体ID: ${dbOrg.id} / ログインコード: ${dbOrg.loginCode}`;
+      $("#database-status").textContent = `${activeDbLabel()}に団体を新規登録しました。団体ID: ${dbOrg.id} / ログインコード: ${dbOrg.loginCode}`;
       setStatus("organization registered");
     });
 
@@ -2133,13 +2127,13 @@
         name: org.name,
         type: org.type,
         orgId: org.id,
-        db: "localStorage demo DB",
+        db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
       render();
       $("#org-login-id").value = org.id;
       $("#org-login-code").value = org.loginCode;
-      $("#database-status").textContent = `Demo DBから ${org.name} として団体ログインしました。`;
+      $("#database-status").textContent = `${activeDbLabel()}から ${org.name} として団体ログインしました。`;
       setStatus("organization logged in");
     });
 
