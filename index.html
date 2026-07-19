@@ -1,0 +1,1908 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ Graph Public Demo</title>
+  <style>
+    :root {
+      --bg: #f6f3ea;
+      --ink: #22231f;
+      --muted: #686257;
+      --line: #d9d1c1;
+      --panel: #fffdf7;
+      --green: #256b57;
+      --blue: #2f5f8f;
+      --gold: #a97825;
+      --red: #a34b38;
+      --shadow: 0 18px 45px rgba(54, 45, 30, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 250px 1fr; }
+    aside { border-right: 1px solid var(--line); padding: 24px 18px; background: rgba(255,253,247,.74); position: sticky; top: 0; height: 100vh; }
+    main { padding: 32px; max-width: 1240px; width: 100%; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 26px; }
+    .brand-mark, .core-mark { background: conic-gradient(from 210deg, var(--green), var(--blue), var(--gold), var(--red), var(--green)); box-shadow: inset 0 0 0 2px rgba(255,253,247,.7); }
+    .brand-mark { width: 36px; height: 36px; border-radius: 9px; }
+    .brand strong, h2, h3, .card strong, .tool strong { font-weight: 500; }
+    .brand span, small, .muted { color: var(--muted); }
+    .brand span { font-size: 12px; display: block; }
+    .nav { display: grid; gap: 8px; }
+    .nav button { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+    .nav button.active { background: var(--panel); border-color: var(--line); color: var(--ink); box-shadow: 0 8px 20px rgba(54,45,30,.08); }
+    .hero { display: grid; gap: 18px; margin-bottom: 18px; }
+    .hero-copy, .panel, .card, .tool, .metric, .timeline-item, .step, .graph-box, .graph-item { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
+    .hero-copy { padding: 28px; box-shadow: var(--shadow); }
+    .eyebrow { color: var(--green); font-weight: 500; margin: 0 0 10px; font-size: 13px; }
+    h1 { margin: 0; font-size: clamp(36px, 5vw, 66px); line-height: .95; font-weight: 500; letter-spacing: 0; }
+    h2, h3 { margin: 0; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 15px; }
+    .lead { margin: 18px 0 0; max-width: 820px; color: var(--muted); font-size: 17px; line-height: 1.7; }
+    .interfaces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .card { padding: 18px; display: grid; gap: 8px; align-content: start; min-height: 166px; }
+    .core-card { text-align: center; place-items: center; background: radial-gradient(circle at center, rgba(37,107,87,.12), transparent 62%), var(--panel); }
+    .core-mark { width: 78px; height: 78px; border-radius: 20px; display: grid; place-items: center; position: relative; }
+    .core-mark::before { content: ""; width: 32px; height: 32px; border-radius: 10px; background: rgba(255,253,247,.92); box-shadow: -25px 0 0 rgba(255,253,247,.52), 25px 0 0 rgba(255,253,247,.52), 0 -25px 0 rgba(255,253,247,.52), 0 25px 0 rgba(255,253,247,.52); }
+    .core-mark span { position: absolute; color: var(--green); font-size: 13px; font-weight: 500; }
+    .interface-icon { width: 58px; height: 58px; border-radius: 16px; position: relative; display: inline-flex; align-items: center; justify-content: center; }
+    .interface-card { position: relative; }
+    .interface-card.active { border-color: rgba(37,107,87,.55); background: linear-gradient(180deg, rgba(37,107,87,.1), var(--panel)); }
+    .interface-card.active::after { content: "Active"; position: absolute; right: 12px; top: 12px; border-radius: 999px; padding: 4px 8px; background: var(--green); color: #fffdf7; font-size: 11px; }
+    .passport-icon { background: rgba(37,107,87,.12); box-shadow: inset 0 0 0 1px rgba(37,107,87,.18); }
+    .passport-icon::before { content: ""; width: 28px; height: 36px; border-radius: 5px; background: var(--green); box-shadow: inset 0 0 0 2px rgba(255,253,247,.45); }
+    .passport-icon::after { content: ""; position: absolute; width: 14px; height: 14px; border-radius: 999px; border: 2px solid rgba(255,253,247,.9); top: 22px; left: 22px; box-shadow: 0 8px 0 -5px rgba(255,253,247,.9); }
+    .kids-icon { background: rgba(169,120,37,.14); box-shadow: inset 0 0 0 1px rgba(169,120,37,.2); }
+    .kids-icon::before { content: ""; width: 34px; height: 34px; border-radius: 12px 12px 16px 16px; background: var(--gold); box-shadow: inset 0 -10px 0 rgba(255,253,247,.28); }
+    .kids-icon::after { content: ""; position: absolute; width: 6px; height: 6px; border-radius: 999px; background: #fffdf7; left: 22px; top: 24px; box-shadow: 14px 0 0 #fffdf7, 7px 10px 0 -1px #fffdf7; }
+    .proofolio-icon { background: rgba(47,95,143,.12); box-shadow: inset 0 0 0 1px rgba(47,95,143,.18); }
+    .proofolio-icon::before { content: ""; width: 34px; height: 38px; border-radius: 5px; background: linear-gradient(var(--blue), var(--blue)) 9px 12px / 16px 2px no-repeat, linear-gradient(var(--blue), var(--blue)) 9px 19px / 16px 2px no-repeat, linear-gradient(var(--blue), var(--blue)) 9px 26px / 11px 2px no-repeat, rgba(47,95,143,.16); border: 2px solid var(--blue); }
+    .proofolio-icon::after { content: ""; position: absolute; right: 13px; bottom: 12px; width: 15px; height: 15px; border-radius: 999px; background: var(--gold); box-shadow: inset 0 0 0 3px rgba(255,253,247,.6); }
+    .encore-icon { background: rgba(163,75,56,.12); box-shadow: inset 0 0 0 1px rgba(163,75,56,.2); }
+    .encore-icon::before { content: ""; width: 36px; height: 36px; border-radius: 999px; border: 3px solid var(--red); border-right-color: var(--gold); transform: rotate(-28deg); }
+    .encore-icon::after { content: ""; position: absolute; width: 18px; height: 18px; border-radius: 6px; background: var(--red); box-shadow: 13px 13px 0 -4px var(--gold); }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 16px; }
+    .panel { padding: 20px; display: grid; gap: 14px; }
+    .full { grid-column: 1 / -1; }
+    .wide { grid-column: span 8; }
+    .narrow { grid-column: span 4; }
+    .half { grid-column: span 6; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric { padding: 14px; min-height: 86px; }
+    .metric b { display: block; font-size: 28px; font-weight: 500; }
+    .metric span { color: var(--muted); font-size: 12px; }
+    .status-group { display: grid; gap: 10px; margin-bottom: 16px; }
+    .status-head { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; }
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--green); }
+    .dot.next { background: var(--gold); }
+    .dot.external { background: var(--blue); }
+    .tool-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .tool { min-height: 124px; padding: 14px; display: grid; grid-template-rows: auto auto 1fr; gap: 8px; text-align: left; cursor: pointer; position: relative; transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+    .tool:hover { transform: translateY(-2px); border-color: rgba(37,107,87,.45); }
+    .tool.selected { border-color: var(--green); background: linear-gradient(180deg, rgba(37,107,87,.11), var(--panel)); box-shadow: 0 10px 26px rgba(37,107,87,.12); }
+    .tool.selected::after { content: "✓"; position: absolute; right: 10px; top: 10px; width: 24px; height: 24px; border-radius: 999px; background: var(--green); color: #fffdf7; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; }
+    .tool-icon { width: 42px; height: 42px; display: inline-flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(37,107,87,.12); color: var(--green); font-weight: 500; font-size: 12px; }
+    .tool[data-tone="blue"] .tool-icon { background: rgba(47,95,143,.12); color: var(--blue); }
+    .tool[data-tone="gold"] .tool-icon { background: rgba(169,120,37,.14); color: var(--gold); }
+    .tool[data-tone="red"] .tool-icon { background: rgba(163,75,56,.12); color: var(--red); }
+    .tool strong { padding-right: 34px; }
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; min-height: 30px; }
+    .badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 5px 9px; background: rgba(47,95,143,.12); color: var(--blue); font-size: 12px; white-space: nowrap; }
+    .badge.green { background: rgba(37,107,87,.12); color: var(--green); }
+    .badge.gold { background: rgba(169,120,37,.14); color: var(--gold); }
+    .badge.red { background: rgba(163,75,56,.12); color: var(--red); }
+    .timeline { display: grid; gap: 10px; }
+    .timeline-item { display: grid; grid-template-columns: 100px 1fr auto; gap: 12px; align-items: center; padding: 12px; }
+    .timeline-item.latest, .timeline-item.imported { border-color: rgba(37,107,87,.55); background: linear-gradient(90deg, rgba(37,107,87,.12), var(--panel)); }
+    .form-grid, .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mini-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,247,.72); color: var(--ink); padding: 10px 12px; }
+    textarea { min-height: 92px; resize: vertical; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .primary, .secondary { border: 1px solid transparent; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+    .primary { background: var(--green); color: #fffdf7; }
+    .secondary { background: var(--panel); border-color: var(--line); color: var(--ink); }
+    .code { background: #24231f; color: #f5efe2; border-radius: 8px; padding: 16px; overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.55; margin: 0; max-height: 420px; }
+    .graph-box { min-height: 360px; background: radial-gradient(circle at center, rgba(37,107,87,.12), transparent 42%), rgba(255,253,247,.64); position: relative; overflow: hidden; }
+    .graph-item { position: absolute; padding: 11px 12px; min-width: 128px; max-width: 180px; box-shadow: 0 10px 26px rgba(54,45,30,.08); }
+    .graph-item small { display: block; margin-top: 4px; }
+    .graph-item.core { left: 50%; top: 50%; transform: translate(-50%, -50%); border-color: rgba(37,107,87,.46); text-align: center; }
+    .graph-item.events { left: 6%; top: 13%; }
+    .graph-item.artifacts { left: 8%; bottom: 12%; }
+    .graph-item.assessments { right: 7%; top: 14%; }
+    .graph-item.credentials { right: 8%; bottom: 12%; }
+    .graph-item.pulse { border-color: var(--green); box-shadow: 0 0 0 5px rgba(37,107,87,.12), 0 16px 34px rgba(37,107,87,.18); animation: pulseNode 1.4s ease-out 1; }
+    .graph-line { position: absolute; height: 1px; background: var(--line); opacity: .88; transform-origin: left center; }
+    .graph-line.a { width: 34%; left: 20%; top: 28%; transform: rotate(18deg); }
+    .graph-line.b { width: 34%; left: 21%; bottom: 30%; transform: rotate(-18deg); }
+    .graph-line.c { width: 31%; right: 18%; top: 29%; transform: rotate(-18deg); }
+    .graph-line.d { width: 32%; right: 19%; bottom: 30%; transform: rotate(18deg); }
+    .latest-impact { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 14px; border: 1px solid rgba(37,107,87,.32); border-radius: 8px; background: linear-gradient(90deg, rgba(37,107,87,.13), rgba(169,120,37,.08), var(--panel)); }
+    .impact-icon { width: 38px; height: 38px; border-radius: 10px; background: var(--green); color: #fffdf7; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; }
+    .artifact-list { display: grid; gap: 12px; }
+    .artifact-card { border: 1px solid rgba(47,95,143,.28); background: linear-gradient(180deg, rgba(47,95,143,.08), var(--panel)); border-radius: 8px; padding: 14px; display: grid; gap: 10px; }
+    .artifact-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+    .artifact-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .artifact-link { color: var(--blue); word-break: break-all; text-decoration: none; }
+    .artifact-link:hover { text-decoration: underline; }
+    .project-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .project-card { text-align: left; min-height: 136px; }
+    .project-card.active { border-color: rgba(37,107,87,.55); background: linear-gradient(180deg, rgba(37,107,87,.12), var(--panel)); }
+    .project-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .project-material { display: grid; grid-template-columns: 120px 1fr auto; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,247,.72); }
+    .material-detail { grid-column: 1 / -1; display: none; border-top: 1px solid var(--line); padding-top: 12px; color: var(--muted); line-height: 1.7; }
+    .material-detail.open { display: grid; gap: 10px; }
+    .material-detail pre { margin: 0; white-space: pre-wrap; word-break: break-word; max-height: 260px; overflow: auto; }
+    .ai-summary { border: 1px solid rgba(169,120,37,.32); border-radius: 8px; padding: 14px; background: linear-gradient(180deg, rgba(169,120,37,.12), var(--panel)); line-height: 1.7; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .icon-button { width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--line); background: var(--green); color: #fffdf7; cursor: pointer; font-size: 22px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
+    .create-project-panel, .collapsible-panel { display: none; }
+    .create-project-panel.open, .collapsible-panel.open { display: grid; }
+    @keyframes pulseNode {
+      0% { transform: scale(1); }
+      35% { transform: scale(1.035); }
+      100% { transform: scale(1); }
+    }
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .nav { grid-template-columns: repeat(2, 1fr); }
+      main { padding: 20px; }
+      .interfaces, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip { grid-template-columns: 1fr; }
+      .full, .wide, .narrow, .half { grid-column: auto; }
+      .timeline-item, .project-material { grid-template-columns: 1fr; }
+      .graph-box { display: grid; gap: 10px; min-height: auto; padding: 12px; }
+      .graph-item { position: static; max-width: none; transform: none !important; }
+      .graph-line { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div><strong>TANQ Graph</strong><span>Public demo</span></div>
+      </div>
+      <nav class="nav">
+        <button class="active" data-tab="dashboard">Dashboard</button>
+        <button data-tab="tools">Tools</button>
+        <button data-tab="api">API</button>
+        <button data-tab="admin">Admin</button>
+        <button data-tab="org-login">Org Login</button>
+        <button data-tab="drive">Drive</button>
+        <button data-tab="views">Kids / Passport / Proofolio</button>
+      </nav>
+    </aside>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">GitHub Pages public demo</p>
+          <h1>探究・実績・資格・貢献を保存できるTANQ Graph</h1>
+          <p class="lead">TANQ Pass Kids、TANQ Passport、Proofolio、Proofolio Encoreが同じTANQ Graph Coreを共有する公開デモです。入力内容はブラウザ内に保存され、実API・実認証・実Drive同期はまだ行いません。</p>
+        </div>
+        <div class="interfaces">
+          <div class="card interface-card" data-interface-card="kids"><span class="interface-icon kids-icon"></span><strong>TANQ Pass Kids</strong><small>幼児・小学生向け。あそび、発見、作品、保護者・先生の見守り。</small></div>
+          <div class="card interface-card" data-interface-card="passport"><span class="interface-icon passport-icon"></span><strong>TANQ Passport</strong><small>中高生向け。探究の旅、クエスト、バッジ、進路ポートフォリオ。</small></div>
+          <div class="card core-card"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>同じID、データモデル、証明レイヤー、AIメモリを使う。</small></div>
+          <div class="card interface-card" data-interface-card="proofolio"><span class="interface-icon proofolio-icon"></span><strong>Proofolio</strong><small>社会人向け。実績、人的資本、資格、DAO貢献、キャリア証明。</small></div>
+          <div class="card interface-card" data-interface-card="encore"><span class="interface-icon encore-icon"></span><strong>Proofolio Encore</strong><small>45歳以降向け。経験を再編集し、次の役割・顧問・地域実装へ接続。</small></div>
+        </div>
+      </section>
+
+      <section id="dashboard" class="tab active">
+        <div class="grid">
+          <div class="panel full">
+            <h2>現在のTANQ Graph</h2>
+            <div class="metrics">
+              <div class="metric"><b id="metric-tools">0</b><span>接続ツール</span></div>
+              <div class="metric"><b id="metric-events">0</b><span>活動ログ</span></div>
+              <div class="metric"><b id="metric-trust">0</b><span>平均信頼レベル</span></div>
+              <div class="metric"><b id="metric-credentials">0</b><span>証明・資格</span></div>
+            </div>
+            <div class="latest-impact" id="latest-impact">
+              <span class="impact-icon">IG</span>
+              <strong>まだ反映アクションはありません<br><small>Drive Import、Add to TANQ Graph、Issue Credentialを押すとここに反映先が表示されます。</small></strong>
+              <span class="badge">Ready</span>
+            </div>
+          </div>
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <h2>ログインプロフィール / 自動UI振り分け</h2>
+                <small>年齢からおすすめUIを自動設定しつつ、本人が選び直せます。</small>
+              </div>
+              <span class="badge green" id="current-interface-badge">TANQ Passport</span>
+            </div>
+            <div class="form-grid">
+              <label>名前<input id="profile-name" placeholder="表示名"></label>
+              <label>年齢<input id="profile-age" type="number" min="0" max="120" placeholder="例: 10"></label>
+            </div>
+            <div class="form-grid">
+              <label>UIモード<select id="profile-interface">
+                <option value="kids">TANQ Pass Kids</option>
+                <option value="passport">TANQ Passport</option>
+                <option value="proofolio">Proofolio</option>
+                <option value="encore">Proofolio Encore</option>
+              </select></label>
+              <label>振り分け<select id="profile-routing">
+                <option value="auto">年齢で自動設定</option>
+                <option value="manual">自分で選択</option>
+              </select></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="save-profile">プロフィール保存</button>
+              <span class="muted" id="profile-recommendation"></span>
+            </div>
+          </div>
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <h2>探究プロジェクト・ダッシュボード</h2>
+                <small>プロジェクトごとに各ツールから資料を集め、AI要約とAPI出力に回せる状態にします。</small>
+              </div>
+              <button class="icon-button" id="toggle-create-project" aria-expanded="false" aria-controls="create-project-panel" title="新しい探究プロジェクトを作成">+</button>
+            </div>
+            <div class="project-strip" id="project-strip"></div>
+            <div class="section-head" id="archived-projects-head">
+              <div>
+                <h3>Archived Projects</h3>
+                <small>終了・保留にしたプロジェクト。記録は残したまま復元できます。</small>
+              </div>
+              <button class="icon-button" id="toggle-archived-projects" aria-expanded="false" aria-controls="archived-projects-panel" title="Archived Projectsを表示">+</button>
+            </div>
+          </div>
+          <div class="panel full collapsible-panel" id="archived-projects-panel">
+            <div class="artifact-list" id="archived-projects"></div>
+          </div>
+          <div class="panel full create-project-panel" id="create-project-panel">
+            <h2>新しい探究プロジェクトを作成</h2>
+            <div class="form-grid">
+              <label>プロジェクト名<input id="new-project-name" placeholder="例: 海洋プラスチック探究"></label>
+              <label>利用画面<select id="new-project-owner">
+                <option>TANQ Pass Kids</option>
+                <option>TANQ Passport</option>
+                <option>Proofolio</option>
+                <option>Proofolio Encore</option>
+                <option>TANQ Pass Kids / TANQ Passport</option>
+                <option>TANQ Passport / Proofolio</option>
+                <option>Proofolio / Proofolio Encore</option>
+              </select></label>
+            </div>
+            <label>中心となる問い<textarea id="new-project-question" placeholder="例: 地域の海岸ごみを減らすために、学校と自治体は何ができるか"></textarea></label>
+            <label>API出力先<input id="new-project-targets" placeholder="例: PPM, Google Drive, Proofolio"></label>
+            <div class="actions">
+              <button class="primary" id="create-project">Create Project</button>
+            </div>
+          </div>
+          <div class="panel wide">
+            <div class="section-head">
+              <div>
+                <h2>プロジェクト資料一覧</h2>
+                <small>各種データから、選択中プロジェクトの資料・証跡として追加できます。</small>
+              </div>
+              <button class="icon-button" id="toggle-add-material" aria-expanded="false" aria-controls="add-material-panel" title="資料を追加">+</button>
+            </div>
+            <div class="timeline" id="project-materials"></div>
+          </div>
+          <div class="panel full collapsible-panel" id="add-material-panel">
+            <h2>各種データから資料を追加</h2>
+            <div class="form-grid">
+              <label>データ元<select id="material-source"></select></label>
+              <label>資料種別<select id="material-kind">
+                <option>Tool Result</option>
+                <option>Report</option>
+                <option>Assessment</option>
+                <option>Activity Log</option>
+                <option>Credential Evidence</option>
+                <option>External URL</option>
+              </select></label>
+            </div>
+            <div class="form-grid">
+              <label>資料タイトル<input id="material-title" placeholder="例: PPM意思決定ログ"></label>
+              <label>信頼レベル<select id="material-trust">
+                <option value="1">Level 1 アプリログ</option>
+                <option value="2" selected>Level 2 証跡あり</option>
+                <option value="3">Level 3 第三者確認</option>
+                <option value="4">Level 4 署名済み</option>
+                <option value="5">Level 5 外部アンカー</option>
+              </select></label>
+            </div>
+            <label>概要<textarea id="material-summary" placeholder="例: 地方創生PPPプロジェクトの論点、仮説、次アクションを整理したログ。"></textarea></label>
+            <label>ローカルPCのファイル 任意<input id="material-file" type="file"></label>
+            <div class="artifact-card" id="material-file-preview" style="display:none"></div>
+            <label>証跡URL 任意<input id="material-url" placeholder="https://..."></label>
+            <label>外部ツール本文 任意<textarea id="material-imported-text" placeholder="Google Docs、Notion、外部レポートなどから読み込んだ/貼り付けた本文を入れます。"></textarea></label>
+            <div class="actions">
+              <button class="primary" id="add-material">資料として追加</button>
+            </div>
+          </div>
+          <div class="panel narrow">
+            <h2>AIまとめ / API出力</h2>
+            <div class="ai-summary" id="project-ai-summary"></div>
+            <div class="actions">
+              <button class="primary" id="summarize-project">AIに入れてまとめる</button>
+              <button class="secondary" id="prepare-project-api">API出力</button>
+            </div>
+          </div>
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <h2>AI・外部ツール連携データ</h2>
+                <small>AI要約、PPM、Proofolio、Credential Walletなどに渡すJSONデータです。</small>
+              </div>
+              <button class="icon-button" id="toggle-project-api" aria-expanded="false" aria-controls="project-api-panel" title="AI・外部ツール連携データを表示">+</button>
+            </div>
+          </div>
+          <div class="panel full collapsible-panel" id="project-api-panel">
+            <h2>Project API Bundle</h2>
+            <pre class="code" id="project-api-payload"></pre>
+          </div>
+          <div class="panel wide">
+            <h2>最新タイムライン</h2>
+            <div class="timeline" id="timeline"></div>
+          </div>
+          <div class="panel narrow">
+            <h2>接続対象</h2>
+            <div class="badge-row" id="selected-tools"></div>
+            <h3>生成されるデータ</h3>
+            <div class="badge-row" id="selected-records"></div>
+          </div>
+          <div class="panel wide">
+            <h2>Personal Intelligence Graph</h2>
+            <div class="graph-box" aria-label="Personal Intelligence Graph">
+              <div class="graph-line a"></div>
+              <div class="graph-line b"></div>
+              <div class="graph-line c"></div>
+              <div class="graph-line d"></div>
+              <div class="graph-item events"><strong>Activity</strong><small id="graph-activity">0 logs</small></div>
+              <div class="graph-item artifacts"><strong>Artifact</strong><small id="graph-artifact">0 outputs</small></div>
+              <div class="graph-item core"><strong>TANQ Graph Core</strong><small>Person + Project + Evidence</small></div>
+              <div class="graph-item assessments"><strong>Assessment</strong><small id="graph-assessment">0 reviews</small></div>
+              <div class="graph-item credentials"><strong>Credential</strong><small id="graph-credential">0 proofs</small></div>
+            </div>
+          </div>
+          <div class="panel narrow">
+            <h2>Credential Wallet</h2>
+            <div class="timeline" id="credential-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>Driveから取り込んだ内容</h2>
+            <div class="artifact-list" id="dashboard-drive-artifacts"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tools" class="tab">
+        <div class="panel">
+          <h2>ツール選択</h2>
+          <div id="tool-sections"></div>
+        </div>
+      </section>
+
+      <section id="api" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>イベント投入</h2>
+            <div class="form-grid">
+              <label>プロジェクト<select id="event-project"></select></label>
+              <label>接続元<select id="event-source"></select></label>
+              <label>信頼レベル<select id="event-trust">
+                <option value="0">Level 0 本人入力</option>
+                <option value="1">Level 1 アプリログ</option>
+                <option value="2" selected>Level 2 証跡あり</option>
+                <option value="3">Level 3 第三者確認</option>
+                <option value="4">Level 4 署名済み</option>
+                <option value="5">Level 5 外部アンカー</option>
+              </select></label>
+            </div>
+            <label>タイトル<input id="event-title" value="商店街の空き店舗調査"></label>
+            <label>概要<textarea id="event-summary">駅前商店街の空き店舗を観察し、PPP型の探究拠点に転用できるかを調査した。</textarea></label>
+            <div class="actions">
+              <button class="primary" id="add-event">Add to TANQ Graph</button>
+              <button class="secondary" id="reset-state">Reset sample</button>
+              <button class="secondary" id="export-state">Export JSON</button>
+              <span class="muted" id="save-status"></span>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>Credential発行</h2>
+            <label>証明にするイベント<select id="credential-source"></select></label>
+            <label>発行者<input id="credential-issuer" value="TANQ Graph Demo Issuer"></label>
+            <div class="actions">
+              <button class="primary" id="issue-credential">Issue Credential</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>API Payload</h2>
+            <pre class="code" id="payload"></pre>
+          </div>
+          <div class="panel half">
+            <h2>APIキー発行</h2>
+            <div class="form-grid">
+              <label>発行先<input id="api-key-name" placeholder="例: PPM連携 / Google Drive同期"></label>
+              <label>用途<select id="api-key-purpose">
+                <option>tool_connection</option>
+                <option>project_export</option>
+                <option>ai_summary</option>
+                <option>credential_issue</option>
+              </select></label>
+            </div>
+            <label>スコープ<select id="api-key-scopes" multiple>
+              <option value="projects:read" selected>projects:read</option>
+              <option value="materials:read" selected>materials:read</option>
+              <option value="events:write">events:write</option>
+              <option value="credentials:write">credentials:write</option>
+              <option value="profile:read">profile:read</option>
+            </select></label>
+            <div class="actions">
+              <button class="primary" id="issue-api-key">APIキー発行</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>発行済みAPIキー</h2>
+            <div class="timeline" id="api-key-list"></div>
+            <pre class="code" id="api-key-secret">発行後、ここにキー全文が一度だけ表示されます。</pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="admin" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>登録団体管理</h2>
+            <div class="form-grid">
+              <label>団体名<input id="org-name" placeholder="例: 探究推進機構"></label>
+              <label>種別<select id="org-type">
+                <option>学校</option>
+                <option>企業</option>
+                <option>NPO / DAO</option>
+                <option>自治体</option>
+                <option>資格・検定団体</option>
+              </select></label>
+            </div>
+            <div class="form-grid">
+              <label>担当者メール<input id="org-email" placeholder="contact@example.jp"></label>
+              <label>利用目的<select id="org-purpose">
+                <option>教材・探究プログラム接続</option>
+                <option>成果物・証跡の取り込み</option>
+                <option>資格・単位・認定発行</option>
+                <option>人的資本・DAO評価接続</option>
+              </select></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="register-org">団体を登録</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>登録団体一覧</h2>
+            <div class="timeline" id="org-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>団体別APIキー</h2>
+            <div class="timeline" id="admin-key-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="org-login" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>登録団体ログイン</h2>
+            <label>団体<select id="org-login-id"></select></label>
+            <label>ログインコード<input id="org-login-code" placeholder="登録時に発行されたコード"></label>
+            <div class="actions">
+              <button class="primary" id="org-login-button">ログイン</button>
+              <button class="secondary" id="org-logout-button">ログアウト</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>ログイン中の団体</h2>
+            <div class="latest-impact" id="org-session"></div>
+          </div>
+          <div class="panel half">
+            <h2>APIキー申請</h2>
+            <div class="form-grid">
+              <label>キー名<input id="org-key-name" placeholder="例: 探究講座修了証API"></label>
+              <label>用途<select id="org-key-purpose">
+                <option>tool_connection</option>
+                <option>project_export</option>
+                <option>credential_issue</option>
+                <option>materials_import</option>
+              </select></label>
+            </div>
+            <label>スコープ<select id="org-key-scopes" multiple>
+              <option value="projects:read" selected>projects:read</option>
+              <option value="materials:read" selected>materials:read</option>
+              <option value="events:write">events:write</option>
+              <option value="credentials:write">credentials:write</option>
+            </select></label>
+            <div class="actions">
+              <button class="primary" id="org-issue-key">団体APIキーを申請・発行</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>団体のAPIキー</h2>
+            <div class="timeline" id="org-key-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="drive" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <h2>Google Drive Import</h2>
+            <small>CodexのGoogle Driveコネクタで取得した最近のファイルを、TANQ GraphのArtifact / Evidenceとして取り込みます。</small>
+            <div class="timeline" id="drive-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>取り込み済みの内容</h2>
+            <div class="artifact-list" id="drive-artifacts"></div>
+          </div>
+          <div class="panel half">
+            <h2>Drive URLを追加</h2>
+            <div class="form-grid">
+              <label>紐づけるプロジェクト<select id="drive-project"></select></label>
+              <label>ファイル名<input id="drive-title" value="探究成果物"></label>
+              <label>種別<select id="drive-kind">
+                <option>Google Docs</option>
+                <option>Google Slides</option>
+                <option>Google Sheets</option>
+                <option>PDF</option>
+                <option>Other</option>
+              </select></label>
+            </div>
+            <label>URL<input id="drive-url" placeholder="https://docs.google.com/..."></label>
+            <div class="actions">
+              <button class="primary" id="import-drive-url">Import Drive URL</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>Drive接続の扱い</h2>
+            <div class="mini-grid">
+              <div class="card"><span class="badge green">Artifact</span><strong>成果物</strong><small>Docs、Slides、Sheets、PDFを成果物として保存。</small></div>
+              <div class="card"><span class="badge gold">Evidence</span><strong>証跡</strong><small>URL、更新日時、ファイル種別を根拠として保存。</small></div>
+            </div>
+          </div>
+          <div class="panel full">
+            <h2>次の実装</h2>
+            <div class="mini-grid">
+              <div class="card"><span class="badge">OAuth</span><strong>本人接続</strong><small>ユーザー自身のGoogle認証でDriveを同期。</small></div>
+              <div class="card"><span class="badge">Webhook</span><strong>自動同期</strong><small>更新された成果物を継続的に反映。</small></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="views" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>TANQ Pass Kids</h2>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge gold">Find</span><strong>みつけた</strong><small>虫、石、音、色、まちの不思議を記録。</small></div>
+              <div class="card"><span class="badge green">Make</span><strong>つくった</strong><small>絵、工作、写真、発表を作品として残す。</small></div>
+              <div class="card"><span class="badge">Watch</span><strong>見守り</strong><small>保護者・先生のコメントで安心して育てる。</small></div>
+            </div>
+            <div class="timeline" id="kids-list"></div>
+          </div>
+          <div class="panel half">
+            <h2>TANQ Passport</h2>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge green">Quest</span><strong>探究クエスト</strong><small>現地調査、インタビュー、発表準備。</small></div>
+              <div class="card"><span class="badge gold">Badge</span><strong>成長バッジ</strong><small>挑戦、調査、協働、発表を可視化。</small></div>
+              <div class="card"><span class="badge">Story</span><strong>進路ストーリー</strong><small>志望理由書や面談材料へ変換。</small></div>
+            </div>
+            <div class="timeline" id="passport-list"></div>
+          </div>
+          <div class="panel half">
+            <h2>Proofolio</h2>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge">Proof</span><strong>検証可能な実績</strong><small>成果物、評価、証明を束ねる。</small></div>
+              <div class="card"><span class="badge green">Capital</span><strong>人的資本</strong><small>経験をスキル・価値へ変換。</small></div>
+              <div class="card"><span class="badge gold">Work</span><strong>公開プロフィール</strong><small>副業、転職、DAO、起業に使う。</small></div>
+            </div>
+            <div class="timeline" id="proofolio-list"></div>
+          </div>
+          <div class="panel half">
+            <h2>Proofolio Encore</h2>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge red">ReProof</span><strong>経験の再証明</strong><small>職務経歴、人脈、専門性を次の市場向けに再編集。</small></div>
+              <div class="card"><span class="badge gold">Role</span><strong>次の役割</strong><small>顧問、地域伴走、教育支援、起業、DAOへ接続。</small></div>
+              <div class="card"><span class="badge green">Encore</span><strong>再登場</strong><small>過去の実績を、もう一度求められる価値に変換。</small></div>
+            </div>
+            <div class="timeline" id="encore-list"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const seedState = {
+      tools: [
+        { id: "tankyugo", name: "探究GO", status: "connected", icon: "GO", tone: "green", description: "クエストと現地活動を記録。", records: ["Activity", "Evidence"], selected: true },
+        { id: "ppm", name: "PPM", status: "connected", icon: "PPM", tone: "blue", description: "問いと意思決定を管理。", records: ["Project", "Activity", "Decision"], selected: true },
+        { id: "makiyama", name: "牧山インテリジェンス", status: "connected", icon: "MI", tone: "red", description: "個人特性を読み解く。", records: ["AI Memory", "Assessment"], selected: true },
+        { id: "human-capital", name: "人的資本価値測定", status: "connected", icon: "HC", tone: "green", description: "経験を価値に変換。", records: ["Assessment", "Skill"], selected: true },
+        { id: "dao", name: "DAO貢献評価", status: "connected", icon: "DAO", tone: "blue", description: "協働と貢献を評価。", records: ["Activity", "Assessment", "Credential"], selected: true },
+        { id: "project-sim", name: "Project Simulator", status: "next", icon: "SIM", tone: "gold", description: "高難度案件を疑似実装。", records: ["Project", "Artifact", "Assessment"], selected: true },
+        { id: "job-sim", name: "なりたい仕事シミュレーター", status: "next", icon: "JOB", tone: "gold", description: "未来の仕事を体験。", records: ["AI Memory", "Assessment", "Quest"], selected: false },
+        { id: "drive", name: "Google Drive / Docs / Slides", status: "next", icon: "DOC", tone: "green", description: "成果物を取り込む。", records: ["Artifact", "Evidence"], selected: false },
+        { id: "dev-tools", name: "GitHub / Figma / Notion", status: "next", icon: "DEV", tone: "blue", description: "制作プロセスを残す。", records: ["Artifact", "Evidence", "Activity"], selected: false },
+        { id: "english-tests", name: "英検 / TOEIC / TOEFL", status: "external", icon: "ENG", tone: "red", description: "英語力を証明。", records: ["Credential", "Assessment"], selected: false },
+        { id: "badges", name: "探究講座 / Open Badge", status: "external", icon: "BAD", tone: "gold", description: "講座修了を証明。", records: ["Credential", "Skill"], selected: false },
+        { id: "collab", name: "Slack / Teams / Calendar", status: "external", icon: "COL", tone: "blue", description: "協働の履歴を残す。", records: ["Activity", "Evidence"], selected: false }
+      ],
+      events: [
+        { id: "evt_001", source: "探究GO", type: "Activity", title: "商店街の空き店舗調査", summary: "現地観察を行い、空き店舗の活用可能性を記録した。", trust: 2, created_at: "2026-07-19T09:00:00+09:00" },
+        { id: "evt_002", source: "PPM", type: "Decision", title: "PPP仮説の意思決定ログ", summary: "探究拠点モデルを90日実証で検証する方針を決めた。", trust: 3, created_at: "2026-07-19T09:10:00+09:00" },
+        { id: "evt_003", source: "DAO貢献評価", type: "Credential", title: "地域DAOでの提案レビュー", summary: "提案、レビュー、議論参加を貢献として評価した。", trust: 4, created_at: "2026-07-19T09:20:00+09:00" }
+      ]
+    };
+    let state = { tools: [], events: [], summary: {} };
+    let lastAction = null;
+    let activeProjectId = "project_local_ppp_001";
+    let selectedLocalFile = null;
+    let orgSessionId = null;
+    const defaultProfile = { name: "", age: "", interfaceMode: "passport", routing: "auto" };
+    const interfaceLabels = { kids: "TANQ Pass Kids", passport: "TANQ Passport", proofolio: "Proofolio", encore: "Proofolio Encore" };
+    const statusLabels = { connected: "基盤接続中", next: "次に接続", external: "外部証明・外部データ" };
+    const statusDots = { connected: "", next: "next", external: "external" };
+    const defaultProjects = [
+      { id: "project_kids_001", name: "身近なふしぎ探究", question: "毎日のあそびや発見から、どんな問いが生まれるか", owner: "TANQ Pass Kids", exportTargets: ["TANQ Passport", "保護者共有", "先生コメント"] },
+      { id: "project_local_ppp_001", name: "地方創生PPP探究", question: "空き店舗を探究拠点として再生できるか", owner: "TANQ Passport / Proofolio", exportTargets: ["PPM", "Proofolio", "DAO貢献評価API"] },
+      { id: "project_career_001", name: "なりたい仕事シミュレーション", question: "将来の仕事に必要な経験と証跡は何か", owner: "TANQ Passport", exportTargets: ["牧山インテリジェンス", "人的資本価値測定API"] },
+      { id: "project_learning_001", name: "資格・講座ポートフォリオ", question: "英語資格や探究講座をどう成長証明に変換するか", owner: "Proofolio", exportTargets: ["Open Badge", "Credential Wallet", "外部証明API"] },
+      { id: "project_encore_001", name: "Proofolio Encore 再設計", question: "これまでの経験を、次の役割・地域実装・顧問価値へどう変換するか", owner: "Proofolio Encore", exportTargets: ["人的資本価値測定API", "Proofolio", "地域DAO", "顧問マッチング"] }
+    ];
+    const driveFiles = [
+      {
+        title: "8月年間スケジュール",
+        url: "https://docs.google.com/spreadsheets/d/1yHFW3DUlys_Y25wfzk-Jskd222HQkwWbVOjoqsvwurk",
+        kind: "Google Sheets",
+        updated_at: "2026-07-18T14:47:47.488Z"
+      },
+      {
+        title: "OpenAI API連携【MANABIポータル】【LINE BOT】",
+        url: "https://docs.google.com/spreadsheets/d/1JfY2lDtRlwCfLbh3dL7L2SEVhkbLuBqL_rZcgvQ5Lg0",
+        kind: "Google Sheets",
+        updated_at: "2026-07-18T14:10:55.904Z"
+      },
+      {
+        title: "2026夏合宿名札だいだい .pdf",
+        url: "https://drive.google.com/file/d/1bEXYdaeJGLGnkxn32DfmZFmNLTXhfnyn",
+        kind: "PDF",
+        updated_at: "2026-07-18T09:19:22.000Z"
+      },
+      {
+        title: "2026夏合宿名札あお .pdf",
+        url: "https://drive.google.com/file/d/1cTHG0tQ15wkMG42gshWeimRk5wnjEX98",
+        kind: "PDF",
+        updated_at: "2026-07-18T09:18:55.000Z"
+      },
+      {
+        title: "2026夏合宿名札むらさき .pdf",
+        url: "https://drive.google.com/file/d/1UoNTq0laNlL6Y9Px3laWbnCh_hDooS3K",
+        kind: "PDF",
+        updated_at: "2026-07-18T09:17:58.000Z"
+      }
+    ];
+    const $ = (selector) => document.querySelector(selector);
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
+        document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+      });
+    });
+
+    function summarize(store) {
+      const selected = store.tools.filter((tool) => tool.selected);
+      const average = store.events.length
+        ? Math.round((store.events.reduce((sum, event) => sum + Number(event.trust || 0), 0) / store.events.length) * 10) / 10
+        : 0;
+      return {
+        selected_tools: selected.length,
+        event_count: store.events.length,
+        average_trust: average,
+        credential_count: store.events.filter((event) => event.type === "Credential").length,
+        records: [...new Set(selected.flatMap((tool) => tool.records))]
+      };
+    }
+
+    function recommendedInterface(age) {
+      const value = Number(age);
+      if (!Number.isFinite(value) || value <= 0) return "passport";
+      if (value <= 12) return "kids";
+      if (value <= 18) return "passport";
+      if (value >= 45) return "encore";
+      return "proofolio";
+    }
+
+    function normalizeProfile(profile = {}) {
+      const merged = { ...defaultProfile, ...profile };
+      if (merged.routing === "auto") merged.interfaceMode = recommendedInterface(merged.age);
+      return merged;
+    }
+
+    function generateApiKey() {
+      const bytes = new Uint8Array(24);
+      crypto.getRandomValues(bytes);
+      return "tanq_sk_" + [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    function maskApiKey(key = "") {
+      return key ? `tanq_sk_...${key.slice(-8)}` : "hidden";
+    }
+
+    function generateOrgCode() {
+      return "org_" + Math.random().toString(36).slice(2, 8).toUpperCase();
+    }
+
+    function localStore() {
+      const saved = localStorage.getItem("tanq-graph-public-demo-state");
+      const store = saved ? JSON.parse(saved) : structuredClone(seedState);
+      const existingProjects = store.projects && store.projects.length ? store.projects : [];
+      const existingProjectIds = new Set(existingProjects.map((project) => project.id));
+      store.projects = [
+        ...existingProjects,
+        ...structuredClone(defaultProjects).filter((project) => !existingProjectIds.has(project.id))
+      ];
+      store.profile = normalizeProfile(store.profile);
+      store.apiKeys = store.apiKeys || [];
+      store.organizations = store.organizations || [];
+      return { ...store, summary: summarize(store) };
+    }
+
+    function saveLocal(store) {
+      const clean = { tools: store.tools, events: store.events, projects: store.projects || defaultProjects, profile: normalizeProfile(store.profile), apiKeys: store.apiKeys || [], organizations: store.organizations || [] };
+      localStorage.setItem("tanq-graph-public-demo-state", JSON.stringify(clean));
+      return { ...clean, summary: summarize(clean) };
+    }
+
+    async function localApi(path, options = {}) {
+      const store = localStore();
+      const body = options.body ? JSON.parse(options.body) : {};
+      if (path === "/api/state") return store;
+      if (path === "/api/tools") {
+        const selected = new Set(body.selected_tool_ids || []);
+        store.tools = store.tools.map((tool) => ({ ...tool, selected: selected.has(tool.id) }));
+        return saveLocal(store);
+      }
+      if (path === "/api/profile") {
+        store.profile = normalizeProfile(body);
+        return saveLocal(store);
+      }
+      if (path === "/api/keys") {
+        const secret = generateApiKey();
+        const apiKey = {
+          id: "key_" + Date.now(),
+          name: body.name || "Untitled API Key",
+          purpose: body.purpose || "tool_connection",
+          scopes: body.scopes || [],
+          orgId: body.orgId || null,
+          orgName: body.orgName || null,
+          status: "active",
+          key: secret,
+          masked: maskApiKey(secret),
+          created_at: new Date().toISOString()
+        };
+        store.apiKeys = [apiKey, ...(store.apiKeys || [])];
+        const next = saveLocal(store);
+        return { apiKey, state: next };
+      }
+      if (path === "/api/orgs") {
+        const organization = {
+          id: "org_" + Date.now(),
+          name: body.name || "登録団体",
+          type: body.type || "学校",
+          email: body.email || "",
+          purpose: body.purpose || "",
+          status: "active",
+          loginCode: generateOrgCode(),
+          created_at: new Date().toISOString()
+        };
+        store.organizations = [organization, ...(store.organizations || [])];
+        const next = saveLocal(store);
+        return { organization, state: next };
+      }
+      if (options.method === "PATCH" && path.startsWith("/api/keys/")) {
+        const id = decodeURIComponent(path.slice("/api/keys/".length));
+        const apiKey = (store.apiKeys || []).find((key) => key.id === id) || null;
+        store.apiKeys = (store.apiKeys || []).map((key) => key.id === id ? { ...key, status: body.status || "revoked", revoked_at: new Date().toISOString() } : key);
+        const next = saveLocal(store);
+        return { apiKey: apiKey ? { ...apiKey, status: body.status || "revoked" } : null, state: next };
+      }
+      if (path === "/api/projects") {
+        const project = {
+          id: "project_" + Date.now(),
+          name: body.name || "新しい探究プロジェクト",
+          question: body.question || "この探究で明らかにしたい問い",
+          owner: body.owner || "TANQ Passport",
+          exportTargets: body.exportTargets || [],
+          archived: false
+        };
+        store.projects = [...(store.projects || defaultProjects), project];
+        const next = saveLocal(store);
+        return { project, state: next };
+      }
+      if (options.method === "PATCH" && path.startsWith("/api/projects/")) {
+        const id = decodeURIComponent(path.split("/")[3] || "");
+        const archived = Boolean(body.archived);
+        const projects = store.projects || defaultProjects;
+        const project = projects.find((item) => item.id === id) || null;
+        store.projects = projects.map((item) => item.id === id ? { ...item, archived } : item);
+        const next = saveLocal(store);
+        return { project: project ? { ...project, archived } : null, state: next };
+      }
+      if (options.method === "DELETE" && path.startsWith("/api/events/")) {
+        const id = decodeURIComponent(path.slice("/api/events/".length));
+        const removed = store.events.find((event) => event.id === id) || null;
+        store.events = store.events.filter((event) => event.id !== id);
+        const next = saveLocal(store);
+        return { removed, state: next };
+      }
+      if (path === "/api/events") {
+        const event = { id: "evt_" + Date.now(), created_at: new Date().toISOString(), ...body };
+        store.events.unshift(event);
+        const next = saveLocal(store);
+        return { event, state: next };
+      }
+      if (path === "/api/reset") {
+        localStorage.removeItem("tanq-graph-public-demo-state");
+        return localStore();
+      }
+      return store;
+    }
+
+    async function api(path, options = {}) {
+      if (location.protocol === "file:") return localApi(path, options);
+      try {
+        const response = await fetch(path, { headers: { "content-type": "application/json" }, ...options });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      } catch (error) {
+        return localApi(path, options);
+      }
+    }
+
+    function badge(text, tone = "") {
+      return `<span class="badge ${tone}">${text}</span>`;
+    }
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function timelineItem(event) {
+      const tone = event.trust >= 4 ? "green" : event.trust >= 2 ? "gold" : "";
+      const latest = lastAction && lastAction.eventId === event.id ? " latest" : "";
+      return `<div class="timeline-item${latest}"><small>${event.source}</small><strong>${event.title}<br><small>${event.summary}</small></strong>${badge("L" + event.trust, tone)}</div>`;
+    }
+
+    function projectOf(event) {
+      const projects = state.projects || defaultProjects;
+      return projects.find((project) => project.id === event.project_id) || projects[0];
+    }
+
+    function projectEvents(projectId = activeProjectId) {
+      const projects = state.projects || defaultProjects;
+      return state.events.filter((event) => (event.project_id || projects[0].id) === projectId);
+    }
+
+    function projectMaterials(projectId = activeProjectId) {
+      return projectEvents(projectId).filter((event) => event.type === "Artifact" || event.url || event.evidence);
+    }
+
+    function materialDetail(event) {
+      const evidence = event.evidence || {};
+      const importedText = evidence.imported_text || evidence.local_file?.preview || "";
+      const file = evidence.local_file;
+      return `<div class="material-detail" id="material-detail-${event.id}">
+        <strong>資料の中身</strong>
+        <small>${escapeHtml(event.summary || "概要は未登録です。")}</small>
+        ${event.url ? `<a class="artifact-link" href="${event.url}" target="_blank" rel="noopener">外部リンクを開く</a>` : ""}
+        ${importedText ? `<pre>${escapeHtml(importedText)}</pre>` : ""}
+        ${file ? `<small>Local file: ${escapeHtml(file.name)} / ${escapeHtml(file.type)} / ${escapeHtml(file.size_label)}</small>` : ""}
+        ${!importedText && !file ? `<small>本文はまだ取り込まれていません。外部ツール本文欄にGoogle Docsなどの本文を貼り付けると、ここに表示されます。</small>` : ""}
+        <pre>${escapeHtml(JSON.stringify({ source: event.source, type: event.type, trust: event.trust, evidence }, null, 2))}</pre>
+      </div>`;
+    }
+
+    function materialType(kind = "") {
+      if (kind.includes("Assessment")) return "Assessment";
+      if (kind.includes("Credential")) return "Credential";
+      if (kind.includes("Activity")) return "Activity";
+      return "Artifact";
+    }
+
+    function formatBytes(bytes = 0) {
+      if (!bytes) return "0 B";
+      const units = ["B", "KB", "MB", "GB"];
+      const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+      return `${Math.round((bytes / Math.pow(1024, index)) * 10) / 10} ${units[index]}`;
+    }
+
+    function canPreviewFile(file) {
+      return file.type.startsWith("text/") || /\.(csv|tsv|md|txt|json|html|css|js)$/i.test(file.name);
+    }
+
+    function inferExternalSource(url = "") {
+      if (url.includes("docs.google.com/document")) return "Google Docs";
+      if (url.includes("docs.google.com/spreadsheets")) return "Google Sheets";
+      if (url.includes("docs.google.com/presentation")) return "Google Slides";
+      if (url.includes("notion.so")) return "Notion";
+      if (url.includes("figma.com")) return "Figma";
+      return "";
+    }
+
+    function readFileAsText(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+      });
+    }
+
+    function projectApiBundle(projectId = activeProjectId) {
+      const projects = state.projects || defaultProjects;
+      if (!projectId) {
+        return {
+          endpoint: "/api/projects/current/bundle",
+          method: "POST",
+          project: null,
+          materials: [],
+          ai_context: {
+            instruction: `${interfaceLabels[currentInterfaceMode()]}向けのプロジェクトを作成すると、ここにAI・外部ツール連携データが生成されます。`,
+            event_count: 0,
+            sources: []
+          },
+          export_targets: []
+        };
+      }
+      const project = projects.find((item) => item.id === projectId) || projects[0];
+      const events = projectEvents(projectId);
+      return {
+        endpoint: "/api/projects/" + project.id + "/bundle",
+        method: "POST",
+        project,
+        materials: projectMaterials(projectId).map((event) => ({
+          id: event.id,
+          source: event.source,
+          type: event.type,
+          title: event.title,
+          summary: event.summary,
+          trust: event.trust,
+          url: event.url || null,
+          imported_text_preview: event.evidence?.imported_text ? event.evidence.imported_text.slice(0, 500) : null,
+          evidence: event.evidence || null
+        })),
+        ai_context: {
+          instruction: "探究プロジェクトの問い、活動、成果物、証跡を統合し、次の行動と外部提出用要約を作る。",
+          event_count: events.length,
+          sources: [...new Set(events.map((event) => event.source))]
+        },
+        export_targets: project.exportTargets
+      };
+    }
+
+    function makeProjectSummary(projectId = activeProjectId) {
+      const projects = state.projects || defaultProjects;
+      if (!projectId) return `${interfaceLabels[currentInterfaceMode()]}向けのプロジェクトはまだありません。新しい探究プロジェクトを作成すると、その年齢・UIモードに合った資料一覧とAI要約が表示されます。`;
+      const project = projects.find((item) => item.id === projectId) || projects[0];
+      const events = projectEvents(projectId);
+      const materials = projectMaterials(projectId);
+      const sources = [...new Set(events.map((event) => event.source))];
+      if (!events.length) return `${project.name}には、まだ資料が集まっていません。Driveや各種ツールから成果物・評価・活動ログを取り込むと、AI要約とAPI出力の材料になります。`;
+      return `${project.name}では「${project.question}」を中心に、${events.length}件の記録と${materials.length}件の資料が集まっています。主な接続元は${sources.join("、")}です。AIには、問い・活動ログ・成果物URL・証跡・信頼レベルをまとめて渡し、探究レポート、面談用要約、Proofolio向け実績説明、外部API提出用JSONへ変換できます。`;
+    }
+
+    function renderProjectSelectors() {
+      const projects = (state.projects || defaultProjects).filter((project) => !project.archived);
+      const options = projects.map((project) => `<option value="${project.id}">${project.name}</option>`).join("");
+      ["#event-project", "#drive-project"].forEach((selector) => {
+        const node = $(selector);
+        if (!node) return;
+        const current = node.value || activeProjectId;
+        node.innerHTML = options;
+        node.value = projects.some((project) => project.id === current) ? current : activeProjectId;
+      });
+
+      const materialCurrent = $("#material-source").value;
+      const selectedTools = state.tools.filter((tool) => tool.selected);
+      const materialSources = [
+        ...selectedTools.map((tool) => tool.name),
+        "Google Drive",
+        "Google Docs",
+        "Google Sheets",
+        "Google Slides",
+        "Local PC",
+        "Notion",
+        "Figma",
+        "TANQ Pass Kids",
+        "保護者コメント",
+        "先生コメント",
+        "写真・作品",
+        "観察メモ",
+        "探究GO",
+        "PPM",
+        "Project Simulator",
+        "牧山インテリジェンス",
+        "人的資本価値測定",
+        "DAO貢献評価",
+        "なりたい仕事シミュレーター",
+        "英検 / TOEIC / TOEFL",
+        "探究講座 / Open Badge"
+      ];
+      const uniqueSources = [...new Set(materialSources)];
+      $("#material-source").innerHTML = uniqueSources.map((source) => `<option value="${source}">${source}</option>`).join("");
+      if (uniqueSources.includes(materialCurrent)) $("#material-source").value = materialCurrent;
+    }
+
+    function renderProfile() {
+      const profile = normalizeProfile(state.profile);
+      state.profile = profile;
+      $("#profile-name").value = profile.name || "";
+      $("#profile-age").value = profile.age || "";
+      $("#profile-interface").value = profile.interfaceMode;
+      $("#profile-routing").value = profile.routing;
+      updateProfileDraftUI();
+    }
+
+    function updateProfileDraftUI() {
+      const routing = $("#profile-routing").value;
+      const age = $("#profile-age").value;
+      if (routing === "auto") $("#profile-interface").value = recommendedInterface(age);
+      const interfaceMode = $("#profile-interface").value;
+      $("#current-interface-badge").textContent = interfaceLabels[interfaceMode];
+      const recommendation = recommendedInterface(age);
+      $("#profile-recommendation").textContent = routing === "auto"
+        ? `年齢から ${interfaceLabels[recommendation]} に自動設定中`
+        : `おすすめは ${interfaceLabels[recommendation]}。現在は手動で ${interfaceLabels[interfaceMode]} を選択中`;
+      document.querySelectorAll("[data-interface-card]").forEach((card) => {
+        card.classList.toggle("active", card.dataset.interfaceCard === interfaceMode);
+      });
+
+      const ownerByMode = {
+        kids: "TANQ Pass Kids",
+        passport: "TANQ Passport",
+        proofolio: "Proofolio",
+        encore: "Proofolio Encore"
+      };
+      if (!$("#new-project-owner").dataset.touched) $("#new-project-owner").value = ownerByMode[interfaceMode];
+    }
+
+    function currentInterfaceMode() {
+      return $("#profile-interface")?.value || normalizeProfile(state.profile).interfaceMode;
+    }
+
+    function projectVisibleForMode(project, mode = currentInterfaceMode()) {
+      const ownerLabels = String(project.owner || "").split("/").map((label) => label.trim()).filter(Boolean);
+      const visibility = {
+        kids: ["TANQ Pass Kids"],
+        passport: ["TANQ Passport"],
+        proofolio: ["Proofolio"],
+        encore: ["Proofolio Encore"]
+      };
+      return (visibility[mode] || []).some((label) => ownerLabels.includes(label));
+    }
+
+    function renderProjectDashboard() {
+      const allProjects = state.projects || defaultProjects;
+      const mode = currentInterfaceMode();
+      const projects = allProjects.filter((project) => !project.archived && projectVisibleForMode(project, mode));
+      const archivedProjects = allProjects.filter((project) => project.archived && projectVisibleForMode(project, mode));
+      if (projects.length && !projects.some((project) => project.id === activeProjectId)) activeProjectId = projects[0].id;
+      if (!projects.length) activeProjectId = null;
+      $("#project-strip").innerHTML = projects.length ? projects.map((project) => {
+        const events = projectEvents(project.id);
+        const materials = projectMaterials(project.id);
+        const active = project.id === activeProjectId ? " active" : "";
+        return `<div class="card project-card${active}">
+          ${badge(project.owner, project.id === "project_local_ppp_001" ? "green" : "")}
+          <strong>${project.name}</strong>
+          <small>${project.question}</small>
+          <div class="badge-row">${badge(events.length + " logs")}${badge(materials.length + " materials", "gold")}</div>
+          <div class="project-actions">
+            <button class="secondary" data-project-id="${project.id}">選択</button>
+            <button class="secondary" data-archive-project-id="${project.id}">Archive</button>
+          </div>
+        </div>`;
+      }).join("") : `<div class="artifact-card"><strong>${interfaceLabels[mode]}向けのプロジェクトはまだありません</strong><small>新しい探究プロジェクトを作成すると、この年齢・UIモードに合った一覧へ表示されます。</small></div>`;
+
+      $("#archived-projects-head").style.display = archivedProjects.length ? "flex" : "none";
+      if (!archivedProjects.length) {
+        $("#archived-projects-panel").classList.remove("open");
+        $("#toggle-archived-projects").textContent = "+";
+        $("#toggle-archived-projects").setAttribute("aria-expanded", "false");
+      }
+      $("#archived-projects").innerHTML = archivedProjects.length
+        ? archivedProjects.map((project) => {
+          return `<div class="project-material">
+            <small>Archived</small>
+            <strong>${project.name}<br><small>${project.question}</small></strong>
+            <button class="secondary" data-restore-project-id="${project.id}">Restore</button>
+          </div>`;
+        }).join("")
+        : "";
+
+      document.querySelectorAll("[data-project-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeProjectId = button.dataset.projectId;
+          closeAndClearMaterialForm();
+          render();
+          setStatus("project selected");
+        });
+      });
+      document.querySelectorAll("[data-archive-project-id]").forEach((button) => {
+        button.addEventListener("click", () => archiveProject(button.dataset.archiveProjectId, true));
+      });
+      document.querySelectorAll("[data-restore-project-id]").forEach((button) => {
+        button.addEventListener("click", () => archiveProject(button.dataset.restoreProjectId, false));
+      });
+
+      const materials = projectMaterials();
+      $("#project-materials").innerHTML = materials.length
+        ? materials.map((event) => `<div class="project-material">
+          <small>${event.source}</small>
+          <strong>${event.title}<br><small>${event.summary}</small>${event.url ? `<br><a class="artifact-link" href="${event.url}" target="_blank" rel="noopener">${event.url}</a>` : ""}</strong>
+          <div class="project-actions">
+            <button class="secondary" data-material-detail-id="${event.id}">中身を見る</button>
+            ${event.url ? `<a class="secondary" href="${event.url}" target="_blank" rel="noopener">Open</a>` : ""}
+            <div class="badge-row">
+              ${badge(event.type, event.type === "Artifact" ? "green" : "gold")}
+              ${event.evidence?.kind ? badge(event.evidence.kind) : ""}
+              ${event.url ? badge("External link", "gold") : ""}
+              ${event.evidence?.imported_text ? badge(event.evidence.imported_text.length + " chars") : ""}
+            </div>
+          </div>
+          ${materialDetail(event)}
+        </div>`).join("")
+        : `<div class="project-material"><small>Empty</small><strong>このプロジェクトにはまだ資料がありません<br><small>Drive Importまたは各ツールのイベント投入で追加できます。</small></strong>${badge("Ready")}</div>`;
+
+      document.querySelectorAll("[data-material-detail-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const detail = $(`#material-detail-${button.dataset.materialDetailId}`);
+          const open = !detail.classList.contains("open");
+          detail.classList.toggle("open", open);
+          button.textContent = open ? "閉じる" : "中身を見る";
+        });
+      });
+
+      $("#project-ai-summary").textContent = makeProjectSummary();
+      $("#project-api-payload").textContent = JSON.stringify(projectApiBundle(), null, 2);
+    }
+
+    async function archiveProject(id, archived) {
+      const result = await api(`/api/projects/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ archived })
+      });
+      state = result.state || state;
+      const projects = state.projects || defaultProjects;
+      const activeProjects = projects.filter((project) => !project.archived);
+      if (archived && activeProjectId === id && activeProjects.length) activeProjectId = activeProjects[0].id;
+      if (!archived) activeProjectId = id;
+      lastAction = {
+        type: "Project",
+        title: result.project ? `${result.project.name} を${archived ? "アーカイブ" : "復元"}` : "プロジェクト状態を更新",
+        eventId: null,
+        target: "Project Dashboard / Selectors / API Bundle"
+      };
+      render();
+      setStatus(archived ? "project archived" : "project restored");
+    }
+
+    function renderTools() {
+      const container = $("#tool-sections");
+      container.innerHTML = "";
+      ["connected", "next", "external"].forEach((status) => {
+        const tools = state.tools.filter((tool) => tool.status === status);
+        const section = document.createElement("div");
+        section.className = "status-group";
+        section.innerHTML = `<div class="status-head"><span class="dot ${statusDots[status]}"></span><span>${statusLabels[status]}</span></div><div class="tool-grid"></div>`;
+        const grid = section.querySelector(".tool-grid");
+        tools.forEach((tool) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = `tool ${tool.selected ? "selected" : ""}`;
+          button.dataset.tone = tool.tone;
+          button.innerHTML = `<span class="tool-icon">${tool.icon}</span><strong>${tool.name}</strong><small>${tool.description}</small>`;
+          button.addEventListener("click", async () => {
+            const selected = new Set(state.tools.filter((item) => item.selected).map((item) => item.id));
+            selected.has(tool.id) ? selected.delete(tool.id) : selected.add(tool.id);
+            state = await api("/api/tools", { method: "PUT", body: JSON.stringify({ selected_tool_ids: [...selected] }) });
+            render();
+            setStatus("saved");
+          });
+          grid.appendChild(button);
+        });
+        container.appendChild(section);
+      });
+    }
+
+    function renderMetrics() {
+      $("#metric-tools").textContent = state.summary.selected_tools || 0;
+      $("#metric-events").textContent = state.summary.event_count || 0;
+      $("#metric-trust").textContent = state.summary.average_trust || 0;
+      $("#metric-credentials").textContent = state.summary.credential_count || 0;
+      $("#selected-tools").innerHTML = state.tools.filter((tool) => tool.selected).map((tool) => badge(tool.name)).join("") || badge("未選択");
+      $("#selected-records").innerHTML = (state.summary.records || []).map((record) => badge(record, "green")).join("") || badge("データ型なし");
+
+      const counts = state.events.reduce((acc, event) => {
+        acc[event.type] = (acc[event.type] || 0) + 1;
+        return acc;
+      }, {});
+      $("#graph-activity").textContent = (counts.Activity || 0) + " logs";
+      $("#graph-artifact").textContent = (counts.Artifact || 0) + " outputs";
+      $("#graph-assessment").textContent = (counts.Assessment || 0) + " reviews";
+      $("#graph-credential").textContent = (counts.Credential || 0) + " proofs";
+      document.querySelectorAll(".graph-item").forEach((item) => item.classList.remove("pulse"));
+      if (lastAction) {
+        const selector = {
+          Activity: ".graph-item.events",
+          Artifact: ".graph-item.artifacts",
+          Assessment: ".graph-item.assessments",
+          Credential: ".graph-item.credentials",
+          Decision: ".graph-item.events"
+        }[lastAction.type];
+        const node = selector ? document.querySelector(selector) : null;
+        if (node) node.classList.add("pulse");
+      }
+    }
+
+    function renderEvents() {
+      $("#timeline").innerHTML = state.events.map(timelineItem).join("");
+      $("#kids-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, source: "みつけた記録", title: event.type === "Artifact" ? `つくった: ${event.title}` : `できた: ${event.title}` })).join("");
+      $("#passport-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, title: event.title.replace("PPP", "探究") })).join("");
+      $("#proofolio-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, title: `${event.type} / ${event.title}` })).join("");
+      $("#encore-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, source: "Encore Proof", title: `再証明: ${event.title}` })).join("");
+      const credentials = state.events.filter((event) => event.type === "Credential");
+      $("#credential-list").innerHTML = credentials.length
+        ? credentials.map(timelineItem).join("")
+        : `<div class="timeline-item"><small>Wallet</small><strong>証明はまだありません<br><small>DAO評価、英語資格、Open Badgeなどが入ります。</small></strong>${badge("Empty")}</div>`;
+      renderLatestImpact();
+    }
+
+    function renderDriveFiles() {
+      const importedByUrl = new Map(state.events.filter((event) => event.source === "Google Drive" && event.url).map((event) => [event.url, event]));
+      $("#drive-list").innerHTML = driveFiles.map((file, index) => {
+        const imported = importedByUrl.get(file.url);
+        return `<div class="timeline-item ${imported ? "imported" : ""}">
+          <small>${file.kind}</small>
+          <strong>${file.title}<br><small>${imported ? "TANQ Graphに反映済み" : "Updated " + new Date(file.updated_at).toLocaleString("ja-JP")}</small></strong>
+          ${imported
+            ? `<button class="secondary" data-remove-drive-id="${imported.id}">解除</button>`
+            : `<button class="primary" data-drive-index="${index}">Import</button>`}
+        </div>`;
+      }).join("");
+
+      document.querySelectorAll("[data-drive-index]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const file = driveFiles[Number(button.dataset.driveIndex)];
+          const result = await api("/api/events", {
+            method: "POST",
+            body: JSON.stringify({
+              project_id: $("#drive-project").value || activeProjectId,
+              source: "Google Drive",
+              type: "Artifact",
+              title: file.title,
+              summary: `${file.kind}をDriveから成果物として取り込み。URLと更新日時をEvidenceとして保持。`,
+              trust: 2,
+              url: file.url,
+              evidence: { kind: file.kind, updated_at: file.updated_at }
+            })
+          });
+          state = result.state;
+          lastAction = { type: result.event.type, title: result.event.title, eventId: result.event.id, target: "Artifact / Evidence / Dashboard / Graph" };
+          render();
+          setStatus("drive imported");
+        });
+      });
+      renderDriveArtifacts();
+    }
+
+    function artifactCard(event) {
+      const evidence = event.evidence || {};
+      const kind = evidence.kind || "Drive file";
+      const updatedAt = evidence.updated_at ? new Date(evidence.updated_at).toLocaleString("ja-JP") : "manual import";
+      const method = evidence.imported_by ? "URL manual import" : "Drive connector import";
+      return `<div class="artifact-card">
+        <div class="artifact-head">
+          <strong>${event.title}<br><small>${event.summary}</small></strong>
+          ${badge("L" + event.trust, "gold")}
+        </div>
+        <div class="artifact-meta">
+          ${badge(kind)}
+          ${badge("Artifact", "green")}
+          ${badge("Evidence", "gold")}
+          ${badge(method)}
+        </div>
+        <small>Evidence: ${kind} / ${updatedAt}</small>
+        ${event.url ? `<a class="artifact-link" href="${event.url}" target="_blank" rel="noopener">${event.url}</a>` : ""}
+        <button class="secondary" data-remove-drive-id="${event.id}">Import解除</button>
+      </div>`;
+    }
+
+    async function removeDriveArtifact(id) {
+      const result = await api(`/api/events/${encodeURIComponent(id)}`, { method: "DELETE" });
+      state = result.state || state;
+      const removed = result.removed;
+      lastAction = removed
+        ? { type: removed.type, title: `${removed.title} の取り込みを解除`, eventId: null, target: "Drive / Dashboard / Graph / Exportから削除" }
+        : { type: "Artifact", title: "取り込み済みデータを解除", eventId: null, target: "Drive / Dashboard / Graph / Exportを更新" };
+      render();
+      setStatus("import removed");
+    }
+
+    function bindRemoveImportButtons() {
+      document.querySelectorAll("[data-remove-drive-id]").forEach((button) => {
+        button.addEventListener("click", () => removeDriveArtifact(button.dataset.removeDriveId));
+      });
+    }
+
+    function renderDriveArtifacts() {
+      const artifacts = state.events.filter((event) => event.source === "Google Drive");
+      const html = artifacts.length
+        ? artifacts.map(artifactCard).join("")
+        : `<div class="artifact-card"><strong>まだDriveから取り込まれていません</strong><small>DriveタブでImportするか、Drive URLを追加するとここに内容が表示されます。</small></div>`;
+      $("#drive-artifacts").innerHTML = html;
+      $("#dashboard-drive-artifacts").innerHTML = html;
+      bindRemoveImportButtons();
+    }
+
+    function renderLatestImpact() {
+      const box = $("#latest-impact");
+      if (!lastAction) {
+        box.innerHTML = `<span class="impact-icon">IG</span>
+          <strong>まだ反映アクションはありません<br><small>Drive Import、Add to TANQ Graph、Issue Credentialを押すとここに反映先が表示されます。</small></strong>
+          ${badge("Ready")}`;
+        return;
+      }
+      const tone = lastAction.type === "Credential" ? "green" : lastAction.type === "Artifact" ? "gold" : "";
+      box.innerHTML = `<span class="impact-icon">${lastAction.type.slice(0, 2).toUpperCase()}</span>
+        <strong>${lastAction.title}<br><small>反映先: ${lastAction.target}</small></strong>
+        ${badge(lastAction.type, tone)}`;
+    }
+
+    function renderEventSource() {
+      renderProjectSelectors();
+      const selected = state.tools.filter((tool) => tool.selected);
+      const current = $("#event-source").value;
+      $("#event-source").innerHTML = selected.map((tool) => `<option value="${tool.name}">${tool.name}</option>`).join("");
+      if (selected.some((tool) => tool.name === current)) $("#event-source").value = current;
+
+      const credentialCurrent = $("#credential-source").value;
+      const candidates = state.events.filter((event) => event.type !== "Credential");
+      $("#credential-source").innerHTML = candidates.map((event) => `<option value="${event.id}">${event.title}</option>`).join("");
+      if (candidates.some((event) => event.id === credentialCurrent)) $("#credential-source").value = credentialCurrent;
+    }
+
+    function inferType(source = "") {
+      if (source.includes("Open Badge") || source.includes("英検") || source.includes("DAO")) return "Credential";
+      if (source.includes("Docs") || source.includes("GitHub") || source.includes("Figma")) return "Artifact";
+      if (source.includes("人的資本") || source.includes("牧山") || source.includes("Simulator")) return "Assessment";
+      return "Activity";
+    }
+
+    function renderPayload() {
+      const payload = {
+        source: $("#event-source").value || "Manual",
+        person_id: "person_001",
+        project_id: $("#event-project").value || activeProjectId,
+        type: inferType($("#event-source").value),
+        title: $("#event-title").value,
+        summary: $("#event-summary").value,
+        trust: Number($("#event-trust").value)
+      };
+      $("#payload").textContent = JSON.stringify(payload, null, 2);
+    }
+
+    function renderApiKeys() {
+      const keys = state.apiKeys || [];
+      $("#api-key-list").innerHTML = keys.length
+        ? keys.map((key) => `<div class="timeline-item ${key.status === "active" ? "imported" : ""}">
+          <small>${key.status}</small>
+          <strong>${key.name}<br><small>${key.masked || maskApiKey(key.key)} / ${key.purpose} / ${(key.scopes || []).join(", ")}</small></strong>
+          ${key.status === "active" ? `<button class="secondary" data-revoke-key-id="${key.id}">Revoke</button>` : badge("Revoked", "red")}
+        </div>`).join("")
+        : `<div class="timeline-item"><small>API</small><strong>まだAPIキーはありません<br><small>外部ツール接続用に発行できます。</small></strong>${badge("Empty")}</div>`;
+
+      document.querySelectorAll("[data-revoke-key-id]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          const result = await api(`/api/keys/${encodeURIComponent(button.dataset.revokeKeyId)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ status: "revoked" })
+          });
+          state = result.state;
+          renderApiKeys();
+          setStatus("api key revoked");
+        });
+      });
+    }
+
+    function closeAndClearMaterialForm() {
+      $("#material-title").value = "";
+      $("#material-summary").value = "";
+      $("#material-url").value = "";
+      $("#material-imported-text").value = "";
+      $("#material-file").value = "";
+      $("#material-file-preview").style.display = "none";
+      $("#material-file-preview").innerHTML = "";
+      selectedLocalFile = null;
+      $("#add-material-panel").classList.remove("open");
+      $("#toggle-add-material").textContent = "+";
+      $("#toggle-add-material").setAttribute("aria-expanded", "false");
+    }
+
+    function renderOrganizations() {
+      const orgs = state.organizations || [];
+      $("#org-list").innerHTML = orgs.length
+        ? orgs.map((org) => `<div class="timeline-item imported">
+          <small>${org.type}</small>
+          <strong>${org.name}<br><small>${org.email || "email未登録"} / login code: ${org.loginCode}</small></strong>
+          ${badge(org.status, "green")}
+        </div>`).join("")
+        : `<div class="timeline-item"><small>Org</small><strong>登録団体はまだありません<br><small>API利用団体をここで登録します。</small></strong>${badge("Empty")}</div>`;
+
+      $("#org-login-id").innerHTML = orgs.map((org) => `<option value="${org.id}">${org.name}</option>`).join("");
+
+      const keys = state.apiKeys || [];
+      $("#admin-key-list").innerHTML = keys.length
+        ? keys.map((key) => `<div class="timeline-item ${key.status === "active" ? "imported" : ""}">
+          <small>${key.orgName || "個人/未紐づけ"}</small>
+          <strong>${key.name}<br><small>${key.masked || maskApiKey(key.key)} / ${key.purpose} / ${(key.scopes || []).join(", ")}</small></strong>
+          ${badge(key.status, key.status === "active" ? "green" : "red")}
+        </div>`).join("")
+        : `<div class="timeline-item"><small>Keys</small><strong>APIキーはまだありません</strong>${badge("Empty")}</div>`;
+    }
+
+    function renderOrgSession() {
+      const org = (state.organizations || []).find((item) => item.id === orgSessionId);
+      if (!org) {
+        $("#org-session").innerHTML = `<span class="impact-icon">OR</span><strong>未ログイン<br><small>登録団体とログインコードで入れます。</small></strong>${badge("Guest")}`;
+        $("#org-key-list").innerHTML = `<div class="timeline-item"><small>Keys</small><strong>ログインすると団体のAPIキーが表示されます</strong>${badge("Locked")}</div>`;
+        return;
+      }
+      $("#org-session").innerHTML = `<span class="impact-icon">OR</span><strong>${org.name}<br><small>${org.type} / ${org.purpose}</small></strong>${badge("Logged in", "green")}`;
+      const keys = (state.apiKeys || []).filter((key) => key.orgId === org.id);
+      $("#org-key-list").innerHTML = keys.length
+        ? keys.map((key) => `<div class="timeline-item ${key.status === "active" ? "imported" : ""}">
+          <small>${key.status}</small>
+          <strong>${key.name}<br><small>${key.masked || maskApiKey(key.key)} / ${(key.scopes || []).join(", ")}</small></strong>
+          ${badge(key.purpose)}
+        </div>`).join("")
+        : `<div class="timeline-item"><small>Keys</small><strong>この団体のAPIキーはまだありません</strong>${badge("Empty")}</div>`;
+    }
+
+    function setStatus(text) {
+      $("#save-status").textContent = text;
+      setTimeout(() => { $("#save-status").textContent = ""; }, 1600);
+    }
+
+    function render() {
+      renderTools();
+      renderMetrics();
+      renderProfile();
+      renderProjectDashboard();
+      renderEvents();
+      renderEventSource();
+      renderPayload();
+      renderApiKeys();
+      renderOrganizations();
+      renderOrgSession();
+      renderDriveFiles();
+    }
+
+    async function saveProfile() {
+      const routing = $("#profile-routing").value;
+      const age = $("#profile-age").value;
+      const profile = {
+        name: $("#profile-name").value.trim(),
+        age,
+        routing,
+        interfaceMode: routing === "auto" ? recommendedInterface(age) : $("#profile-interface").value
+      };
+      state = await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
+      const mode = state.profile.interfaceMode;
+      const ownerByMode = { kids: "TANQ Pass Kids", passport: "TANQ Passport", proofolio: "Proofolio", encore: "Proofolio Encore" };
+      $("#new-project-owner").value = ownerByMode[mode];
+      render();
+      setStatus("profile saved");
+    }
+
+    $("#add-event").addEventListener("click", async () => {
+      const payload = JSON.parse($("#payload").textContent);
+      const result = await api("/api/events", { method: "POST", body: JSON.stringify(payload) });
+      state = result.state;
+      lastAction = { type: result.event.type, title: result.event.title, eventId: result.event.id, target: "Timeline / Metrics / Graph / API Payload" };
+      render();
+      setStatus("event saved");
+    });
+
+    $("#issue-credential").addEventListener("click", async () => {
+      const sourceEvent = state.events.find((event) => event.id === $("#credential-source").value);
+      if (!sourceEvent) return;
+      const issuer = $("#credential-issuer").value || "TANQ Graph Demo Issuer";
+      const result = await api("/api/events", {
+        method: "POST",
+        body: JSON.stringify({
+          source: issuer,
+          project_id: sourceEvent.project_id || activeProjectId,
+          type: "Credential",
+          title: `${sourceEvent.title} 証明`,
+          summary: `${sourceEvent.source}の記録をもとに、${issuer}がCredentialとして発行。`,
+          trust: 4,
+          evidence: {
+            source_event_id: sourceEvent.id,
+            source_event_title: sourceEvent.title,
+            issued_by: issuer,
+            proof_type: "demo_verifiable_credential"
+          }
+        })
+      });
+      state = result.state;
+      lastAction = { type: result.event.type, title: result.event.title, eventId: result.event.id, target: "Credential Wallet / Dashboard / Graph / Proofolio" };
+      render();
+      setStatus("credential issued");
+    });
+
+    $("#import-drive-url").addEventListener("click", async () => {
+      const title = $("#drive-title").value || "Drive Artifact";
+      const url = $("#drive-url").value;
+      const kind = $("#drive-kind").value;
+      if (!url) {
+        setStatus("Drive URL required");
+        return;
+      }
+      const result = await api("/api/events", {
+        method: "POST",
+        body: JSON.stringify({
+          source: "Google Drive",
+          project_id: $("#drive-project").value || activeProjectId,
+          type: "Artifact",
+          title,
+          summary: `${kind}をDrive URLから成果物として登録。`,
+          trust: 2,
+          url,
+          evidence: { kind, imported_by: "manual_url" }
+        })
+      });
+      state = result.state;
+      lastAction = { type: result.event.type, title: result.event.title, eventId: result.event.id, target: "Artifact / Evidence / Drive / Dashboard / Graph" };
+      render();
+      setStatus("drive url imported");
+    });
+
+    $("#reset-state").addEventListener("click", async () => {
+      state = await api("/api/reset", { method: "POST" });
+      lastAction = null;
+      render();
+      setStatus("reset");
+    });
+
+    $("#export-state").addEventListener("click", async () => {
+      const blob = new Blob([JSON.stringify({ profile: state.profile || defaultProfile, tools: state.tools, projects: state.projects || defaultProjects, events: state.events, apiKeys: state.apiKeys || [], summary: state.summary }, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "tanq-graph-export.json";
+      link.click();
+      URL.revokeObjectURL(url);
+      setStatus("exported");
+    });
+
+    $("#issue-api-key").addEventListener("click", async () => {
+      const scopes = [...$("#api-key-scopes").selectedOptions].map((option) => option.value);
+      const result = await api("/api/keys", {
+        method: "POST",
+        body: JSON.stringify({
+          name: $("#api-key-name").value.trim() || "New TANQ Graph API Key",
+          purpose: $("#api-key-purpose").value,
+          scopes
+        })
+      });
+      state = result.state;
+      $("#api-key-secret").textContent = JSON.stringify({
+        key: result.apiKey.key,
+        masked: result.apiKey.masked,
+        name: result.apiKey.name,
+        scopes: result.apiKey.scopes,
+        note: "本番ではキー全文は発行直後のみ表示し、保存側にはハッシュだけを残します。"
+      }, null, 2);
+      $("#api-key-name").value = "";
+      renderApiKeys();
+      setStatus("api key issued");
+    });
+
+    $("#register-org").addEventListener("click", async () => {
+      const result = await api("/api/orgs", {
+        method: "POST",
+        body: JSON.stringify({
+          name: $("#org-name").value.trim(),
+          type: $("#org-type").value,
+          email: $("#org-email").value.trim(),
+          purpose: $("#org-purpose").value
+        })
+      });
+      state = result.state;
+      $("#org-name").value = "";
+      $("#org-email").value = "";
+      renderOrganizations();
+      $("#api-key-secret").textContent = JSON.stringify({
+        organization: result.organization.name,
+        loginCode: result.organization.loginCode,
+        note: "団体ログイン画面でこのコードを使います。"
+      }, null, 2);
+      setStatus("organization registered");
+    });
+
+    $("#org-login-button").addEventListener("click", () => {
+      const org = (state.organizations || []).find((item) => item.id === $("#org-login-id").value);
+      if (!org || org.loginCode !== $("#org-login-code").value.trim()) {
+        setStatus("org login failed");
+        return;
+      }
+      orgSessionId = org.id;
+      renderOrgSession();
+      setStatus("org logged in");
+    });
+
+    $("#org-logout-button").addEventListener("click", () => {
+      orgSessionId = null;
+      renderOrgSession();
+      setStatus("org logged out");
+    });
+
+    $("#org-issue-key").addEventListener("click", async () => {
+      const org = (state.organizations || []).find((item) => item.id === orgSessionId);
+      if (!org) {
+        setStatus("org login required");
+        return;
+      }
+      const scopes = [...$("#org-key-scopes").selectedOptions].map((option) => option.value);
+      const result = await api("/api/keys", {
+        method: "POST",
+        body: JSON.stringify({
+          name: $("#org-key-name").value.trim() || `${org.name} API Key`,
+          purpose: $("#org-key-purpose").value,
+          scopes,
+          orgId: org.id,
+          orgName: org.name
+        })
+      });
+      state = result.state;
+      $("#org-key-name").value = "";
+      $("#api-key-secret").textContent = JSON.stringify({
+        organization: org.name,
+        key: result.apiKey.key,
+        masked: result.apiKey.masked,
+        scopes: result.apiKey.scopes,
+        note: "団体APIキーの全文です。本番では発行直後のみ表示します。"
+      }, null, 2);
+      renderApiKeys();
+      renderOrganizations();
+      renderOrgSession();
+      setStatus("org api key issued");
+    });
+
+    $("#create-project").addEventListener("click", async () => {
+      const name = $("#new-project-name").value.trim();
+      const question = $("#new-project-question").value.trim();
+      const owner = $("#new-project-owner").value;
+      const exportTargets = $("#new-project-targets").value.split(",").map((item) => item.trim()).filter(Boolean);
+      if (!name) {
+        setStatus("project name required");
+        return;
+      }
+      const result = await api("/api/projects", {
+        method: "POST",
+        body: JSON.stringify({ name, question, owner, exportTargets })
+      });
+      state = result.state;
+      activeProjectId = result.project.id;
+      $("#new-project-name").value = "";
+      $("#new-project-question").value = "";
+      $("#new-project-targets").value = "";
+      $("#create-project-panel").classList.remove("open");
+      $("#toggle-create-project").textContent = "+";
+      $("#toggle-create-project").setAttribute("aria-expanded", "false");
+      lastAction = { type: "Project", title: `${result.project.name} を作成`, eventId: null, target: "Project Dashboard / Drive Import / API Bundle" };
+      render();
+      setStatus("project created");
+    });
+
+    $("#save-profile").addEventListener("click", saveProfile);
+    $("#profile-age").addEventListener("input", () => {
+      updateProfileDraftUI();
+      closeAndClearMaterialForm();
+      renderProjectDashboard();
+    });
+    $("#profile-routing").addEventListener("change", () => {
+      updateProfileDraftUI();
+      closeAndClearMaterialForm();
+      renderProjectDashboard();
+    });
+    $("#profile-interface").addEventListener("change", () => {
+      $("#profile-routing").value = "manual";
+      updateProfileDraftUI();
+      closeAndClearMaterialForm();
+      renderProjectDashboard();
+    });
+    $("#new-project-owner").addEventListener("change", () => {
+      $("#new-project-owner").dataset.touched = "true";
+    });
+
+    $("#toggle-create-project").addEventListener("click", () => {
+      const panel = $("#create-project-panel");
+      const open = !panel.classList.contains("open");
+      panel.classList.toggle("open", open);
+      $("#toggle-create-project").textContent = open ? "×" : "+";
+      $("#toggle-create-project").setAttribute("aria-expanded", String(open));
+      if (open) $("#new-project-name").focus();
+    });
+
+    $("#toggle-project-api").addEventListener("click", () => {
+      const panel = $("#project-api-panel");
+      const open = !panel.classList.contains("open");
+      panel.classList.toggle("open", open);
+      $("#toggle-project-api").textContent = open ? "×" : "+";
+      $("#toggle-project-api").setAttribute("aria-expanded", String(open));
+    });
+
+    $("#toggle-archived-projects").addEventListener("click", () => {
+      const panel = $("#archived-projects-panel");
+      const open = !panel.classList.contains("open");
+      panel.classList.toggle("open", open);
+      $("#toggle-archived-projects").textContent = open ? "×" : "+";
+      $("#toggle-archived-projects").setAttribute("aria-expanded", String(open));
+    });
+
+    $("#toggle-add-material").addEventListener("click", () => {
+      const panel = $("#add-material-panel");
+      const open = !panel.classList.contains("open");
+      panel.classList.toggle("open", open);
+      $("#toggle-add-material").textContent = open ? "×" : "+";
+      $("#toggle-add-material").setAttribute("aria-expanded", String(open));
+      if (open) $("#material-title").focus();
+    });
+
+    $("#add-material").addEventListener("click", async () => {
+      if (!activeProjectId) {
+        setStatus("project required");
+        closeAndClearMaterialForm();
+        return;
+      }
+      const source = $("#material-source").value || "Manual";
+      const kind = $("#material-kind").value;
+      const title = $("#material-title").value.trim();
+      const summary = $("#material-summary").value.trim();
+      const url = $("#material-url").value.trim();
+      const importedText = $("#material-imported-text").value.trim();
+      const file = selectedLocalFile;
+      const inferredSource = inferExternalSource(url);
+      if (!title && !file && !url && !importedText) {
+        setStatus("material title required");
+        return;
+      }
+      const evidence = {
+        kind,
+        imported_by: file ? "local_file" : importedText ? "external_tool_text" : url ? "external_link" : "project_material_form",
+        source_tool: inferredSource || source
+      };
+      if (importedText) evidence.imported_text = importedText;
+      if (file) {
+        evidence.local_file = {
+          name: file.name,
+          type: file.type || "unknown",
+          size: file.size,
+          size_label: formatBytes(file.size),
+          last_modified: new Date(file.lastModified).toISOString(),
+          preview: file.preview || null
+        };
+      }
+      const result = await api("/api/events", {
+        method: "POST",
+        body: JSON.stringify({
+          source: file ? "Local PC" : inferredSource || source,
+          project_id: activeProjectId,
+          type: materialType(kind),
+          title: title || file?.name || (url ? "外部リンク資料" : "外部ツール本文"),
+          summary: summary || importedText.slice(0, 220) || (file ? `${file.name}をローカルPCから資料として追加。` : `${inferredSource || source}から${kind}を資料として追加。`),
+          trust: Number($("#material-trust").value),
+          url: url || null,
+          evidence
+        })
+      });
+      state = result.state;
+      closeAndClearMaterialForm();
+      lastAction = { type: result.event.type, title: `${result.event.title} を資料に追加`, eventId: result.event.id, target: "Project Materials / AI Summary / API Bundle / Graph" };
+      render();
+      setStatus("material added");
+    });
+
+    $("#material-file").addEventListener("change", async () => {
+      const file = $("#material-file").files[0];
+      const preview = $("#material-file-preview");
+      if (!file) {
+        selectedLocalFile = null;
+        preview.style.display = "none";
+        preview.innerHTML = "";
+        return;
+      }
+      selectedLocalFile = file;
+      let textPreview = "";
+      if (canPreviewFile(file)) {
+        try {
+          const text = await readFileAsText(file);
+          textPreview = text.slice(0, 600);
+          selectedLocalFile.preview = textPreview;
+          if (!$("#material-summary").value.trim()) $("#material-summary").value = textPreview.slice(0, 220);
+        } catch (error) {
+          textPreview = "";
+        }
+      }
+      if (!$("#material-title").value.trim()) $("#material-title").value = file.name;
+      $("#material-source").value = "Local PC";
+      preview.style.display = "grid";
+      preview.innerHTML = `<strong>${file.name}<br><small>${file.type || "unknown"} / ${formatBytes(file.size)}</small></strong>
+        <div class="artifact-meta">${badge("Local PC")}${badge(canPreviewFile(file) ? "Text preview" : "Metadata only", "gold")}</div>
+        ${textPreview ? `<small>${textPreview.replace(/[<>&]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[char]))}</small>` : `<small>この形式はブラウザ内では本文プレビューせず、ファイル情報を証跡として保存します。</small>`}`;
+      setStatus("local file selected");
+    });
+
+    $("#material-url").addEventListener("input", () => {
+      const url = $("#material-url").value.trim();
+      const source = inferExternalSource(url);
+      if (source) $("#material-source").value = source;
+      if (url && !$("#material-title").value.trim()) $("#material-title").value = source ? `${source}リンク資料` : "外部リンク資料";
+      if (url) $("#material-kind").value = "External URL";
+    });
+
+    $("#summarize-project").addEventListener("click", () => {
+      $("#project-ai-summary").textContent = makeProjectSummary();
+      lastAction = { type: "Assessment", title: "プロジェクト資料をAI要約へ送る準備", eventId: null, target: "AI Context / Project Summary / API Bundle" };
+      renderMetrics();
+      renderLatestImpact();
+      setStatus("ai summary ready");
+    });
+
+    $("#prepare-project-api").addEventListener("click", () => {
+      $("#project-api-payload").textContent = JSON.stringify(projectApiBundle(), null, 2);
+      $("#project-api-panel").classList.add("open");
+      $("#toggle-project-api").textContent = "×";
+      $("#toggle-project-api").setAttribute("aria-expanded", "true");
+      lastAction = { type: "Artifact", title: "Project API Bundleを生成", eventId: null, target: "外部API / Proofolio / PPM / Credential Wallet" };
+      renderMetrics();
+      renderLatestImpact();
+      setStatus("api bundle ready");
+    });
+
+    ["#event-source", "#event-project", "#event-title", "#event-summary", "#event-trust"].forEach((selector) => {
+      $(selector).addEventListener("input", renderPayload);
+    });
+
+    async function boot() {
+      state = await api("/api/state");
+      render();
+    }
+
+    boot().catch((error) => {
+      document.body.innerHTML = `<main><pre>${error.message}</pre></main>`;
+    });
+  </script>
+</body>
+</html>
