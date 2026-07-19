@@ -248,18 +248,7 @@
           </div>
         </div>
       </div>
-      <div class="login-note" id="database-status">Demo DB: browser localStorage に接続中。Firebase configを接続するとFirestoreにも保存・照合します。</div>
-      <div class="login-card">
-        <span class="login-mark org">FB</span>
-        <h2>Firebase / Firestore接続</h2>
-        <small>Firebase ConsoleのWebアプリ設定にあるfirebaseConfigを貼り付けます。公開リポジトリには保存せず、このブラウザにだけ保持します。</small>
-        <label>Firebase config JSON<textarea id="firebase-config-input" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea></label>
-        <div class="actions">
-          <button class="primary" id="connect-firebase">Firebaseに接続</button>
-          <button class="secondary" id="disconnect-firebase">Firebase解除</button>
-          <span class="badge" id="firebase-status">Local DB</span>
-        </div>
-      </div>
+      <div class="login-note" id="database-status">Firestoreへ自動接続中です。</div>
     </div>
   </section>
   <div class="shell">
@@ -920,7 +909,7 @@
 
     function readFirebaseConfig() {
       try {
-        return window.TANQ_FIREBASE_CONFIG || JSON.parse(localStorage.getItem("tanq-graph-firebase-config") || "null");
+        return window.TANQ_FIREBASE_CONFIG || null;
       } catch (error) {
         return null;
       }
@@ -933,10 +922,7 @@
     }
 
     function setFirebaseStatus(text, connected = Boolean(firebaseDb)) {
-      const badge = $("#firebase-status");
-      if (!badge) return;
-      badge.textContent = text;
-      badge.className = `badge ${connected ? "green" : ""}`;
+      $("#database-status").textContent = connected ? text : "Firestoreへ接続できません。しばらくしてから再読み込みしてください。";
     }
 
     function activeDbLabel() {
@@ -953,20 +939,9 @@
       const app = appModule.getApps().length ? appModule.getApp() : appModule.initializeApp(cleanConfig);
       firebaseDb = firestoreModule.getFirestore(app);
       firebaseApi = firestoreModule;
-      localStorage.setItem("tanq-graph-firebase-config", JSON.stringify(cleanConfig));
-      $("#firebase-config-input").value = JSON.stringify(cleanConfig, null, 2);
       setFirebaseStatus(`Firestore: ${cleanConfig.projectId}`, true);
       $("#database-status").textContent = `Firestoreに接続しました。projectId: ${cleanConfig.projectId}`;
       return firebaseDb;
-    }
-
-    function disconnectFirebase() {
-      firebaseDb = null;
-      firebaseApi = null;
-      localStorage.removeItem("tanq-graph-firebase-config");
-      $("#firebase-config-input").value = "";
-      setFirebaseStatus("Local DB", false);
-      $("#database-status").textContent = "Firebase接続を解除しました。Demo DB: browser localStorage に戻ります。";
     }
 
     async function saveFirebaseRecord(collectionName, record) {
@@ -2138,22 +2113,6 @@
       setStatus("organization logged in");
     });
 
-    $("#connect-firebase").addEventListener("click", async () => {
-      try {
-        await connectFirebase($("#firebase-config-input").value.trim());
-        setStatus("firebase connected");
-      } catch (error) {
-        setFirebaseStatus("Firebase error", false);
-        $("#database-status").textContent = error.message;
-        setStatus("firebase failed");
-      }
-    });
-
-    $("#disconnect-firebase").addEventListener("click", () => {
-      disconnectFirebase();
-      setStatus("firebase disconnected");
-    });
-
     $("#create-project").addEventListener("click", async () => {
       const name = $("#new-project-name").value.trim();
       const question = $("#new-project-question").value.trim();
@@ -2357,14 +2316,13 @@
       render();
       const savedFirebaseConfig = readFirebaseConfig();
       if (savedFirebaseConfig) {
-        $("#firebase-config-input").value = JSON.stringify(savedFirebaseConfig, null, 2);
         connectFirebase(savedFirebaseConfig).catch((error) => {
           setFirebaseStatus("Firebase error", false);
           $("#database-status").textContent = `保存済みFirebase設定で接続できませんでした: ${error.message}`;
         });
       } else {
-        setFirebaseStatus("Local DB", false);
-        $("#database-status").textContent = "共通Firebase config未設定です。firebase-config.jsに設定すると、どこからアクセスしても同じFirestoreを使います。";
+        setFirebaseStatus("Firestore未設定", false);
+        $("#database-status").textContent = "Firestore設定がまだありません。";
       }
       applyEntrySession();
     }
