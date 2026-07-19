@@ -53,6 +53,8 @@
     .login-mark.org { background: var(--blue); }
     .login-form { display: none; gap: 12px; }
     .login-form.active { display: grid; }
+    .entry-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .entry-panel { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 12px; background: rgba(255,253,247,.64); }
     .login-note { border: 1px solid rgba(169,120,37,.32); border-radius: 8px; padding: 12px; color: var(--muted); background: rgba(169,120,37,.09); line-height: 1.6; }
     .hero { display: grid; gap: 18px; margin-bottom: 18px; }
     .hero-copy, .panel, .card, .tool, .metric, .timeline-item, .step, .graph-box, .graph-item { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
@@ -175,7 +177,7 @@
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       .nav { grid-template-columns: repeat(2, 1fr); }
       main { padding: 20px; }
-      .interfaces, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip, .login-choice-grid { grid-template-columns: 1fr; }
+      .interfaces, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip, .login-choice-grid, .entry-split { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .project-material { grid-template-columns: 1fr; }
       .graph-box { display: grid; gap: 10px; min-height: auto; padding: 12px; }
@@ -198,12 +200,20 @@
           <h2>ポートフォリオ利用者</h2>
           <small>生徒、学生、社会人、Proofolio Encore利用者。年齢からKids / Passport / Proofolio / Encoreを自動振り分けします。</small>
           <div class="login-form active" id="person-login-form">
-            <div class="form-grid">
-              <label>名前<input id="entry-person-name" placeholder="表示名"></label>
-              <label>年齢<input id="entry-person-age" type="number" min="0" max="120" placeholder="例: 16"></label>
-            </div>
-            <div class="actions">
-              <button class="primary" id="enter-person">ポートフォリオを開く</button>
+            <div class="entry-split">
+              <div class="entry-panel">
+                <h3>新規登録</h3>
+                <label>名前<input id="entry-person-name" placeholder="表示名"></label>
+                <label>年齢<input id="entry-person-age" type="number" min="0" max="120" placeholder="例: 16"></label>
+                <label>メール 任意<input id="entry-person-email" placeholder="name@example.jp"></label>
+                <button class="primary" id="register-person">新規登録して開く</button>
+              </div>
+              <div class="entry-panel">
+                <h3>登録済み</h3>
+                <label>メールまたは利用者ID<input id="login-person-identity" placeholder="person_xxx / name@example.jp"></label>
+                <label>ログインコード<input id="login-person-code" placeholder="発行されたコード"></label>
+                <button class="secondary" id="login-person">ログイン</button>
+              </div>
             </div>
           </div>
         </div>
@@ -212,25 +222,43 @@
           <h2>登録団体</h2>
           <small>学校、大学、教育機関、企業。APIキー、提出物、資格・認定、外部評価の接続管理へ入ります。</small>
           <div class="login-form" id="org-entry-form">
-            <div class="form-grid">
-              <label>団体名<input id="entry-org-name" placeholder="例: 探究推進機構"></label>
-              <label>種別<select id="entry-org-type">
-                <option>学校</option>
-                <option>大学</option>
-                <option>教育機関</option>
-                <option>企業</option>
-                <option>NPO / DAO</option>
-                <option>自治体</option>
-              </select></label>
-            </div>
-            <label>担当者メール<input id="entry-org-email" placeholder="contact@example.jp"></label>
-            <div class="actions">
-              <button class="primary" id="enter-org">団体管理へ進む</button>
+            <div class="entry-split">
+              <div class="entry-panel">
+                <h3>新規登録</h3>
+                <label>団体名<input id="entry-org-name" placeholder="例: 探究推進機構"></label>
+                <label>種別<select id="entry-org-type">
+                  <option>学校</option>
+                  <option>大学</option>
+                  <option>教育機関</option>
+                  <option>企業</option>
+                  <option>NPO / DAO</option>
+                  <option>自治体</option>
+                </select></label>
+                <label>担当者メール<input id="entry-org-email" placeholder="contact@example.jp"></label>
+                <button class="primary" id="register-org-entry">団体を新規登録</button>
+              </div>
+              <div class="entry-panel">
+                <h3>登録済み</h3>
+                <label>メールまたは団体ID<input id="login-org-identity" placeholder="org_xxx / contact@example.jp"></label>
+                <label>ログインコード<input id="login-org-code" placeholder="発行されたコード"></label>
+                <button class="secondary" id="login-org-entry">団体ログイン</button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="login-note">公開デモでは実認証を行わず、選択した入口をブラウザ内に保存します。本番では個人はSSO/OAuth、団体は組織審査・権限・APIスコープ管理に接続します。</div>
+      <div class="login-note" id="database-status">Demo DB: browser localStorage に接続中。Firebase configを接続するとFirestoreにも保存・照合します。</div>
+      <div class="login-card">
+        <span class="login-mark org">FB</span>
+        <h2>Firebase / Firestore接続</h2>
+        <small>Firebase ConsoleのWebアプリ設定にあるfirebaseConfigを貼り付けます。公開リポジトリには保存せず、このブラウザにだけ保持します。</small>
+        <label>Firebase config JSON<textarea id="firebase-config-input" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}'></textarea></label>
+        <div class="actions">
+          <button class="primary" id="connect-firebase">Firebaseに接続</button>
+          <button class="secondary" id="disconnect-firebase">Firebase解除</button>
+          <span class="badge" id="firebase-status">Local DB</span>
+        </div>
+      </div>
     </div>
   </section>
   <div class="shell">
@@ -725,7 +753,10 @@
     let selectedLocalFile = null;
     let orgSessionId = null;
     let entrySession = null;
+    let firebaseDb = null;
+    let firebaseApi = null;
     const defaultProfile = { name: "", age: "", interfaceMode: "passport", routing: "auto" };
+    const firebaseSdkVersion = "12.16.0";
     const interfaceLabels = { kids: "TANQ Pass Kids", passport: "TANQ Passport", proofolio: "Proofolio", encore: "Proofolio Encore" };
     const statusLabels = { connected: "基盤接続中", next: "次に接続", external: "外部証明・外部データ" };
     const statusDots = { connected: "", next: "next", external: "external" };
@@ -833,6 +864,160 @@
       return "org_" + Math.random().toString(36).slice(2, 8).toUpperCase();
     }
 
+    function generateLoginCode(prefix = "tg") {
+      return `${prefix}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    }
+
+    function readDemoDb() {
+      try {
+        const db = JSON.parse(localStorage.getItem("tanq-graph-demo-db") || "null");
+        return db || { people: [], organizations: [] };
+      } catch (error) {
+        return { people: [], organizations: [] };
+      }
+    }
+
+    function writeDemoDb(db) {
+      localStorage.setItem("tanq-graph-demo-db", JSON.stringify({
+        people: db.people || [],
+        organizations: db.organizations || [],
+        updated_at: new Date().toISOString()
+      }));
+      return db;
+    }
+
+    function findDbRecord(records = [], identity = "", code = "") {
+      const normalized = identity.trim().toLowerCase();
+      const loginCode = code.trim();
+      if (!normalized || !loginCode) return null;
+      return records.find((record) => {
+        const idMatch = String(record.id || "").toLowerCase() === normalized;
+        const emailMatch = String(record.email || "").toLowerCase() === normalized;
+        return (idMatch || emailMatch) && record.loginCode === loginCode;
+      }) || null;
+    }
+
+    function upsertDbPerson(person) {
+      const db = readDemoDb();
+      const people = db.people || [];
+      const index = people.findIndex((item) => item.id === person.id || (person.email && item.email === person.email));
+      if (index >= 0) people[index] = { ...people[index], ...person, updated_at: new Date().toISOString() };
+      else people.unshift(person);
+      writeDemoDb({ ...db, people });
+      return index >= 0 ? people[index] : person;
+    }
+
+    function upsertDbOrganization(organization) {
+      const db = readDemoDb();
+      const organizations = db.organizations || [];
+      const index = organizations.findIndex((item) => item.id === organization.id || (organization.email && item.email === organization.email));
+      if (index >= 0) organizations[index] = { ...organizations[index], ...organization, updated_at: new Date().toISOString() };
+      else organizations.unshift(organization);
+      writeDemoDb({ ...db, organizations });
+      return index >= 0 ? organizations[index] : organization;
+    }
+
+    function readFirebaseConfig() {
+      try {
+        return JSON.parse(localStorage.getItem("tanq-graph-firebase-config") || "null");
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function normalizeFirebaseConfig(raw = "") {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const allowed = ["apiKey", "authDomain", "projectId", "storageBucket", "messagingSenderId", "appId", "measurementId"];
+      return Object.fromEntries(Object.entries(parsed || {}).filter(([key, value]) => allowed.includes(key) && value));
+    }
+
+    function setFirebaseStatus(text, connected = Boolean(firebaseDb)) {
+      const badge = $("#firebase-status");
+      if (!badge) return;
+      badge.textContent = text;
+      badge.className = `badge ${connected ? "green" : ""}`;
+    }
+
+    async function connectFirebase(config) {
+      const cleanConfig = normalizeFirebaseConfig(config);
+      if (!cleanConfig.projectId || !cleanConfig.appId || !cleanConfig.apiKey) {
+        throw new Error("Firebase configには apiKey / projectId / appId が必要です。");
+      }
+      const appModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-app.js`);
+      const firestoreModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-firestore.js`);
+      const app = appModule.getApps().length ? appModule.getApp() : appModule.initializeApp(cleanConfig);
+      firebaseDb = firestoreModule.getFirestore(app);
+      firebaseApi = firestoreModule;
+      localStorage.setItem("tanq-graph-firebase-config", JSON.stringify(cleanConfig));
+      $("#firebase-config-input").value = JSON.stringify(cleanConfig, null, 2);
+      setFirebaseStatus(`Firestore: ${cleanConfig.projectId}`, true);
+      $("#database-status").textContent = `Firestoreに接続しました。projectId: ${cleanConfig.projectId}`;
+      return firebaseDb;
+    }
+
+    function disconnectFirebase() {
+      firebaseDb = null;
+      firebaseApi = null;
+      localStorage.removeItem("tanq-graph-firebase-config");
+      $("#firebase-config-input").value = "";
+      setFirebaseStatus("Local DB", false);
+      $("#database-status").textContent = "Firebase接続を解除しました。Demo DB: browser localStorage に戻ります。";
+    }
+
+    async function saveFirebaseRecord(collectionName, record) {
+      if (!firebaseDb || !firebaseApi) return null;
+      const { doc, setDoc, serverTimestamp } = firebaseApi;
+      await setDoc(doc(firebaseDb, collectionName, record.id), {
+        ...record,
+        updated_at: new Date().toISOString(),
+        synced_at: serverTimestamp()
+      }, { merge: true });
+      return record;
+    }
+
+    async function findFirebaseRecord(collectionName, identity = "", code = "") {
+      if (!firebaseDb || !firebaseApi) return null;
+      const normalized = identity.trim().toLowerCase();
+      const loginCode = code.trim();
+      if (!normalized || !loginCode) return null;
+      const { collection, doc, getDoc, getDocs, query, where, limit } = firebaseApi;
+      const direct = await getDoc(doc(firebaseDb, collectionName, normalized));
+      if (direct.exists() && direct.data().loginCode === loginCode) return { id: direct.id, ...direct.data() };
+      const emailQuery = query(collection(firebaseDb, collectionName), where("email_lower", "==", normalized), where("loginCode", "==", loginCode), limit(1));
+      const emailMatches = await getDocs(emailQuery);
+      if (!emailMatches.empty) {
+        const first = emailMatches.docs[0];
+        return { id: first.id, ...first.data() };
+      }
+      return null;
+    }
+
+    async function savePersonRecord(person) {
+      const saved = upsertDbPerson(person);
+      await saveFirebaseRecord("tanq_people", { ...saved, email_lower: String(saved.email || "").toLowerCase() });
+      return saved;
+    }
+
+    async function saveOrganizationRecord(organization) {
+      const saved = upsertDbOrganization(organization);
+      await saveFirebaseRecord("tanq_organizations", { ...saved, email_lower: String(saved.email || "").toLowerCase() });
+      return saved;
+    }
+
+    async function findPersonRecord(identity, code) {
+      const db = readDemoDb();
+      const local = findDbRecord(db.people, identity, code);
+      if (local) return local;
+      return findFirebaseRecord("tanq_people", identity, code);
+    }
+
+    async function findOrganizationRecord(identity, code) {
+      const db = readDemoDb();
+      const local = findDbRecord(db.organizations, identity, code);
+      if (local) return local;
+      return findFirebaseRecord("tanq_organizations", identity, code);
+    }
+
     function localStore() {
       const saved = localStorage.getItem("tanq-graph-public-demo-state");
       const store = saved ? JSON.parse(saved) : structuredClone(seedState);
@@ -885,10 +1070,10 @@
       document.body.classList.remove("login-pending");
       if (entrySession.role === "organization") {
         orgSessionId = entrySession.orgId || orgSessionId;
-        $("#entry-session-label").textContent = `登録団体: ${entrySession.name || "団体"}`;
+        $("#entry-session-label").textContent = `登録団体: ${entrySession.name || "団体"} / DB接続`;
         setActiveTab("org-login");
       } else {
-        $("#entry-session-label").textContent = `利用者: ${entrySession.name || "ポートフォリオ"}`;
+        $("#entry-session-label").textContent = `利用者: ${entrySession.name || "ポートフォリオ"} / DB接続`;
         setActiveTab("dashboard");
       }
     }
@@ -1821,48 +2006,101 @@
       setStatus("org api key issued");
     });
 
-    $("#enter-person").addEventListener("click", async () => {
+    $("#register-person").addEventListener("click", async () => {
       const name = $("#entry-person-name").value.trim() || "ポートフォリオ利用者";
       const age = $("#entry-person-age").value;
-      const profile = {
+      const email = $("#entry-person-email").value.trim();
+      const person = await savePersonRecord({
+        id: `person_${Date.now()}`,
         name,
         age,
+        email,
+        loginCode: generateLoginCode("person"),
+        interfaceMode: recommendedInterface(age),
+        created_at: new Date().toISOString()
+      });
+      const profile = {
+        name: person.name,
+        age: person.age,
         routing: "auto",
-        interfaceMode: recommendedInterface(age)
+        interfaceMode: person.interfaceMode
       };
       state = await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
       saveEntrySession({
         role: "person",
-        name,
-        age,
+        name: person.name,
+        age: person.age,
+        personId: person.id,
+        loginCode: person.loginCode,
         interfaceMode: state.profile.interfaceMode,
+        db: "localStorage demo DB",
         started_at: new Date().toISOString()
       });
+      $("#database-status").textContent = `Demo DBに新規登録しました。利用者ID: ${person.id} / ログインコード: ${person.loginCode}`;
       render();
-      setStatus("portfolio user entered");
+      setStatus("person registered");
     });
 
-    $("#enter-org").addEventListener("click", async () => {
+    $("#login-person").addEventListener("click", async () => {
+      const person = await findPersonRecord($("#login-person-identity").value, $("#login-person-code").value);
+      if (!person) {
+        $("#database-status").textContent = "Demo DBに一致する利用者が見つかりません。利用者IDまたはメール、ログインコードを確認してください。";
+        return;
+      }
+      const profile = {
+        name: person.name,
+        age: person.age,
+        routing: "auto",
+        interfaceMode: person.interfaceMode || recommendedInterface(person.age)
+      };
+      state = await api("/api/profile", { method: "PUT", body: JSON.stringify(profile) });
+      saveEntrySession({
+        role: "person",
+        name: person.name,
+        age: person.age,
+        personId: person.id,
+        interfaceMode: state.profile.interfaceMode,
+        db: "localStorage demo DB",
+        started_at: new Date().toISOString()
+      });
+      $("#database-status").textContent = `Demo DBから ${person.name} としてログインしました。`;
+      render();
+      setStatus("person logged in");
+    });
+
+    $("#register-org-entry").addEventListener("click", async () => {
       const name = $("#entry-org-name").value.trim() || "登録団体";
       const type = $("#entry-org-type").value;
       const email = $("#entry-org-email").value.trim();
+      const existingOrg = await saveOrganizationRecord({
+        id: `org_${Date.now()}`,
+        name,
+        type,
+        email,
+        purpose: "API利用・成果物接続",
+        status: "active",
+        loginCode: generateOrgCode(),
+        created_at: new Date().toISOString()
+      });
       const result = await api("/api/orgs", {
         method: "POST",
         body: JSON.stringify({
-          name,
-          type,
-          email,
-          purpose: "API利用・成果物接続"
+          name: existingOrg.name,
+          type: existingOrg.type,
+          email: existingOrg.email,
+          purpose: existingOrg.purpose
         })
       });
       state = result.state;
       orgSessionId = result.organization.id;
+      const dbOrg = await saveOrganizationRecord({ ...existingOrg, id: result.organization.id, loginCode: result.organization.loginCode, email_lower: String(existingOrg.email || "").toLowerCase() });
       saveEntrySession({
         role: "organization",
         name: result.organization.name,
         type: result.organization.type,
         orgId: result.organization.id,
         loginCode: result.organization.loginCode,
+        db: "localStorage demo DB",
         started_at: new Date().toISOString()
       });
       $("#org-login-id").value = result.organization.id;
@@ -1873,7 +2111,52 @@
         loginCode: result.organization.loginCode,
         note: "公開デモでは入口で団体セッションを作成します。本番では審査済み団体ログインに置き換えます。"
       }, null, 2);
-      setStatus("organization entered");
+      $("#database-status").textContent = `Demo DBに団体を新規登録しました。団体ID: ${dbOrg.id} / ログインコード: ${dbOrg.loginCode}`;
+      setStatus("organization registered");
+    });
+
+    $("#login-org-entry").addEventListener("click", async () => {
+      const org = await findOrganizationRecord($("#login-org-identity").value, $("#login-org-code").value);
+      if (!org) {
+        $("#database-status").textContent = "Demo DBに一致する団体が見つかりません。団体IDまたはメール、ログインコードを確認してください。";
+        return;
+      }
+      const store = localStore();
+      const orgExists = (store.organizations || []).some((item) => item.id === org.id);
+      if (!orgExists) {
+        store.organizations = [org, ...(store.organizations || [])];
+        state = saveLocal(store);
+      }
+      orgSessionId = org.id;
+      saveEntrySession({
+        role: "organization",
+        name: org.name,
+        type: org.type,
+        orgId: org.id,
+        db: "localStorage demo DB",
+        started_at: new Date().toISOString()
+      });
+      render();
+      $("#org-login-id").value = org.id;
+      $("#org-login-code").value = org.loginCode;
+      $("#database-status").textContent = `Demo DBから ${org.name} として団体ログインしました。`;
+      setStatus("organization logged in");
+    });
+
+    $("#connect-firebase").addEventListener("click", async () => {
+      try {
+        await connectFirebase($("#firebase-config-input").value.trim());
+        setStatus("firebase connected");
+      } catch (error) {
+        setFirebaseStatus("Firebase error", false);
+        $("#database-status").textContent = error.message;
+        setStatus("firebase failed");
+      }
+    });
+
+    $("#disconnect-firebase").addEventListener("click", () => {
+      disconnectFirebase();
+      setStatus("firebase disconnected");
     });
 
     $("#create-project").addEventListener("click", async () => {
@@ -2077,6 +2360,16 @@
       state = await api("/api/state");
       entrySession = readEntrySession();
       render();
+      const savedFirebaseConfig = readFirebaseConfig();
+      if (savedFirebaseConfig) {
+        $("#firebase-config-input").value = JSON.stringify(savedFirebaseConfig, null, 2);
+        connectFirebase(savedFirebaseConfig).catch((error) => {
+          setFirebaseStatus("Firebase error", false);
+          $("#database-status").textContent = `保存済みFirebase設定で接続できませんでした: ${error.message}`;
+        });
+      } else {
+        setFirebaseStatus("Local DB", false);
+      }
       applyEntrySession();
     }
 
