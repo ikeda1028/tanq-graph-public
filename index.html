@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TANQ Graph Public Demo</title>
+  <script src="firebase-config.js"></script>
   <style>
     :root {
       --bg: #f6f3ea;
@@ -919,7 +920,7 @@
 
     function readFirebaseConfig() {
       try {
-        return JSON.parse(localStorage.getItem("tanq-graph-firebase-config") || "null");
+        return window.TANQ_FIREBASE_CONFIG || JSON.parse(localStorage.getItem("tanq-graph-firebase-config") || "null");
       } catch (error) {
         return null;
       }
@@ -2363,6 +2364,7 @@
         });
       } else {
         setFirebaseStatus("Local DB", false);
+        $("#database-status").textContent = "共通Firebase config未設定です。firebase-config.jsに設定すると、どこからアクセスしても同じFirestoreを使います。";
       }
       applyEntrySession();
     }
