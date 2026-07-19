@@ -580,6 +580,17 @@
             <h2>団体別APIキー</h2>
             <div class="timeline" id="admin-key-list"></div>
           </div>
+          <div class="panel full">
+            <h2>Firestore蓄積モデル</h2>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge green">Identity</span><strong>tanq_people / tanq_organizations</strong><small>ログイン、年齢別UI、登録団体の基本情報。</small></div>
+              <div class="card"><span class="badge gold">Project</span><strong>tanq_projects</strong><small>探究テーマ、問い、対象UI、アーカイブ状態。</small></div>
+              <div class="card"><span class="badge">Log</span><strong>tanq_activity_logs</strong><small>各ツールから入る活動・意思決定・評価の時系列。</small></div>
+              <div class="card"><span class="badge green">Material</span><strong>tanq_materials</strong><small>URL、ローカルファイル情報、Google Docs本文など資料化された証跡。</small></div>
+              <div class="card"><span class="badge red">Proof</span><strong>tanq_credentials / tanq_feedback</strong><small>資格・認定・先生/上司/外部レビュー。</small></div>
+              <div class="card"><span class="badge gold">API</span><strong>tanq_api_keys</strong><small>外部接続キーはマスク情報とスコープだけを保存。</small></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -944,15 +955,80 @@
       return firebaseDb;
     }
 
+    function cleanForFirestore(value) {
+      if (Array.isArray(value)) return value.map(cleanForFirestore).filter((item) => item !== undefined);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value)
+            .filter(([, item]) => item !== undefined)
+            .map(([key, item]) => [key, cleanForFirestore(item)])
+        );
+      }
+      return value;
+    }
+
+    function currentActorMeta() {
+      if (!entrySession) return { actor_role: "demo", actor_id: "demo_public" };
+      if (entrySession.role === "organization") {
+        return {
+          actor_role: "organization",
+          actor_id: entrySession.orgId || "org_unknown",
+          owner_org_id: entrySession.orgId || null,
+          owner_org_name: entrySession.name || null
+        };
+      }
+      return {
+        actor_role: "person",
+        actor_id: entrySession.personId || "person_unknown",
+        owner_person_id: entrySession.personId || null,
+        owner_person_name: entrySession.name || null,
+        interfaceMode: entrySession.interfaceMode || currentInterfaceMode()
+      };
+    }
+
     async function saveFirebaseRecord(collectionName, record) {
       if (!firebaseDb || !firebaseApi) return null;
       const { doc, setDoc, serverTimestamp } = firebaseApi;
-      await setDoc(doc(firebaseDb, collectionName, record.id), {
-        ...record,
-        updated_at: new Date().toISOString(),
-        synced_at: serverTimestamp()
-      }, { merge: true });
-      return record;
+      try {
+        await setDoc(doc(firebaseDb, collectionName, record.id), {
+          ...cleanForFirestore({
+            ...record,
+            updated_at: new Date().toISOString()
+          }),
+          synced_at: serverTimestamp()
+        }, { merge: true });
+        return record;
+      } catch (error) {
+        $("#database-status").textContent = `Firestore保存待ち: ${collectionName} / ${error.message}`;
+        return null;
+      }
+    }
+
+    async function saveFirebaseAutoRecord(collectionName, record) {
+      if (!firebaseDb || !firebaseApi) return null;
+      const { collection, addDoc, serverTimestamp } = firebaseApi;
+      try {
+        await addDoc(collection(firebaseDb, collectionName), {
+          ...cleanForFirestore({
+            ...record,
+            updated_at: new Date().toISOString()
+          }),
+          synced_at: serverTimestamp()
+        });
+        return record;
+      } catch (error) {
+        $("#database-status").textContent = `Firestore保存待ち: ${collectionName} / ${error.message}`;
+        return null;
+      }
+    }
+
+    async function markFirebaseRecord(collectionName, id, patch = {}) {
+      if (!firebaseDb || !firebaseApi || !id) return null;
+      return saveFirebaseRecord(collectionName, {
+        id,
+        ...patch,
+        deleted_at: patch.deleted_at || new Date().toISOString()
+      });
     }
 
     async function findFirebaseRecord(collectionName, identity = "", code = "") {
@@ -982,6 +1058,151 @@
       const saved = upsertDbOrganization(organization);
       await saveFirebaseRecord("tanq_organizations", { ...saved, email_lower: String(saved.email || "").toLowerCase() });
       return saved;
+    }
+
+    function projectCloudRecord(project) {
+      return {
+        ...project,
+        ...currentActorMeta(),
+        graph_type: "project",
+        trust_stage: project.trust_stage || "draft",
+        created_at: project.created_at || new Date().toISOString()
+      };
+    }
+
+    function eventCloudRecord(event) {
+      const project = (state.projects || defaultProjects).find((item) => item.id === event.project_id) || null;
+      return {
+        ...event,
+        ...currentActorMeta(),
+        graph_type: "activity_log",
+        project_name: project?.name || null,
+        project_owner: project?.owner || null,
+        created_at: event.created_at || new Date().toISOString()
+      };
+    }
+
+    function materialCloudRecord(event) {
+      return {
+        id: event.id,
+        ...currentActorMeta(),
+        graph_type: "material",
+        project_id: event.project_id || activeProjectId,
+        source_event_id: event.id,
+        source: event.source,
+        type: event.type,
+        title: event.title,
+        summary: event.summary,
+        trust: event.trust || 1,
+        url: event.url || null,
+        evidence: event.evidence || {},
+        created_at: event.created_at || new Date().toISOString()
+      };
+    }
+
+    function credentialCloudRecord(event) {
+      return {
+        id: event.id,
+        ...currentActorMeta(),
+        graph_type: "credential",
+        project_id: event.project_id || activeProjectId,
+        source_event_id: event.evidence?.source_event_id || null,
+        issuer: event.evidence?.issued_by || event.source,
+        title: event.title,
+        summary: event.summary,
+        trust: event.trust || 4,
+        proof_type: event.evidence?.proof_type || "external_or_demo_proof",
+        evidence: event.evidence || {},
+        created_at: event.created_at || new Date().toISOString()
+      };
+    }
+
+    function feedbackCloudRecord(event) {
+      return {
+        id: event.id,
+        ...currentActorMeta(),
+        graph_type: "feedback",
+        project_id: event.project_id || activeProjectId,
+        source_event_id: event.id,
+        reviewer: event.source,
+        title: event.title,
+        summary: event.summary,
+        trust: event.trust || 2,
+        evidence: event.evidence || {},
+        created_at: event.created_at || new Date().toISOString()
+      };
+    }
+
+    function apiKeyCloudRecord(apiKey) {
+      return {
+        id: apiKey.id,
+        ...currentActorMeta(),
+        graph_type: "api_key",
+        name: apiKey.name,
+        purpose: apiKey.purpose,
+        scopes: apiKey.scopes || [],
+        orgId: apiKey.orgId || null,
+        orgName: apiKey.orgName || null,
+        status: apiKey.status,
+        masked: apiKey.masked || maskApiKey(apiKey.key),
+        created_at: apiKey.created_at || new Date().toISOString(),
+        revoked_at: apiKey.revoked_at || null
+      };
+    }
+
+    async function saveProjectRecord(project) {
+      await saveFirebaseRecord("tanq_projects", projectCloudRecord(project));
+      return project;
+    }
+
+    async function saveEventRecord(event) {
+      const activity = eventCloudRecord(event);
+      await saveFirebaseRecord("tanq_activity_logs", activity);
+      if (event.type === "Artifact" || event.url || event.evidence) await saveFirebaseRecord("tanq_materials", materialCloudRecord(event));
+      if (event.type === "Credential") await saveFirebaseRecord("tanq_credentials", credentialCloudRecord(event));
+      if (event.type === "Assessment") await saveFirebaseRecord("tanq_feedback", feedbackCloudRecord(event));
+      return event;
+    }
+
+    async function saveApiKeyRecord(apiKey) {
+      await saveFirebaseRecord("tanq_api_keys", apiKeyCloudRecord(apiKey));
+      return apiKey;
+    }
+
+    function mergeById(existing = [], incoming = []) {
+      const map = new Map(existing.map((item) => [item.id, item]));
+      incoming.forEach((item) => map.set(item.id, { ...map.get(item.id), ...item }));
+      return [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    async function loadCloudCollection(collectionName, actorId) {
+      if (!firebaseDb || !firebaseApi || !actorId) return [];
+      const { collection, getDocs, query, where, limit } = firebaseApi;
+      try {
+        const snapshot = await getDocs(query(collection(firebaseDb, collectionName), where("actor_id", "==", actorId), limit(100)));
+        return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      } catch (error) {
+        $("#database-status").textContent = `Firestore読み込み待ち: ${collectionName} / ${error.message}`;
+        return [];
+      }
+    }
+
+    async function loadCloudStateForSession(session = entrySession) {
+      const actorId = session?.role === "organization" ? session.orgId : session?.personId;
+      if (!actorId || !firebaseDb || !firebaseApi) return state;
+      const [cloudProjects, cloudEvents, cloudApiKeys, cloudOrgs] = await Promise.all([
+        loadCloudCollection("tanq_projects", actorId),
+        loadCloudCollection("tanq_activity_logs", actorId),
+        loadCloudCollection("tanq_api_keys", actorId),
+        session.role === "organization" ? loadCloudCollection("tanq_organizations", actorId) : Promise.resolve([])
+      ]);
+      const store = localStore();
+      store.projects = mergeById(store.projects || defaultProjects, cloudProjects.filter((item) => !item.deleted_at));
+      store.events = mergeById(store.events || [], cloudEvents.filter((item) => !item.deleted_at));
+      store.apiKeys = mergeById(store.apiKeys || [], cloudApiKeys.filter((item) => !item.deleted_at));
+      if (cloudOrgs.length) store.organizations = mergeById(store.organizations || [], cloudOrgs);
+      state = saveLocal(store);
+      return state;
     }
 
     async function findPersonRecord(identity, code) {
@@ -1087,6 +1308,7 @@
         };
         store.apiKeys = [apiKey, ...(store.apiKeys || [])];
         const next = saveLocal(store);
+        await saveApiKeyRecord(apiKey);
         return { apiKey, state: next };
       }
       if (path === "/api/orgs") {
@@ -1102,26 +1324,39 @@
         };
         store.organizations = [organization, ...(store.organizations || [])];
         const next = saveLocal(store);
+        await saveOrganizationRecord({
+          ...organization,
+          actor_role: "organization",
+          actor_id: organization.id,
+          owner_org_id: organization.id,
+          owner_org_name: organization.name
+        });
         return { organization, state: next };
       }
       if (options.method === "PATCH" && path.startsWith("/api/keys/")) {
         const id = decodeURIComponent(path.slice("/api/keys/".length));
         const apiKey = (store.apiKeys || []).find((key) => key.id === id) || null;
-        store.apiKeys = (store.apiKeys || []).map((key) => key.id === id ? { ...key, status: body.status || "revoked", revoked_at: new Date().toISOString() } : key);
+        const revokedAt = new Date().toISOString();
+        store.apiKeys = (store.apiKeys || []).map((key) => key.id === id ? { ...key, status: body.status || "revoked", revoked_at: revokedAt } : key);
         const next = saveLocal(store);
+        if (apiKey) await saveApiKeyRecord({ ...apiKey, status: body.status || "revoked", revoked_at: revokedAt });
         return { apiKey: apiKey ? { ...apiKey, status: body.status || "revoked" } : null, state: next };
       }
       if (path === "/api/projects") {
+        const now = new Date().toISOString();
         const project = {
           id: "project_" + Date.now(),
           name: body.name || "新しい探究プロジェクト",
           question: body.question || "この探究で明らかにしたい問い",
           owner: body.owner || "TANQ Passport",
           exportTargets: body.exportTargets || [],
-          archived: false
+          archived: false,
+          trust_stage: "draft",
+          created_at: now
         };
         store.projects = [...(store.projects || defaultProjects), project];
         const next = saveLocal(store);
+        await saveProjectRecord(project);
         return { project, state: next };
       }
       if (options.method === "PATCH" && path.startsWith("/api/projects/")) {
@@ -1129,21 +1364,30 @@
         const archived = Boolean(body.archived);
         const projects = store.projects || defaultProjects;
         const project = projects.find((item) => item.id === id) || null;
-        store.projects = projects.map((item) => item.id === id ? { ...item, archived } : item);
+        const updatedAt = new Date().toISOString();
+        store.projects = projects.map((item) => item.id === id ? { ...item, archived, updated_at: updatedAt } : item);
         const next = saveLocal(store);
-        return { project: project ? { ...project, archived } : null, state: next };
+        if (project) await saveProjectRecord({ ...project, archived, updated_at: updatedAt });
+        return { project: project ? { ...project, archived, updated_at: updatedAt } : null, state: next };
       }
       if (options.method === "DELETE" && path.startsWith("/api/events/")) {
         const id = decodeURIComponent(path.slice("/api/events/".length));
         const removed = store.events.find((event) => event.id === id) || null;
         store.events = store.events.filter((event) => event.id !== id);
         const next = saveLocal(store);
+        if (removed) {
+          await markFirebaseRecord("tanq_activity_logs", id, { title: removed.title, type: removed.type });
+          await markFirebaseRecord("tanq_materials", id, { title: removed.title, type: removed.type });
+          if (removed.type === "Credential") await markFirebaseRecord("tanq_credentials", id, { title: removed.title });
+          if (removed.type === "Assessment") await markFirebaseRecord("tanq_feedback", id, { title: removed.title });
+        }
         return { removed, state: next };
       }
       if (path === "/api/events") {
         const event = { id: "evt_" + Date.now(), created_at: new Date().toISOString(), ...body };
         store.events.unshift(event);
         const next = saveLocal(store);
+        await saveEventRecord(event);
         return { event, state: next };
       }
       if (path === "/api/reset") {
@@ -2043,6 +2287,7 @@
         db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
+      await loadCloudStateForSession(entrySession);
       $("#database-status").textContent = `${activeDbLabel()}から ${person.name} としてログインしました。`;
       render();
       setStatus("person logged in");
@@ -2106,6 +2351,7 @@
         db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
+      await loadCloudStateForSession(entrySession);
       render();
       $("#org-login-id").value = org.id;
       $("#org-login-code").value = org.loginCode;
@@ -2316,7 +2562,12 @@
       render();
       const savedFirebaseConfig = readFirebaseConfig();
       if (savedFirebaseConfig) {
-        connectFirebase(savedFirebaseConfig).catch((error) => {
+        connectFirebase(savedFirebaseConfig).then(async () => {
+          if (entrySession) {
+            await loadCloudStateForSession(entrySession);
+            render();
+          }
+        }).catch((error) => {
           setFirebaseStatus("Firebase error", false);
           $("#database-status").textContent = `保存済みFirebase設定で接続できませんでした: ${error.message}`;
         });
