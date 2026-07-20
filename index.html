@@ -426,6 +426,16 @@
           <div class="panel full">
             <div class="section-head">
               <div>
+                <h2>ChatGPT / AI相談ログ</h2>
+                <small>ChatGPT Actionsから保存した会話・相談ログを、選択中プロジェクトの資料にできます。</small>
+              </div>
+              <button class="secondary" id="refresh-ai-consultations">読み込み</button>
+            </div>
+            <div class="timeline" id="ai-consultation-list"></div>
+          </div>
+          <div class="panel full">
+            <div class="section-head">
+              <div>
                 <h2>AI・外部ツール連携データ</h2>
                 <small>AI要約、PPM、Proofolio、Credential Walletなどに渡すJSONデータです。</small>
               </div>
@@ -1187,19 +1197,45 @@
       }
     }
 
+    async function loadRecentCloudCollection(collectionName, maxItems = 25) {
+      if (!firebaseDb || !firebaseApi) return [];
+      const { collection, getDocs, query, limit } = firebaseApi;
+      try {
+        const snapshot = await getDocs(query(collection(firebaseDb, collectionName), limit(maxItems)));
+        return snapshot.docs
+          .map((doc) => ({ id: doc.id, ...doc.data() }))
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      } catch (error) {
+        $("#database-status").textContent = `Firestore読み込み待ち: ${collectionName} / ${error.message}`;
+        return [];
+      }
+    }
+
+    async function refreshAiConsultations() {
+      const consultations = await loadRecentCloudCollection("tanq_ai_consultations", 50);
+      const store = localStore();
+      store.aiConsultations = mergeById(store.aiConsultations || [], consultations);
+      state = saveLocal(store);
+      renderAiConsultations();
+      setStatus(consultations.length ? "AI logs loaded" : "AI logs empty");
+      return state.aiConsultations;
+    }
+
     async function loadCloudStateForSession(session = entrySession) {
       const actorId = session?.role === "organization" ? session.orgId : session?.personId;
       if (!actorId || !firebaseDb || !firebaseApi) return state;
-      const [cloudProjects, cloudEvents, cloudApiKeys, cloudOrgs] = await Promise.all([
+      const [cloudProjects, cloudEvents, cloudApiKeys, cloudAiConsultations, cloudOrgs] = await Promise.all([
         loadCloudCollection("tanq_projects", actorId),
         loadCloudCollection("tanq_activity_logs", actorId),
         loadCloudCollection("tanq_api_keys", actorId),
+        loadRecentCloudCollection("tanq_ai_consultations", 50),
         session.role === "organization" ? loadCloudCollection("tanq_organizations", actorId) : Promise.resolve([])
       ]);
       const store = localStore();
       store.projects = mergeById(store.projects || defaultProjects, cloudProjects.filter((item) => !item.deleted_at));
       store.events = mergeById(store.events || [], cloudEvents.filter((item) => !item.deleted_at));
       store.apiKeys = mergeById(store.apiKeys || [], cloudApiKeys.filter((item) => !item.deleted_at));
+      store.aiConsultations = mergeById(store.aiConsultations || [], cloudAiConsultations.filter((item) => !item.deleted_at));
       if (cloudOrgs.length) store.organizations = mergeById(store.organizations || [], cloudOrgs);
       state = saveLocal(store);
       return state;
@@ -1231,11 +1267,12 @@
       store.profile = normalizeProfile(store.profile);
       store.apiKeys = store.apiKeys || [];
       store.organizations = store.organizations || [];
+      store.aiConsultations = store.aiConsultations || [];
       return { ...store, summary: summarize(store) };
     }
 
     function saveLocal(store) {
-      const clean = { tools: store.tools, events: store.events, projects: store.projects || defaultProjects, profile: normalizeProfile(store.profile), apiKeys: store.apiKeys || [], organizations: store.organizations || [] };
+      const clean = { tools: store.tools, events: store.events, projects: store.projects || defaultProjects, profile: normalizeProfile(store.profile), apiKeys: store.apiKeys || [], organizations: store.organizations || [], aiConsultations: store.aiConsultations || [] };
       localStorage.setItem("tanq-graph-public-demo-state", JSON.stringify(clean));
       return { ...clean, summary: summarize(clean) };
     }
@@ -1456,6 +1493,38 @@
       if (kind.includes("Credential")) return "Credential";
       if (kind.includes("Activity")) return "Activity";
       return "Artifact";
+    }
+
+    function aiConsultationSummary(item = {}) {
+      return item.ai_answer || item.summary || item.insight || item.next_question || "保存されたChatGPT / AI相談ログです。";
+    }
+
+    function aiConsultationEvidenceText(item = {}) {
+      return [
+        item.ai_answer ? `要約:\n${item.ai_answer}` : "",
+        item.insight ? `\n重要な洞察:\n${item.insight}` : "",
+        item.next_question ? `\n次の問い・アクション:\n${item.next_question}` : ""
+      ].filter(Boolean).join("\n");
+    }
+
+    function aiConsultationToEvent(item = {}, projectId = activeProjectId) {
+      return {
+        source: item.source || "ChatGPT",
+        project_id: projectId,
+        type: "Artifact",
+        title: item.question || item.title || "ChatGPT会話ログ",
+        summary: aiConsultationSummary(item),
+        trust: Number(item.trust || 1),
+        evidence: {
+          kind: "AI Consultation",
+          imported_by: "chatgpt_actions",
+          source_collection: "tanq_ai_consultations",
+          source_record_id: item.id,
+          imported_text: aiConsultationEvidenceText(item),
+          next_question: item.next_question || null,
+          insight: item.insight || null
+        }
+      };
     }
 
     function formatBytes(bytes = 0) {
@@ -1807,6 +1876,43 @@
       renderLatestImpact();
     }
 
+    function renderAiConsultations() {
+      const consultations = state.aiConsultations || [];
+      const importedIds = new Set((state.events || []).map((event) => event.evidence?.source_record_id).filter(Boolean));
+      $("#ai-consultation-list").innerHTML = consultations.length
+        ? consultations.slice(0, 12).map((item) => {
+          const imported = importedIds.has(item.id);
+          return `<div class="timeline-item ${imported ? "imported" : ""}">
+            <small>${escapeHtml(item.source || "ChatGPT")}</small>
+            <strong>${escapeHtml(item.question || item.title || "ChatGPT会話ログ")}<br><small>${escapeHtml(aiConsultationSummary(item))}</small></strong>
+            <div class="project-actions">
+              ${imported ? badge("資料化済み", "green") : `<button class="secondary" data-import-ai-consultation-id="${item.id}">資料に追加</button>`}
+              ${badge("L" + Number(item.trust || 1), "gold")}
+            </div>
+          </div>`;
+        }).join("")
+        : `<div class="timeline-item"><small>ChatGPT</small><strong>AI相談ログはまだ読み込まれていません<br><small>Custom GPTで「この会話をTANQに保存して」後、読み込みを押してください。</small></strong>${badge("Ready")}</div>`;
+
+      document.querySelectorAll("[data-import-ai-consultation-id]").forEach((button) => {
+        button.addEventListener("click", async () => {
+          if (!activeProjectId) {
+            setStatus("project required");
+            return;
+          }
+          const item = (state.aiConsultations || []).find((consultation) => consultation.id === button.dataset.importAiConsultationId);
+          if (!item) return;
+          const result = await api("/api/events", {
+            method: "POST",
+            body: JSON.stringify(aiConsultationToEvent(item, activeProjectId))
+          });
+          state = result.state;
+          lastAction = { type: result.event.type, title: `${result.event.title} をChatGPTログから資料化`, eventId: result.event.id, target: "Project Materials / AI Summary / API Bundle / Graph" };
+          render();
+          setStatus("AI log imported");
+        });
+      });
+    }
+
     function renderDriveFiles() {
       const importedByUrl = new Map(state.events.filter((event) => event.source === "Google Drive" && event.url).map((event) => [event.url, event]));
       $("#drive-list").innerHTML = driveFiles.map((file, index) => {
@@ -2034,6 +2140,7 @@
       renderApiKeys();
       renderOrganizations();
       renderOrgSession();
+      renderAiConsultations();
       renderDriveFiles();
     }
 
@@ -2441,6 +2548,8 @@
       if (open) $("#material-title").focus();
     });
 
+    $("#refresh-ai-consultations").addEventListener("click", refreshAiConsultations);
+
     $("#add-material").addEventListener("click", async () => {
       if (!activeProjectId) {
         setStatus("project required");
@@ -2565,8 +2674,9 @@
         connectFirebase(savedFirebaseConfig).then(async () => {
           if (entrySession) {
             await loadCloudStateForSession(entrySession);
-            render();
           }
+          await refreshAiConsultations();
+          render();
         }).catch((error) => {
           setFirebaseStatus("Firebase error", false);
           $("#database-status").textContent = `保存済みFirebase設定で接続できませんでした: ${error.message}`;
