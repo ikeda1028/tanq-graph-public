@@ -81,6 +81,30 @@
       border-radius: 8px;
       background: var(--surface);
     }
+    .identity-card {
+      display: grid;
+      gap: 12px;
+      border: 1px solid rgba(36,107,85,.28);
+      background: linear-gradient(180deg, rgba(36,107,85,.1), var(--surface));
+    }
+    .identity-flow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .identity-step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(255,253,248,.7);
+      display: grid;
+      gap: 6px;
+    }
+    .identity-step.active {
+      border-color: rgba(36,107,85,.55);
+      box-shadow: 0 10px 24px rgba(36,107,85,.1);
+    }
+    .identity-step b { font-size: 15px; font-weight: 500; }
     .hero { display: grid; gap: 14px; margin-bottom: 18px; }
     h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1; }
     h2 { font-size: 18px; }
@@ -104,6 +128,7 @@
     .card { padding: 14px; display: grid; gap: 8px; min-height: 112px; }
     .card b { font-size: 28px; font-weight: 500; }
     .badge-row, .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -428,6 +453,7 @@
       main { padding: 20px; }
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log { grid-template-columns: 1fr; }
+      .identity-flow { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .question-card { grid-template-columns: 1fr; }
       .connector-line { min-height: 28px; width: 2px; justify-self: center; }
@@ -457,10 +483,53 @@
       <div class="session">
         <small>接続状態</small>
         <strong id="db-status">Firestoreへ接続中</strong>
+        <small>TANQ ID</small>
+        <strong id="identity-status">Guest</strong>
         <small id="save-status"></small>
       </div>
     </aside>
     <main>
+      <section class="panel full identity-card" id="identity-card">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Entry / TANQ ID</p>
+            <h2>Toolから始めても、あとでTANQ Graphへ統合できます</h2>
+          </div>
+          <span class="badge green" id="identity-mode-badge">Guest</span>
+        </div>
+        <div class="identity-flow">
+          <div class="identity-step active" data-identity-step="guest">
+            <b>1. ゲストで記録</b>
+            <small>写真、問い、音声メモをすぐ保存。端末内に一時保存します。</small>
+          </div>
+          <div class="identity-step" data-identity-step="id">
+            <b>2. TANQ IDを作成</b>
+            <small>残したい記録を本人IDに結び、年齢に応じたUIへ振り分けます。</small>
+          </div>
+          <div class="identity-step" data-identity-step="graph">
+            <b>3. Graphへ統合</b>
+            <small>問い、活動、資料、地図、フィードバックをTANQ Graphへ送ります。</small>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>名前またはニックネーム<input id="identity-name" placeholder="例: たんきゅう太郎"></label>
+          <label>年齢<input id="identity-age" type="number" min="3" max="100" placeholder="例: 10"></label>
+        </div>
+        <div class="form-grid">
+          <label>既存TANQ ID<input id="identity-existing-id" placeholder="例: tanq_abc123"></label>
+          <label>入口<select id="identity-entry">
+            <option value="tool">TANQ Project Toolから開始</option>
+            <option value="graph">TANQ Graphから開始</option>
+            <option value="external">外部ツールから開始</option>
+          </select></label>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="continue-guest" type="button">ゲストで続ける</button>
+          <button class="primary" id="create-tanq-id" type="button">TANQ IDを作成して残す</button>
+          <button class="secondary" id="use-existing-tanq-id" type="button">既存IDで続ける</button>
+          <small id="identity-message">最初は登録なしで使えます。Graph同期や共有のタイミングでID化できます。</small>
+        </div>
+      </section>
       <section class="hero">
         <p class="eyebrow">Inquiry project workspace</p>
         <h1>問いが生まれ、プロジェクトになる前から記録する</h1>
@@ -905,6 +974,15 @@
       manual: ["手動登録", "blue"]
     };
     const seed = {
+      identity: {
+        mode: "guest",
+        entry: "tool",
+        tanq_id: null,
+        profile_name: "",
+        age: "",
+        interface: "kids",
+        created_at: null
+      },
       project: {
         id: "tp_project_" + Date.now(),
         name: "地方創生PPP探究",
@@ -933,6 +1011,10 @@
           materials: saved.materials || [],
           feedback: saved.feedback || [],
           toolImports: saved.toolImports || [],
+          identity: {
+            ...structuredClone(seed.identity),
+            ...(saved.identity || {})
+          },
           aiConsultations: saved.aiConsultations || []
         };
       } catch (error) {
@@ -1032,6 +1114,89 @@
       return template.stages[normalizeStage(stage)] || template.stages.question;
     }
 
+    function inferInterfaceByAge(age) {
+      const value = Number(age);
+      if (!value) return "kids";
+      if (value <= 12) return "kids";
+      if (value <= 18) return "passport";
+      if (value < 45) return "proofolio";
+      return "encore";
+    }
+
+    function ownerByInterface(interfaceKey) {
+      return {
+        kids: "TANQ Pass Kids",
+        passport: "TANQ Passport",
+        proofolio: "Proofolio",
+        encore: "Proofolio Encore"
+      }[interfaceKey] || "TANQ Passport";
+    }
+
+    function tanqId() {
+      const random = Math.random().toString(36).slice(2, 8);
+      return `tanq_${Date.now().toString(36)}_${random}`;
+    }
+
+    function identityLabel() {
+      const identity = state.identity || seed.identity;
+      if (identity.mode === "registered" && identity.tanq_id) return identity.tanq_id;
+      if (identity.mode === "linked" && identity.tanq_id) return identity.tanq_id;
+      return "Guest";
+    }
+
+    function applyIdentityToProject() {
+      const identity = state.identity || seed.identity;
+      const interfaceKey = identity.interface || inferInterfaceByAge(identity.age);
+      state.project = {
+        ...state.project,
+        owner: ownerByInterface(interfaceKey),
+        tanq_id: identity.tanq_id || null,
+        entry_source: identity.entry || "tool"
+      };
+    }
+
+    function renderIdentity() {
+      const identity = state.identity || seed.identity;
+      $("#identity-status").textContent = identityLabel();
+      $("#identity-mode-badge").textContent = identity.tanq_id ? ownerByInterface(identity.interface) : "Guest";
+      $("#identity-message").textContent = identity.tanq_id
+        ? `${identityLabel()} として記録中。Toolで始めた記録をTANQ Graphへ統合できます。`
+        : "最初は登録なしで使えます。Graph同期や共有のタイミングでID化できます。";
+      $("#identity-name").value = identity.profile_name || "";
+      $("#identity-age").value = identity.age || "";
+      $("#identity-existing-id").value = identity.mode === "linked" ? identity.tanq_id || "" : "";
+      $("#identity-entry").value = identity.entry || "tool";
+      document.querySelectorAll("[data-identity-step]").forEach((step) => {
+        const key = step.dataset.identityStep;
+        const active = key === "guest" && !identity.tanq_id
+          || key === "id" && Boolean(identity.tanq_id) && !latestSync
+          || key === "graph" && Boolean(latestSync);
+        step.classList.toggle("active", active);
+      });
+    }
+
+    function setIdentity(mode) {
+      const age = $("#identity-age").value.trim();
+      const interfaceKey = inferInterfaceByAge(age);
+      const existingId = $("#identity-existing-id").value.trim();
+      state.identity = {
+        ...(state.identity || seed.identity),
+        mode,
+        entry: $("#identity-entry").value,
+        tanq_id: mode === "guest" ? null : (mode === "linked" ? existingId : state.identity?.tanq_id || tanqId()),
+        profile_name: $("#identity-name").value.trim(),
+        age,
+        interface: interfaceKey,
+        created_at: state.identity?.created_at || new Date().toISOString()
+      };
+      applyIdentityToProject();
+      saveState(state);
+      renderProjectForm();
+      renderIdentity();
+      renderPayload();
+      setStatus(mode === "guest" ? "guest mode" : "tanq id set");
+    }
+
     async function refreshAiConsultations() {
       const consultations = await loadRecentCloudCollection("tanq_ai_consultations", 50);
       state.aiConsultations = mergeById(state.aiConsultations || [], consultations);
@@ -1054,10 +1219,23 @@
 
     function graphPayload() {
       const project = collectFormProject();
+      const identity = state.identity || seed.identity;
       return {
         source_tool: "TANQ Project Tool",
+        identity: {
+          graph_type: "person",
+          tanq_id: identity.tanq_id || null,
+          profile_name: identity.profile_name || null,
+          age: identity.age || null,
+          interface: identity.interface || inferInterfaceByAge(identity.age),
+          interface_label: ownerByInterface(identity.interface || inferInterfaceByAge(identity.age)),
+          entry_source: identity.entry || "tool",
+          account_state: identity.tanq_id ? identity.mode : "guest",
+          created_at: identity.created_at || null
+        },
         question_seeds: (state.questions || []).map((question) => ({
           ...question,
+          tanq_id: identity.tanq_id || null,
           maturity: question.maturity || "seed",
           next_action: question.next_action || "",
           graph_type: "question_seed",
@@ -1067,6 +1245,8 @@
         })),
         project: {
           ...project,
+          tanq_id: identity.tanq_id || null,
+          owner: ownerByInterface(identity.interface || inferInterfaceByAge(identity.age)),
           graph_type: "project",
           trust: stageTrust[project.trust_stage] || 1
         },
@@ -1074,6 +1254,7 @@
           id: task.id,
           graph_type: "activity_log",
           project_id: project.id,
+          tanq_id: identity.tanq_id || null,
           source: "TANQ Project Tool",
           type: "Activity",
           title: task.title,
@@ -1087,6 +1268,7 @@
           id: material.id,
           graph_type: "material",
           project_id: project.id,
+          tanq_id: identity.tanq_id || null,
           source: "TANQ Project Tool",
           type: "Artifact",
           title: material.title,
@@ -1105,6 +1287,7 @@
           id: item.id,
           graph_type: "feedback",
           project_id: project.id,
+          tanq_id: identity.tanq_id || null,
           source: item.reviewer || "Reviewer",
           type: "Assessment",
           title: `${item.reviewer || "Reviewer"} feedback`,
@@ -1121,6 +1304,7 @@
         tool_imports: (state.toolImports || []).map((item) => ({
           id: item.id,
           project_id: project.id,
+          tanq_id: identity.tanq_id || null,
           source_tool: item.toolName,
           source_tool_id: item.toolId,
           import_type: item.importType,
@@ -1143,6 +1327,12 @@
       state.project = collectFormProject();
       saveState(state);
       const payload = graphPayload();
+      if (payload.identity.tanq_id) {
+        await saveFirebaseRecord("tanq_people", {
+          id: payload.identity.tanq_id,
+          ...payload.identity
+        });
+      }
       for (const question of payload.question_seeds) {
         await saveFirebaseRecord("tanq_question_seeds", question);
         await saveFirebaseRecord("tanq_activity_logs", { ...question, graph_type: "activity_log" });
@@ -1623,6 +1813,7 @@
     }
 
     function render() {
+      renderIdentity();
       renderTaskStageOptions();
       renderKidsInterface();
       renderMetrics();
@@ -1651,6 +1842,21 @@
         state.project = collectFormProject();
         saveState(state);
         render();
+      });
+    });
+
+    $("#continue-guest").addEventListener("click", () => setIdentity("guest"));
+    $("#create-tanq-id").addEventListener("click", () => setIdentity("registered"));
+    $("#use-existing-tanq-id").addEventListener("click", () => {
+      if (!$("#identity-existing-id").value.trim()) {
+        $("#identity-message").textContent = "既存TANQ IDを入力してください。";
+        return;
+      }
+      setIdentity("linked");
+    });
+    ["identity-name", "identity-age", "identity-entry"].forEach((id) => {
+      $("#" + id).addEventListener("change", () => {
+        if (state.identity?.tanq_id) setIdentity(state.identity.mode || "registered");
       });
     });
 
