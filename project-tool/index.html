@@ -805,9 +805,27 @@
             <div class="section-head">
               <div>
                 <h2>ChatGPT / AI相談ログ</h2>
-                <p class="lead">TANQ Actionsから保存した通常会話・AI相談を、このプロジェクトの資料として取り込めます。</p>
+                <p class="lead">ChatGPT会話を、TANQ IDまたはゲストIDに紐づくAI相談ログとして残します。あとから問い・資料・プロジェクトへ昇格できます。</p>
               </div>
               <button class="secondary" id="refresh-ai-consultations">読み込み</button>
+            </div>
+            <div class="form-grid">
+              <label>会話タイトル<input id="ai-log-title" placeholder="例: 地域の空き家が増える理由の相談"></label>
+              <label>紐づけ先<select id="ai-log-link-type">
+                <option value="question">問いに紐づける</option>
+                <option value="project">プロジェクトに紐づける</option>
+                <option value="memo">まだ紐づけない</option>
+              </select></label>
+            </div>
+            <label>要約<textarea id="ai-log-summary" placeholder="ChatGPTで話した内容を短くまとめる"></textarea></label>
+            <div class="form-grid">
+              <label>重要な洞察<textarea id="ai-log-insights" placeholder="気づき、使えそうな観点"></textarea></label>
+              <label>次の問い<textarea id="ai-log-next-questions" placeholder="次に調べたいこと、試したいこと"></textarea></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="save-ai-log">AI相談ログを保存</button>
+              <button class="secondary" id="save-ai-log-as-question">問いとして保存</button>
+              <small id="ai-log-identity-note">現在のIDに紐づけて保存します。</small>
             </div>
             <div class="timeline" id="ai-consultation-list"></div>
           </div>
@@ -978,6 +996,7 @@
         mode: "guest",
         entry: "tool",
         tanq_id: null,
+        guest_session_id: "guest_" + Date.now().toString(36),
         profile_name: "",
         age: "",
         interface: "kids",
@@ -1144,6 +1163,15 @@
       return "Guest";
     }
 
+    function effectiveSubjectId() {
+      const identity = state.identity || seed.identity;
+      return identity.tanq_id || identity.guest_session_id || "guest_local";
+    }
+
+    function effectiveSubjectKind() {
+      return (state.identity || seed.identity).tanq_id ? "tanq_id" : "guest_session_id";
+    }
+
     function applyIdentityToProject() {
       const identity = state.identity || seed.identity;
       const interfaceKey = identity.interface || inferInterfaceByAge(identity.age);
@@ -1159,6 +1187,7 @@
       const identity = state.identity || seed.identity;
       $("#identity-status").textContent = identityLabel();
       $("#identity-mode-badge").textContent = identity.tanq_id ? ownerByInterface(identity.interface) : "Guest";
+      $("#ai-log-identity-note").textContent = `${effectiveSubjectKind()}: ${effectiveSubjectId()} に紐づけて保存します。`;
       $("#identity-message").textContent = identity.tanq_id
         ? `${identityLabel()} として記録中。Toolで始めた記録をTANQ Graphへ統合できます。`
         : "最初は登録なしで使えます。Graph同期や共有のタイミングでID化できます。";
@@ -1184,11 +1213,21 @@
         mode,
         entry: $("#identity-entry").value,
         tanq_id: mode === "guest" ? null : (mode === "linked" ? existingId : state.identity?.tanq_id || tanqId()),
+        guest_session_id: state.identity?.guest_session_id || seed.identity.guest_session_id,
         profile_name: $("#identity-name").value.trim(),
         age,
         interface: interfaceKey,
         created_at: state.identity?.created_at || new Date().toISOString()
       };
+      if (state.identity.tanq_id) {
+        ["aiConsultations", "questions", "tasks", "materials", "feedback", "toolImports"].forEach((key) => {
+          state[key] = (state[key] || []).map((item) => ({
+            ...item,
+            tanq_id: item.tanq_id || state.identity.tanq_id,
+            guest_session_id: item.guest_session_id || state.identity.guest_session_id || null
+          }));
+        });
+      }
       applyIdentityToProject();
       saveState(state);
       renderProjectForm();
@@ -1301,6 +1340,18 @@
           },
           created_at: item.created_at
         })),
+        ai_consultations: (state.aiConsultations || []).map((item) => ({
+          ...item,
+          graph_type: "ai_consultation",
+          tanq_id: identity.tanq_id || item.tanq_id || null,
+          guest_session_id: identity.guest_session_id || item.guest_session_id || null,
+          subject_id: identity.tanq_id || identity.guest_session_id || item.subject_id || null,
+          subject_kind: identity.tanq_id ? "tanq_id" : "guest_session_id",
+          project_id: project.id,
+          source: item.source || "ChatGPT",
+          type: "AI Consultation",
+          trust: Number(item.trust || 1)
+        })),
         tool_imports: (state.toolImports || []).map((item) => ({
           id: item.id,
           project_id: project.id,
@@ -1356,6 +1407,15 @@
         await saveFirebaseRecord("tanq_feedback", item);
         await saveFirebaseRecord("tanq_activity_logs", { ...item, graph_type: "activity_log" });
       }
+      for (const item of payload.ai_consultations) {
+        await saveFirebaseRecord("tanq_ai_consultations", item);
+        await saveFirebaseRecord("tanq_activity_logs", {
+          ...item,
+          graph_type: "activity_log",
+          source: item.source || "ChatGPT",
+          type: "AI Consultation"
+        });
+      }
       latestSync = new Date().toISOString();
       $("#sync-result").textContent = firebaseDb
         ? `TANQ Graphへ同期しました。${new Date(latestSync).toLocaleString("ja-JP")}`
@@ -1410,9 +1470,77 @@
     function aiConsultationText(item = {}) {
       return [
         item.ai_answer ? `要約:\n${item.ai_answer}` : "",
+        item.summary && !item.ai_answer ? `要約:\n${item.summary}` : "",
         item.insight ? `\n重要な洞察:\n${item.insight}` : "",
+        Array.isArray(item.insights) && item.insights.length ? `\n重要な洞察:\n${item.insights.join("\n")}` : "",
         item.next_question ? `\n次の問い・アクション:\n${item.next_question}` : ""
+        ,
+        Array.isArray(item.next_questions) && item.next_questions.length ? `\n次の問い・アクション:\n${item.next_questions.join("\n")}` : ""
       ].filter(Boolean).join("\n");
+    }
+
+    function currentQuestionId() {
+      return (state.questions || [])[0]?.id || null;
+    }
+
+    function buildAiConsultationRecord() {
+      const title = $("#ai-log-title").value.trim() || "ChatGPT会話ログ";
+      const summary = $("#ai-log-summary").value.trim();
+      const insights = $("#ai-log-insights").value.split("\n").map((item) => item.trim()).filter(Boolean);
+      const nextQuestions = $("#ai-log-next-questions").value.split("\n").map((item) => item.trim()).filter(Boolean);
+      const linkType = $("#ai-log-link-type").value;
+      const project = collectFormProject();
+      return {
+        id: "ai_" + Date.now(),
+        tanq_id: (state.identity || seed.identity).tanq_id || null,
+        guest_session_id: (state.identity || seed.identity).guest_session_id || null,
+        subject_id: effectiveSubjectId(),
+        subject_kind: effectiveSubjectKind(),
+        source: "ChatGPT",
+        source_app: "TANQ Project Tool",
+        title,
+        question: title,
+        summary,
+        ai_answer: summary,
+        insights,
+        insight: insights.join("\n"),
+        next_questions: nextQuestions,
+        next_question: nextQuestions.join("\n"),
+        linked_project_id: linkType === "project" || linkType === "question" ? project.id : null,
+        linked_question_id: linkType === "question" ? currentQuestionId() : null,
+        link_type: linkType,
+        trust_stage: "ai_consultation",
+        trust: 1,
+        created_at: new Date().toISOString()
+      };
+    }
+
+    async function saveAiConsultation({ asQuestion = false } = {}) {
+      const record = buildAiConsultationRecord();
+      state.aiConsultations = [record, ...(state.aiConsultations || [])];
+      if (asQuestion) {
+        state.questions = [{
+          id: "q_ai_" + Date.now(),
+          text: record.title,
+          trigger: "ChatGPT / AI相談ログ",
+          domain: "AI相談",
+          reason: record.summary || record.insight || "ChatGPTとの会話から生まれた問い",
+          next_action: record.next_question || "この問いを探究プロジェクトへ育てる",
+          maturity: "seed",
+          source_record_id: record.id,
+          tanq_id: record.tanq_id,
+          guest_session_id: record.guest_session_id,
+          created_at: new Date().toISOString()
+        }, ...(state.questions || [])];
+      }
+      saveState(state);
+      await saveFirebaseRecord("tanq_ai_consultations", record);
+      $("#ai-log-title").value = "";
+      $("#ai-log-summary").value = "";
+      $("#ai-log-insights").value = "";
+      $("#ai-log-next-questions").value = "";
+      render();
+      setStatus(asQuestion ? "AI log saved as question" : "AI log saved");
     }
 
     function renderAiConsultations() {
@@ -1421,9 +1549,10 @@
       $("#ai-consultation-list").innerHTML = consultations.length
         ? consultations.slice(0, 12).map((item) => {
           const imported = importedIds.has(item.id);
+          const idLabel = item.tanq_id || item.guest_session_id || item.subject_id || "local";
           return `<div class="timeline-item ${imported ? "latest" : ""}">
             <small>${escapeHtml(item.source || "ChatGPT")}</small>
-            <strong>${escapeHtml(item.question || "ChatGPT会話ログ")}<br><small>${escapeHtml(aiConsultationSummary(item))}</small></strong>
+            <strong>${escapeHtml(item.question || item.title || "ChatGPT会話ログ")}<br><small>${escapeHtml(aiConsultationSummary(item))}</small><br><small>ID: ${escapeHtml(idLabel)}</small></strong>
             <div class="actions">
               ${imported ? badge("資料化済み", "green") : `<button class="secondary" data-import-ai-consultation-id="${item.id}">資料に追加</button>`}
               ${badge("L" + Number(item.trust || 1), "gold")}
@@ -1443,6 +1572,8 @@
             url: "",
             text: aiConsultationText(item),
             source_record_id: item.id,
+            tanq_id: item.tanq_id || null,
+            guest_session_id: item.guest_session_id || null,
             created_at: new Date().toISOString()
           });
           saveState(state);
@@ -2258,6 +2389,8 @@
 
     $("#sync-graph").addEventListener("click", syncToGraph);
     $("#refresh-ai-consultations").addEventListener("click", refreshAiConsultations);
+    $("#save-ai-log").addEventListener("click", () => saveAiConsultation());
+    $("#save-ai-log-as-question").addEventListener("click", () => saveAiConsultation({ asQuestion: true }));
 
     $("#copy-payload").addEventListener("click", async () => {
       await navigator.clipboard.writeText(JSON.stringify(graphPayload(), null, 2));
