@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ Process Tool</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --surface: #fffdf8;
+      --ink: #24241f;
+      --muted: #6b6559;
+      --line: #d7cdb9;
+      --green: #246b55;
+      --blue: #2d5f8a;
+      --gold: #a47422;
+      --red: #a64e3d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(36,107,85,.09), transparent 34%),
+        linear-gradient(315deg, rgba(45,95,138,.08), transparent 40%),
+        var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; }
+    main { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 28px 0 48px; }
+    header {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 18px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,253,248,.82);
+    }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
+      color: #fffdf8;
+      background: conic-gradient(from 210deg, var(--green), var(--blue), var(--gold), var(--red), var(--green));
+      font-weight: 500;
+    }
+    h1, h2, h3, strong { margin: 0; font-weight: 500; }
+    h1 { font-size: clamp(34px, 5vw, 56px); line-height: 1; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 15px; }
+    small, .lead { color: var(--muted); }
+    .lead { margin: 0; max-width: 820px; line-height: 1.7; }
+    .eyebrow { margin: 0; color: var(--green); font-size: 13px; font-weight: 500; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .panel, .card, .lane, .timeline-item, .payload-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .panel { display: grid; gap: 14px; padding: 18px; }
+    .full { grid-column: 1 / -1; }
+    .wide { grid-column: span 8; }
+    .narrow { grid-column: span 4; }
+    .half { grid-column: span 6; }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .card { min-height: 106px; padding: 14px; display: grid; gap: 8px; align-content: start; }
+    .card b { font-size: 30px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: rgba(255,253,248,.72);
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .primary, .secondary {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .primary { color: #fffdf8; background: var(--green); }
+    .secondary { color: var(--ink); background: var(--surface); border-color: var(--line); text-decoration: none; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--blue);
+      background: rgba(45,95,138,.12);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .badge.green { color: var(--green); background: rgba(36,107,85,.12); }
+    .badge.gold { color: var(--gold); background: rgba(164,116,34,.14); }
+    .badge.red { color: var(--red); background: rgba(166,78,61,.12); }
+    .stage-board { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+    .lane { min-height: 250px; padding: 12px; display: grid; gap: 10px; align-content: start; }
+    .lane-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--green); }
+    .dot.gold { background: var(--gold); }
+    .dot.blue { background: var(--blue); }
+    .dot.red { background: var(--red); }
+    .item {
+      display: grid;
+      gap: 6px;
+      border-left: 3px solid var(--green);
+      padding: 10px;
+      border-radius: 6px;
+      background: rgba(36,107,85,.08);
+    }
+    .item.gold { border-left-color: var(--gold); background: rgba(164,116,34,.1); }
+    .item.blue { border-left-color: var(--blue); background: rgba(45,95,138,.09); }
+    .item.red { border-left-color: var(--red); background: rgba(166,78,61,.09); }
+    .timeline { display: grid; gap: 10px; }
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 120px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+    }
+    .payload-box {
+      margin: 0;
+      max-height: 360px;
+      overflow: auto;
+      padding: 14px;
+      color: #f5efe2;
+      background: #26241f;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    @media (max-width: 980px) {
+      main { width: min(100% - 28px, 1180px); }
+      .grid, .cards, .form-grid, .stage-board, .timeline-item { grid-template-columns: 1fr; }
+      .full, .wide, .narrow, .half { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">PP</span>
+          <div>
+            <strong>TANQ Process Tool</strong>
+            <small>Project Process Management workspace</small>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="open-project-tool" type="button">Project Toolへ戻る</button>
+          <button class="secondary" id="copy-process-payload" type="button">JSONをコピー</button>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">Process / PPM</p>
+        <h1>問いを、実行できるプロセスに分解する</h1>
+      </div>
+      <p class="lead">このページはTANQ Project Toolから工程管理だけを切り分けた独立コンテンツです。問い、仮説、資料はProject Toolに残し、ここでは段階、タスク、役割、次の一手を管理します。</p>
+    </header>
+
+    <div class="grid">
+      <section class="panel wide">
+        <h2>現在のプロジェクト</h2>
+        <div class="timeline">
+          <div class="timeline-item">
+            <small>Project</small>
+            <strong id="project-name-view">読み込み中</strong>
+            <span class="badge green" id="project-owner-view">TANQ</span>
+          </div>
+          <div class="timeline-item">
+            <small>Question</small>
+            <strong id="project-question-view">中心の問いを読み込みます</strong>
+            <span class="badge gold">Inquiry</span>
+          </div>
+          <div class="timeline-item">
+            <small>Hypothesis</small>
+            <strong id="project-hypothesis-view">仮説を読み込みます</strong>
+            <span class="badge">Plan</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel narrow">
+        <h2>プロセス状態</h2>
+        <div class="cards">
+          <div class="card"><small>Tasks</small><b id="metric-tasks">0</b><span class="badge green">ログ</span></div>
+          <div class="card"><small>Active Stage</small><b id="metric-active-stage">0</b><span class="badge gold">集中</span></div>
+          <div class="card"><small>Evidence</small><b id="metric-evidence">0</b><span class="badge">資料</span></div>
+        </div>
+      </section>
+
+      <section class="panel full">
+        <h2>作業ログを追加</h2>
+        <div class="form-grid">
+          <label>追加する作業<input id="task-title" placeholder="例: 商店街ヒアリング設計"></label>
+          <label>段階<select id="task-stage"></select></label>
+        </div>
+        <div class="form-grid">
+          <label>担当・協力者<input id="task-owner" placeholder="例: 生徒チーム / PPM Lead / 地域担当"></label>
+          <label>次の一手<input id="task-next" placeholder="例: 質問票を作って3人に聞く"></label>
+        </div>
+        <label>メモ<textarea id="task-summary" placeholder="何をしたか、何がわかったか、何が詰まっているか"></textarea></label>
+        <div class="actions">
+          <button class="primary" id="add-task" type="button">作業ログを追加</button>
+          <button class="secondary" id="seed-process" type="button">PPMサンプルを入れる</button>
+          <small id="save-status"></small>
+        </div>
+      </section>
+
+      <section class="panel full">
+        <h2 id="template-title">探究プロジェクト段階</h2>
+        <p class="lead" id="template-note"></p>
+        <div class="timeline" id="template-list"></div>
+      </section>
+
+      <section class="panel full">
+        <h2>Process Board</h2>
+        <div class="stage-board" id="stage-board"></div>
+      </section>
+
+      <section class="panel half">
+        <h2>PPMチェック</h2>
+        <div class="timeline" id="ppm-check-list"></div>
+      </section>
+
+      <section class="panel half">
+        <h2>Graph連携</h2>
+        <p class="lead">このProcess Toolで追加した作業ログは、Project Toolと同じ保存領域に入ります。Project ToolからTANQ Graphへ同期すると`tanq_activity_logs`として送られます。</p>
+        <pre class="payload-box" id="process-payload"></pre>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const storageKey = "tanq-project-tool-state";
+    const processStages = ["question", "ideation", "hypothesis", "master_plan", "execution", "submit_business"];
+    const processTemplates = {
+      "TANQ Pass Kids": {
+        name: "Kids",
+        note: "低年齢向けに、問いを遊び・発見・作品づくりとして扱います。",
+        stages: {
+          question: ["ふしぎ", "gold", "気になったことをそのまま残す。"],
+          ideation: ["やってみたい", "green", "思いついた遊び方や調べ方を出す。"],
+          hypothesis: ["予想", "gold", "こうかもしれない、を言葉にする。"],
+          master_plan: ["計画", "blue", "誰と何を試すか決める。"],
+          execution: ["やってみる", "blue", "観察、制作、発表の準備をする。"],
+          submit_business: ["見せる", "green", "家族、先生、友だちに見せて記録する。"]
+        }
+      },
+      "TANQ Passport": {
+        name: "Passport",
+        note: "中高生向けに、問いから探究計画、実行、提出・社会接続まで進めます。",
+        stages: {
+          question: ["問い", "gold", "違和感や知りたいことを保存する。"],
+          ideation: ["アイデア出し", "green", "解決策、調査方法、協力者を広げる。"],
+          hypothesis: ["仮説", "gold", "検証したい見立てを置く。"],
+          master_plan: ["マスタープラン", "blue", "調査、制作、評価、提出物を設計する。"],
+          execution: ["実行段階", "blue", "調査、制作、実証、改善を進める。"],
+          submit_business: ["提出・事業化", "green", "提出、発表、外部連携、事業化へ接続する。"]
+        }
+      },
+      Proofolio: {
+        name: "Proofolio",
+        note: "社会人向けに、業務課題から企画、実行、外部提供・契約まで扱います。",
+        stages: {
+          question: ["課題定義", "gold", "業務・社会課題を定義する。"],
+          ideation: ["解決案", "green", "打ち手、関係者、制約を出す。"],
+          hypothesis: ["事業仮説", "gold", "価値、対象、成果指標を仮説化する。"],
+          master_plan: ["実行計画", "blue", "体制、予算、工程、リスクを設計する。"],
+          execution: ["実行・検証", "blue", "実装、営業、検証、改善を進める。"],
+          submit_business: ["提供・契約", "green", "社内提出、外部提供、契約、実績化へ進める。"]
+        }
+      },
+      "Proofolio Encore": {
+        name: "Encore",
+        note: "45歳以降の再設計向けに、経験の棚卸しから次の提供価値へ接続します。",
+        stages: {
+          question: ["転機の問い", "gold", "これから何を価値にするか問う。"],
+          ideation: ["経験の再編集", "green", "強み、資産、人脈、関心を組み替える。"],
+          hypothesis: ["提供価値仮説", "gold", "誰に何を提供できるか仮説化する。"],
+          master_plan: ["再始動プラン", "blue", "学び直し、実証、収益化の計画を作る。"],
+          execution: ["試行・発信", "blue", "小さく試し、発信し、反応を見る。"],
+          submit_business: ["契約・独立接続", "green", "副業、転職、独立、顧問契約へつなげる。"]
+        }
+      }
+    };
+    const seed = {
+      project: {
+        id: "tp_project_" + Date.now(),
+        name: "地方創生PPP探究",
+        owner: "TANQ Passport",
+        question: "空き店舗を、地域の学び・事業化・交流が生まれる探究拠点として再生できるか。",
+        hypothesis: "学校、自治体、地元企業、大学が共通の評価指標で関わると、継続的な地域PPPプロジェクトになる。"
+      },
+      questions: [],
+      tasks: [],
+      materials: [],
+      feedback: []
+    };
+    const $ = (selector) => document.querySelector(selector);
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function badge(text, tone = "") {
+      return `<span class="badge ${tone}">${escapeHtml(text)}</span>`;
+    }
+
+    function readState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null") || seed;
+        return {
+          ...seed,
+          ...saved,
+          project: { ...seed.project, ...(saved.project || {}) },
+          questions: saved.questions || [],
+          tasks: saved.tasks || [],
+          materials: saved.materials || [],
+          feedback: saved.feedback || []
+        };
+      } catch (error) {
+        return structuredClone(seed);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+    }
+
+    let state = readState();
+
+    function activeTemplate() {
+      return processTemplates[state.project?.owner] || processTemplates["TANQ Passport"];
+    }
+
+    function stageInfo(stage) {
+      return activeTemplate().stages[stage] || activeTemplate().stages.question;
+    }
+
+    function projectToolUrl() {
+      const path = window.location.pathname;
+      if (path.includes("/tanq-graph-public/process-tool/")) return "../project-tool/";
+      return "../tanq-project-tool/index.html";
+    }
+
+    function setStatus(text) {
+      $("#save-status").textContent = text;
+      setTimeout(() => { $("#save-status").textContent = ""; }, 1600);
+    }
+
+    function renderProject() {
+      $("#project-name-view").textContent = state.project.name || "探究プロジェクト";
+      $("#project-owner-view").textContent = state.project.owner || "TANQ Passport";
+      $("#project-question-view").textContent = state.project.question || "中心の問いは未設定です。";
+      $("#project-hypothesis-view").textContent = state.project.hypothesis || "仮説は未設定です。";
+    }
+
+    function renderStageOptions() {
+      const current = $("#task-stage").value || "question";
+      $("#task-stage").innerHTML = processStages.map((stage) => {
+        const [label] = stageInfo(stage);
+        return `<option value="${stage}">${escapeHtml(label)}</option>`;
+      }).join("");
+      $("#task-stage").value = processStages.includes(current) ? current : "question";
+    }
+
+    function renderTemplate() {
+      const template = activeTemplate();
+      $("#template-title").textContent = `${template.name} Process`;
+      $("#template-note").textContent = template.note;
+      $("#template-list").innerHTML = processStages.map((stage, index) => {
+        const [label, tone, description] = template.stages[stage];
+        return `<div class="timeline-item">
+          <small>${String(index + 1).padStart(2, "0")}</small>
+          <strong>${escapeHtml(label)}<br><small>${escapeHtml(description)}</small></strong>
+          ${badge(stage, tone)}
+        </div>`;
+      }).join("");
+    }
+
+    function renderBoard() {
+      $("#stage-board").innerHTML = processStages.map((stage) => {
+        const [label, tone] = stageInfo(stage);
+        const tasks = state.tasks.filter((task) => task.stage === stage);
+        return `<div class="lane">
+          <div class="lane-head"><strong>${escapeHtml(label)}</strong><span class="dot ${tone}"></span></div>
+          ${tasks.length ? tasks.map((task) => `<div class="item ${tone}">
+            <strong>${escapeHtml(task.title)}</strong>
+            <small>${escapeHtml(task.summary || "メモなし")}</small>
+            ${task.owner ? `<small>担当: ${escapeHtml(task.owner)}</small>` : ""}
+            ${task.next_action ? `<small>次: ${escapeHtml(task.next_action)}</small>` : ""}
+          </div>`).join("") : `<small>まだ作業ログはありません。</small>`}
+        </div>`;
+      }).join("");
+    }
+
+    function renderMetrics() {
+      const counts = Object.fromEntries(processStages.map((stage) => [stage, state.tasks.filter((task) => task.stage === stage).length]));
+      const active = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+      $("#metric-tasks").textContent = state.tasks.length;
+      $("#metric-active-stage").textContent = active?.[1] ? stageInfo(active[0])[0] : "未";
+      $("#metric-evidence").textContent = (state.materials || []).length + (state.feedback || []).length;
+    }
+
+    function renderPpmCheck() {
+      const hasQuestion = Boolean(state.project.question || (state.questions || []).length);
+      const hasPlan = state.tasks.some((task) => task.stage === "master_plan");
+      const hasExecution = state.tasks.some((task) => task.stage === "execution");
+      const hasEvidence = (state.materials || []).length > 0;
+      const hasReview = (state.feedback || []).length > 0;
+      const checks = [
+        ["問い", hasQuestion, "問いが定義されています。", "Project Toolで中心の問いを設定します。"],
+        ["計画", hasPlan, "マスタープランがあります。", "工程、担当、成果指標を作ります。"],
+        ["実行", hasExecution, "実行ログがあります。", "小さな実証ログを追加します。"],
+        ["証跡", hasEvidence, "資料が紐づいています。", "写真、Docs、PDF、AI相談ログを追加します。"],
+        ["レビュー", hasReview, "フィードバックがあります。", "先生、上司、外部専門家の確認を受けます。"]
+      ];
+      $("#ppm-check-list").innerHTML = checks.map(([label, ok, yes, no]) => `<div class="timeline-item">
+        <small>${escapeHtml(label)}</small>
+        <strong>${escapeHtml(ok ? yes : no)}</strong>
+        ${badge(ok ? "OK" : "Next", ok ? "green" : "gold")}
+      </div>`).join("");
+    }
+
+    function processPayload() {
+      return {
+        source_tool: "TANQ Process Tool",
+        project_id: state.project.id,
+        project_name: state.project.name,
+        owner: state.project.owner,
+        process_logs: state.tasks.map((task) => ({
+          ...task,
+          graph_type: "activity_log",
+          process_label: stageInfo(task.stage)[0],
+          source: "TANQ Process Tool",
+          type: "Process"
+        }))
+      };
+    }
+
+    function renderPayload() {
+      $("#process-payload").textContent = JSON.stringify(processPayload(), null, 2);
+    }
+
+    function render() {
+      state = readState();
+      renderProject();
+      renderStageOptions();
+      renderTemplate();
+      renderBoard();
+      renderMetrics();
+      renderPpmCheck();
+      renderPayload();
+    }
+
+    $("#open-project-tool").addEventListener("click", () => {
+      window.open(projectToolUrl(), "_blank", "noopener");
+    });
+
+    $("#add-task").addEventListener("click", () => {
+      const title = $("#task-title").value.trim();
+      if (!title) return setStatus("task required");
+      state.tasks.unshift({
+        id: "task_process_" + Date.now(),
+        title,
+        stage: $("#task-stage").value,
+        summary: $("#task-summary").value.trim(),
+        owner: $("#task-owner").value.trim(),
+        next_action: $("#task-next").value.trim(),
+        created_at: new Date().toISOString()
+      });
+      $("#task-title").value = "";
+      $("#task-summary").value = "";
+      $("#task-owner").value = "";
+      $("#task-next").value = "";
+      saveState();
+      render();
+      setStatus("task saved");
+    });
+
+    $("#seed-process").addEventListener("click", () => {
+      const now = new Date().toISOString();
+      state.tasks = [
+        { id: "task_ppm_" + Date.now() + "_1", title: "ステークホルダーを洗い出す", stage: "ideation", summary: "学校、自治体、企業、地域団体、利用者候補を整理する。", owner: "PPM Lead", next_action: "関係者マップを作る", created_at: now },
+        { id: "task_ppm_" + Date.now() + "_2", title: "90日実証マスタープラン", stage: "master_plan", summary: "目的、成果指標、役割、予算、リスク、提出物を決める。", owner: "Project Team", next_action: "実証スケジュールを置く", created_at: now },
+        { id: "task_ppm_" + Date.now() + "_3", title: "小さな現場検証", stage: "execution", summary: "候補者ヒアリングとミニ実証を行い、証跡を残す。", owner: "Research Lead", next_action: "資料をProject Toolへ追加", created_at: now },
+        ...state.tasks
+      ];
+      saveState();
+      render();
+      setStatus("sample added");
+    });
+
+    $("#copy-process-payload").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(JSON.stringify(processPayload(), null, 2));
+      setStatus("payload copied");
+    });
+
+    render();
+  </script>
+</body>
+</html>

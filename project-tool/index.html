@@ -568,7 +568,7 @@
         <button class="active" data-tab="kids">Kids</button>
         <button data-tab="questions">Questions</button>
         <button data-tab="workspace">Project</button>
-        <button data-tab="board">Process</button>
+        <button id="open-process-tool" type="button">Process Tool</button>
         <button data-tab="materials">Materials</button>
         <button data-tab="tools">Tools</button>
         <button data-tab="innovation">Innovation</button>
@@ -821,6 +821,10 @@
                 <strong>TANQ Graph</strong>
                 <small>プロジェクト、活動ログ、資料、評価をDBに保存してポートフォリオ化。</small>
               </div>
+            </div>
+            <div class="actions">
+              <button class="secondary" id="open-process-from-project" type="button">Process Toolを別ページで開く</button>
+              <small>工程設計・PPM・実行管理は独立コンテンツとして扱います。</small>
             </div>
           </div>
         </div>
@@ -2456,12 +2460,24 @@
       setTimeout(() => { $("#save-status").textContent = ""; }, 1600);
     }
 
+    function processToolUrl() {
+      const path = window.location.pathname;
+      if (path.includes("/tanq-graph-public/project-tool/")) return "../process-tool/";
+      return "../tanq-process-tool/index.html";
+    }
+
+    function openProcessTool() {
+      window.open(processToolUrl(), "_blank", "noopener");
+    }
+
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
         document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
       });
     });
+    $("#open-process-tool").addEventListener("click", openProcessTool);
+    $("#open-process-from-project").addEventListener("click", openProcessTool);
 
     ["#project-name", "#project-owner", "#project-question", "#project-hypothesis", "#project-stage", "#export-targets"].forEach((selector) => {
       $(selector).addEventListener("input", () => {
