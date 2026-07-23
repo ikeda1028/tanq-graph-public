@@ -565,8 +565,8 @@
         </div>
       </div>
       <nav class="nav">
-        <button class="active" data-tab="kids">Kids</button>
-        <button data-tab="questions">Questions</button>
+        <button id="open-kids-tool" type="button">Kids Tool</button>
+        <button class="active" data-tab="questions">Questions</button>
         <button data-tab="workspace">Project</button>
         <button id="open-process-tool" type="button">Process Tool</button>
         <button data-tab="materials">Materials</button>
@@ -630,99 +630,7 @@
         <p class="lead">まだ計画や成果物になっていない純粋な問いを集め、育った問いだけを探究プロジェクトへ昇格します。TANQ Graphには問いの発生から証跡化できます。</p>
       </section>
 
-      <section id="kids" class="tab active">
-        <div class="grid">
-          <div class="panel full">
-            <div class="kids-hero">
-              <div class="kids-card">
-                <div class="badge-row">
-                  <span class="badge green">TANQ Pass Kids</span>
-                  <span class="badge gold">Question Seed</span>
-                </div>
-                <h2>まず しゃしんを とる</h2>
-                <div class="kids-photo-panel">
-                  <label class="kids-photo-drop">
-                    <input id="kids-photo-input" type="file" accept="image/*" capture="environment">
-                    <strong>しゃしんをえらぶ / とる</strong>
-                    <small>気になったものを入れると、AIが見立てと問いを出します。</small>
-                    <button class="secondary" id="kids-photo-button" type="button">しゃしんを入れる</button>
-                  </label>
-                  <div class="kids-ai-card">
-                    <img class="kids-photo-preview" id="kids-photo-preview" alt="Kids photo preview" hidden>
-                    <strong id="kids-ai-title">AIのみたて</strong>
-                    <small id="kids-ai-summary">写真を入れると、ここに「見えたもの」と「問いかけ」が出ます。</small>
-                    <div class="kids-ai-list" id="kids-ai-questions"></div>
-                  </div>
-                </div>
-                <div class="kids-location-box">
-                  <div class="form-grid">
-                    <label>しゃしんを撮った場所<input id="kids-photo-location" placeholder="例: 学校の校庭 / 近くの公園"></label>
-                    <label>地図メモ<input id="kids-photo-location-note" placeholder="例: 大きな木の近く"></label>
-                  </div>
-                  <div class="actions">
-                    <button class="secondary" id="kids-current-location" type="button">いまの場所を入れる</button>
-                    <small id="kids-location-status">あとから場所を入れても大丈夫です。</small>
-                  </div>
-                </div>
-                <h2>きょうの ふしぎ</h2>
-                <textarea class="kids-big-input" id="kids-wonder-text" placeholder="なんで？ どうして？ ふしぎだな、と思ったこと"></textarea>
-                <div class="voice-row">
-                  <button class="secondary" id="kids-voice-wonder" type="button">音声で入れる</button>
-                  <small id="kids-voice-status">声でメモできます。</small>
-                </div>
-                <div class="form-grid">
-                  <label>みつけたところ<input id="kids-wonder-place" placeholder="例: 学校、家、まち、公園"></label>
-                  <label>つぎにすること<input id="kids-next-action" placeholder="例: しゃしんをとる / きいてみる"></label>
-                </div>
-                <div class="actions">
-                  <button class="primary" id="kids-add-wonder">ふしぎをのこす</button>
-                  <button class="secondary" id="kids-promote">たんけんにする</button>
-                </div>
-              </div>
-              <div class="kids-card">
-                <h2>たんけんメモ</h2>
-                <label>やってみたい<input id="kids-idea-text" placeholder="例: あきやのつかい道を考える"></label>
-                <label>よそう<input id="kids-prediction-text" placeholder="例: みんなで使えば楽しい場所になる"></label>
-                <label>けいかく<input id="kids-plan-text" placeholder="例: 3人に話をきく"></label>
-              </div>
-            </div>
-          </div>
-          <div class="panel full">
-            <div class="kids-actions">
-              <button class="kids-action" data-kids-action="idea" type="button" data-tone="green"><span>+</span><strong>やってみたい</strong><small>アイデアを出す</small></button>
-              <button class="kids-action" data-kids-action="prediction" type="button" data-tone="gold"><span>?</span><strong>よそう</strong><small>こうかもしれない</small></button>
-              <button class="kids-action" data-kids-action="plan" type="button" data-tone="blue"><span>1</span><strong>けいかく</strong><small>つぎの一歩</small></button>
-              <button class="kids-action" data-kids-action="activity" type="button" data-tone="blue"><span>✓</span><strong>やってみた</strong><small>できたこと</small></button>
-              <button class="kids-action" data-kids-action="share" type="button" data-tone="red"><span>*</span><strong>見せる</strong><small>コメントをもらう</small></button>
-              <button class="kids-action" data-kids-action="sync" type="button"><span>G</span><strong>Graph</strong><small>TANQに送る</small></button>
-            </div>
-          </div>
-          <div class="panel full">
-            <h2>たんけんマップ</h2>
-            <div class="kids-map" id="kids-map"></div>
-          </div>
-          <div class="panel half">
-            <h2>やってみた</h2>
-            <label>作品・しゃしん・メモ<textarea id="kids-activity-text" placeholder="見たこと、つくったもの、気づいたこと"></textarea></label>
-          </div>
-          <div class="panel half">
-            <h2>見せたあと</h2>
-            <label>コメント<textarea id="kids-share-text" placeholder="先生、家族、友だちからもらった言葉"></textarea></label>
-            <label>Googleマップに記録する場所<input id="kids-share-location" placeholder="例: ○○公園 / 緯度,経度 / 住所"></label>
-            <div class="actions">
-              <button class="secondary" id="kids-map-preview-button" type="button">地図で見る</button>
-              <a class="kids-map-link" id="kids-map-link" href="#" target="_blank" rel="noopener" hidden>Googleマップで開く</a>
-            </div>
-            <iframe class="kids-map-embed" id="kids-map-frame" title="Google Map" loading="lazy" hidden></iframe>
-          </div>
-          <div class="panel full">
-            <h2>さいきんの たんけん</h2>
-            <div class="kids-log" id="kids-log"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="questions" class="tab">
+      <section id="questions" class="tab active">
         <div class="grid">
           <div class="panel wide">
             <h2>純粋な問い</h2>
@@ -1404,6 +1312,10 @@
       renderIdentity();
       renderPayload();
       setStatus(mode === "guest" ? "guest mode" : "tanq id set");
+      if (age && interfaceKey === "kids" && mode !== "guest") {
+        $("#identity-message").textContent = "年齢からTANQ Pass Kidsを選びました。Kids Toolを開きます。";
+        setTimeout(openKidsTool, 450);
+      }
     }
 
     async function refreshAiConsultations() {
@@ -2444,7 +2356,6 @@
     function render() {
       renderIdentity();
       renderTaskStageOptions();
-      renderKidsInterface();
       renderMetrics();
       renderQuestions();
       renderBoard();
@@ -2470,12 +2381,23 @@
       window.open(processToolUrl(), "_blank", "noopener");
     }
 
+    function kidsToolUrl() {
+      const path = window.location.pathname;
+      if (path.includes("/tanq-graph-public/project-tool/")) return "../kids-tool/";
+      return "../tanq-kids-tool/index.html";
+    }
+
+    function openKidsTool() {
+      window.open(kidsToolUrl(), "_blank", "noopener");
+    }
+
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
         document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
       });
     });
+    $("#open-kids-tool").addEventListener("click", openKidsTool);
     $("#open-process-tool").addEventListener("click", openProcessTool);
     $("#open-process-from-project").addEventListener("click", openProcessTool);
 
@@ -2559,191 +2481,6 @@
       saveState(state);
       render();
       setStatus("question samples added");
-    });
-
-    $("#kids-photo-button").addEventListener("click", () => {
-      $("#kids-photo-input").click();
-    });
-
-    $("#kids-photo-input").addEventListener("change", () => {
-      const file = $("#kids-photo-input").files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        $("#kids-photo-preview").src = reader.result;
-        $("#kids-photo-preview").hidden = false;
-      };
-      reader.readAsDataURL(file);
-      const prompt = kidsPhotoPrompt(file.name);
-      kidsPhotoDraft = {
-        name: file.name,
-        type: file.type,
-        aiTitle: prompt.title,
-        aiSummary: prompt.summary
-      };
-      renderKidsAiPrompt(prompt);
-      setStatus("photo loaded");
-    });
-
-    $("#kids-voice-wonder").addEventListener("click", startKidsVoiceInput);
-
-    $("#kids-current-location").addEventListener("click", () => {
-      if (!navigator.geolocation) {
-        $("#kids-location-status").textContent = "このブラウザでは現在地を使えません。";
-        return;
-      }
-      $("#kids-location-status").textContent = "場所を調べています...";
-      navigator.geolocation.getCurrentPosition((position) => {
-        const { latitude, longitude, accuracy } = position.coords;
-        kidsCurrentGeo = { latitude, longitude, accuracy };
-        const latLng = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-        $("#kids-photo-location").value = latLng;
-        $("#kids-share-location").value = latLng;
-        $("#kids-location-status").textContent = `場所を入れました。誤差 約${Math.round(accuracy)}m`;
-        updateKidsMapPreview(latLng);
-      }, () => {
-        $("#kids-location-status").textContent = "現在地を取得できませんでした。場所名を手で入れられます。";
-      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
-    });
-
-    $("#kids-map-preview-button").addEventListener("click", () => {
-      const locationText = $("#kids-share-location").value.trim() || $("#kids-photo-location").value.trim();
-      if (!locationText) {
-        setStatus("location required");
-        return;
-      }
-      $("#kids-share-location").value = locationText;
-      updateKidsMapPreview(locationText);
-      setStatus("map ready");
-    });
-
-    $("#kids-add-wonder").addEventListener("click", () => {
-      const text = $("#kids-wonder-text").value.trim();
-      if (!text) {
-        setStatus("wonder required");
-        return;
-      }
-      ensureKidsOwner();
-      const photoGeo = buildKidsGeo($("#kids-photo-location").value, $("#kids-photo-location-note").value);
-      state.questions = [{
-        id: "q_kids_" + Date.now(),
-        text,
-        trigger: $("#kids-wonder-place").value.trim(),
-        domain: "Kidsたんけん",
-        maturity: "seed",
-        reason: "ふしぎだと思ったこと",
-        next_action: $("#kids-next-action").value.trim(),
-        promoted: false,
-        audience: "kids",
-        input_mode: kidsPhotoDraft ? "photo_ai_voice_ready" : "text_voice_ready",
-        photo_observation: kidsPhotoDraft ? {
-          file_name: kidsPhotoDraft.name,
-          ai_title: kidsPhotoDraft.aiTitle,
-          ai_summary: kidsPhotoDraft.aiSummary,
-          geo: photoGeo
-        } : null,
-        geo: photoGeo,
-        created_at: new Date().toISOString()
-      }, ...(state.questions || [])];
-      if (kidsPhotoDraft) {
-        state.materials.unshift({
-          id: "mat_kids_photo_" + Date.now(),
-          title: "しゃしんから見つけたふしぎ",
-          kind: "Kids写真",
-          url: "",
-          text: `${kidsPhotoDraft.aiTitle}\n${kidsPhotoDraft.aiSummary}`,
-          audience: "kids",
-          geo: photoGeo,
-          source_question_id: state.questions[0].id,
-          created_at: new Date().toISOString()
-        });
-      }
-      $("#kids-wonder-text").value = "";
-      $("#kids-wonder-place").value = "";
-      $("#kids-next-action").value = "";
-      $("#kids-photo-location-note").value = "";
-      saveState(state);
-      renderProjectForm();
-      render();
-      setStatus("wonder saved");
-    });
-
-    $("#kids-promote").addEventListener("click", () => {
-      const question = latestKidsQuestion();
-      if (!question) {
-        setStatus("wonder required");
-        return;
-      }
-      promoteQuestion(question.id);
-    });
-
-    document.querySelectorAll("[data-kids-action]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        ensureKidsOwner();
-        const action = button.dataset.kidsAction;
-        const now = new Date().toISOString();
-        if (action === "idea") {
-          const text = $("#kids-idea-text").value.trim();
-          if (!text) return setStatus("idea required");
-          addKidsTask("ideation", "やってみたい", text);
-          $("#kids-idea-text").value = "";
-        }
-        if (action === "prediction") {
-          const text = $("#kids-prediction-text").value.trim();
-          if (!text) return setStatus("prediction required");
-          addKidsTask("hypothesis", "よそう", text);
-          $("#kids-prediction-text").value = "";
-        }
-        if (action === "plan") {
-          const text = $("#kids-plan-text").value.trim();
-          if (!text) return setStatus("plan required");
-          addKidsTask("master_plan", "けいかく", text);
-          $("#kids-plan-text").value = "";
-        }
-        if (action === "activity") {
-          const text = $("#kids-activity-text").value.trim();
-          if (!text) return setStatus("activity required");
-          const activityGeo = buildKidsGeo($("#kids-photo-location").value, $("#kids-photo-location-note").value);
-          addKidsTask("execution", "やってみた", text);
-          state.materials.unshift({
-            id: "mat_kids_" + Date.now(),
-            title: "やってみた記録",
-            kind: "Kids作品・観察",
-            url: "",
-            text,
-            audience: "kids",
-            geo: activityGeo,
-            created_at: now
-          });
-          $("#kids-activity-text").value = "";
-        }
-        if (action === "share") {
-          const text = $("#kids-share-text").value.trim();
-          if (!text) return setStatus("comment required");
-          const shareLocation = $("#kids-share-location").value.trim() || $("#kids-photo-location").value.trim();
-          const shareGeo = buildKidsGeo(shareLocation, "見せる場所");
-          state.feedback.unshift({
-            id: "fb_kids_" + Date.now(),
-            reviewer: "先生・家族・友だち",
-            level: "2",
-            text,
-            audience: "kids",
-            geo: shareGeo,
-            map_url: shareGeo?.map_url || "",
-            created_at: now
-          });
-          if (shareLocation) updateKidsMapPreview(shareLocation);
-          $("#kids-share-text").value = "";
-        }
-        if (action === "sync") {
-          await syncToGraph();
-          return;
-        }
-        saveState(state);
-        renderProjectForm();
-        render();
-        setStatus("kids saved");
-      });
     });
 
     $("#save-project").addEventListener("click", async () => {

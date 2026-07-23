@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ Pass Kids Tool</title>
+  <script src="../project-tool/google-maps-config.js"></script>
+  <script src="../tanq-project-tool/google-maps-config.js"></script>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --surface: #fffdf8;
+      --ink: #24241f;
+      --muted: #6b6559;
+      --line: #d7cdb9;
+      --green: #246b55;
+      --blue: #2d5f8a;
+      --gold: #a47422;
+      --red: #a64e3d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(36,107,85,.1), transparent 34%),
+        linear-gradient(315deg, rgba(164,116,34,.12), transparent 42%),
+        var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, textarea { font: inherit; }
+    main { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 26px 0 48px; }
+    header, .panel, .card, .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    header {
+      display: grid;
+      gap: 14px;
+      margin-bottom: 16px;
+      padding: 18px;
+      background:
+        linear-gradient(135deg, rgba(36,107,85,.12), transparent 44%),
+        linear-gradient(315deg, rgba(45,95,138,.08), transparent 42%),
+        var(--surface);
+    }
+    .topbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: grid;
+      place-items: center;
+      color: #fffdf8;
+      background: conic-gradient(from 210deg, var(--green), var(--blue), var(--gold), var(--red), var(--green));
+      font-weight: 600;
+    }
+    h1, h2, h3, strong { margin: 0; font-weight: 500; }
+    h1 { font-size: clamp(36px, 5vw, 60px); line-height: 1; }
+    h2 { font-size: 24px; }
+    h3 { font-size: 16px; }
+    small, .lead { color: var(--muted); }
+    .lead { margin: 0; max-width: 840px; line-height: 1.7; }
+    .eyebrow { margin: 0; color: var(--green); font-size: 13px; font-weight: 500; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .panel { display: grid; gap: 14px; padding: 18px; }
+    .full { grid-column: 1 / -1; }
+    .wide { grid-column: span 8; }
+    .half { grid-column: span 6; }
+    .narrow { grid-column: span 4; }
+    .kids-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    .photo-panel {
+      display: grid;
+      grid-template-columns: minmax(180px, .72fr) minmax(0, 1fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+    .photo-drop {
+      min-height: 220px;
+      display: grid;
+      gap: 10px;
+      place-items: center;
+      align-content: center;
+      padding: 16px;
+      border: 1px dashed rgba(36,107,85,.48);
+      border-radius: 8px;
+      background: rgba(36,107,85,.08);
+      text-align: center;
+    }
+    .photo-drop input { display: none; }
+    .photo-preview {
+      width: 100%;
+      max-height: 260px;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .ai-card {
+      display: grid;
+      gap: 10px;
+      align-content: start;
+      padding: 14px;
+      border: 1px solid rgba(45,95,138,.28);
+      border-radius: 8px;
+      background: rgba(45,95,138,.08);
+    }
+    .ai-list { display: grid; gap: 8px; }
+    .ai-list button {
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .actions, .voice-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .primary, .secondary {
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+    }
+    .primary { color: #fffdf8; background: var(--green); }
+    .secondary { color: var(--ink); background: var(--surface); border-color: var(--line); text-decoration: none; }
+    .voice-row button.listening { color: #fffdf8; background: var(--red); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: rgba(255,253,248,.78);
+    }
+    textarea { min-height: 104px; resize: vertical; }
+    .big-input { min-height: 136px; font-size: 20px; line-height: 1.55; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--blue);
+      background: rgba(45,95,138,.12);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .badge.green { color: var(--green); background: rgba(36,107,85,.12); }
+    .badge.gold { color: var(--gold); background: rgba(164,116,34,.14); }
+    .badge.red { color: var(--red); background: rgba(166,78,61,.12); }
+    .badge-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .steps, .action-grid, .log-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .step, .card {
+      min-height: 104px;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .step.done { border-color: rgba(36,107,85,.55); background: linear-gradient(180deg, rgba(36,107,85,.1), var(--surface)); }
+    .action-card {
+      min-height: 90px;
+      text-align: left;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+      display: grid;
+      gap: 6px;
+      justify-items: start;
+    }
+    .map-frame {
+      width: 100%;
+      min-height: 240px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    .map-link { color: var(--blue); text-decoration: none; font-size: 13px; }
+    @media (max-width: 980px) {
+      main { width: min(100% - 28px, 1180px); }
+      .grid, .kids-hero, .photo-panel, .form-grid, .steps, .action-grid, .log-grid { grid-template-columns: 1fr; }
+      .full, .wide, .half, .narrow { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">TK</span>
+          <div>
+            <strong>TANQ Pass Kids Tool</strong>
+            <small id="identity-label">Guest</small>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="secondary" id="open-project-tool" type="button">Project Toolへ</button>
+          <button class="secondary" id="copy-kids-payload" type="button">JSONをコピー</button>
+        </div>
+      </div>
+      <div>
+        <p class="eyebrow">Kids / Question Seed</p>
+        <h1>しゃしんから、ふしぎをのこす</h1>
+      </div>
+      <p class="lead">写真を撮る、AIの問いかけを見る、声でメモする、場所を地図に残す。低年齢向けの探究入口をProject Toolから独立させました。</p>
+    </header>
+
+    <div class="grid">
+      <section class="panel full">
+        <div class="kids-hero">
+          <div class="panel">
+            <div class="badge-row">
+              <span class="badge green">TANQ Pass Kids</span>
+              <span class="badge gold">Question Seed</span>
+            </div>
+            <h2>まず しゃしんを とる</h2>
+            <div class="photo-panel">
+              <label class="photo-drop">
+                <input id="photo-input" type="file" accept="image/*" capture="environment">
+                <strong>しゃしんをえらぶ / とる</strong>
+                <small>気になったものを入れると、AIが見立てと問いを出します。</small>
+                <button class="secondary" id="photo-button" type="button">しゃしんを入れる</button>
+              </label>
+              <div class="ai-card">
+                <img class="photo-preview" id="photo-preview" alt="Kids photo preview" hidden>
+                <strong id="ai-title">AIのみたて</strong>
+                <small id="ai-summary">写真を入れると、ここに「見えたもの」と「問いかけ」が出ます。</small>
+                <div class="ai-list" id="ai-questions"></div>
+              </div>
+            </div>
+            <div class="form-grid">
+              <label>しゃしんを撮った場所<input id="photo-location" placeholder="例: 学校の校庭 / 近くの公園"></label>
+              <label>地図メモ<input id="photo-location-note" placeholder="例: 大きな木の近く"></label>
+            </div>
+            <div class="actions">
+              <button class="secondary" id="current-location" type="button">いまの場所を入れる</button>
+              <small id="location-status">あとから場所を入れても大丈夫です。</small>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>きょうの ふしぎ</h2>
+            <textarea class="big-input" id="wonder-text" placeholder="なんで？ どうして？ ふしぎだな、と思ったこと"></textarea>
+            <div class="voice-row">
+              <button class="secondary" id="voice-wonder" type="button">音声で入れる</button>
+              <small id="voice-status">声でメモできます。</small>
+            </div>
+            <div class="form-grid">
+              <label>みつけたところ<input id="wonder-place" placeholder="例: 学校、家、まち、公園"></label>
+              <label>つぎにすること<input id="next-action" placeholder="例: しゃしんをとる / きいてみる"></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="add-wonder" type="button">ふしぎをのこす</button>
+              <button class="secondary" id="promote-wonder" type="button">たんけんにする</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel full">
+        <h2>たんけんステップ</h2>
+        <div class="steps" id="kids-steps"></div>
+      </section>
+
+      <section class="panel full">
+        <div class="action-grid">
+          <button class="action-card" data-action="idea" type="button"><span class="badge green">+</span><strong>やってみたい</strong><small>アイデアを出す</small></button>
+          <button class="action-card" data-action="prediction" type="button"><span class="badge gold">?</span><strong>よそう</strong><small>こうかもしれない</small></button>
+          <button class="action-card" data-action="plan" type="button"><span class="badge">1</span><strong>けいかく</strong><small>つぎの一歩</small></button>
+          <button class="action-card" data-action="activity" type="button"><span class="badge">✓</span><strong>やってみた</strong><small>できたこと</small></button>
+          <button class="action-card" data-action="share" type="button"><span class="badge red">*</span><strong>見せる</strong><small>地図とコメント</small></button>
+          <button class="action-card" data-action="project" type="button"><span class="badge green">P</span><strong>Project</strong><small>大きな探究へ</small></button>
+        </div>
+      </section>
+
+      <section class="panel half">
+        <h2>たんけんメモ</h2>
+        <label>やってみたい<input id="idea-text" placeholder="例: あきやのつかい道を考える"></label>
+        <label>よそう<input id="prediction-text" placeholder="例: みんなで使えば楽しい場所になる"></label>
+        <label>けいかく<input id="plan-text" placeholder="例: 3人に話をきく"></label>
+        <label>やってみた<textarea id="activity-text" placeholder="見たこと、つくったもの、気づいたこと"></textarea></label>
+      </section>
+
+      <section class="panel half">
+        <h2>見せる</h2>
+        <label>コメント<textarea id="share-text" placeholder="先生、家族、友だちからもらった言葉"></textarea></label>
+        <label>Googleマップに記録する場所<input id="share-location" placeholder="例: ○○公園 / 緯度,経度 / 住所"></label>
+        <div class="actions">
+          <button class="secondary" id="map-preview-button" type="button">地図で見る</button>
+          <a class="map-link" id="map-link" href="#" target="_blank" rel="noopener" hidden>Googleマップで開く</a>
+        </div>
+        <iframe class="map-frame" id="map-frame" title="Google Map" loading="lazy" hidden></iframe>
+      </section>
+
+      <section class="panel full">
+        <h2>さいきんの たんけん</h2>
+        <div class="log-grid" id="kids-log"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const storageKey = "tanq-project-tool-state";
+    const processStages = ["question", "ideation", "hypothesis", "master_plan", "execution", "submit_business"];
+    const stageLabels = {
+      question: ["ふしぎ", "gold", "気になったことをそのまま残す。"],
+      ideation: ["やってみたい", "green", "思いついた遊び方や調べ方を出す。"],
+      hypothesis: ["予想", "gold", "こうかもしれない、を言葉にする。"],
+      master_plan: ["計画", "", "誰と何を試すか決める。"],
+      execution: ["やってみる", "", "観察、制作、発表の準備をする。"],
+      submit_business: ["見せる", "green", "家族、先生、友だちに見せて記録する。"]
+    };
+    const seed = {
+      identity: {
+        mode: "guest",
+        entry: "kids",
+        tanq_id: null,
+        guest_session_id: "guest_" + Date.now().toString(36),
+        profile_name: "",
+        age: "",
+        interface: "kids"
+      },
+      project: {
+        id: "tp_project_" + Date.now(),
+        name: "Kidsたんけん",
+        owner: "TANQ Pass Kids",
+        question: "",
+        hypothesis: "",
+        trust_stage: "draft",
+        exportTargets: ["TANQ Graph"]
+      },
+      questions: [],
+      tasks: [],
+      materials: [],
+      feedback: []
+    };
+    const $ = (selector) => document.querySelector(selector);
+    let state = readState();
+    let photoDraft = null;
+    let currentGeo = null;
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function badge(text, tone = "") {
+      return `<span class="badge ${tone}">${escapeHtml(text)}</span>`;
+    }
+
+    function readState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || "null") || seed;
+        return {
+          ...seed,
+          ...saved,
+          identity: { ...seed.identity, ...(saved.identity || {}), interface: "kids", entry: saved.identity?.entry || "kids" },
+          project: { ...seed.project, ...(saved.project || {}), owner: "TANQ Pass Kids" },
+          questions: saved.questions || [],
+          tasks: saved.tasks || [],
+          materials: saved.materials || [],
+          feedback: saved.feedback || []
+        };
+      } catch (error) {
+        return structuredClone(seed);
+      }
+    }
+
+    function saveState() {
+      state.identity = { ...state.identity, interface: "kids", entry: state.identity.entry || "kids" };
+      state.project = { ...state.project, owner: "TANQ Pass Kids" };
+      localStorage.setItem(storageKey, JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+    }
+
+    function projectToolUrl() {
+      const path = window.location.pathname;
+      if (path.includes("/tanq-graph-public/kids-tool/")) return "../project-tool/";
+      return "../tanq-project-tool/index.html";
+    }
+
+    function googleMapsUrl(locationText = "") {
+      const query = String(locationText || "").trim();
+      if (!query) return "";
+      return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+    }
+
+    function googleMapsApiKey() {
+      return String(window.TANQ_GOOGLE_MAPS_CONFIG?.apiKey || "").trim();
+    }
+
+    function googleMapsEmbedUrl(locationText = "") {
+      const query = String(locationText || "").trim();
+      if (!query) return "";
+      const key = googleMapsApiKey();
+      if (key) return `https://www.google.com/maps/embed/v1/place?key=${encodeURIComponent(key)}&q=${encodeURIComponent(query)}`;
+      return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+    }
+
+    function buildGeo(locationText = "", note = "") {
+      const text = String(locationText || "").trim();
+      const geo = {
+        label: text,
+        note: String(note || "").trim(),
+        map_url: googleMapsUrl(text),
+        recorded_at: new Date().toISOString()
+      };
+      if (currentGeo && (!text || text.includes(","))) {
+        geo.latitude = currentGeo.latitude;
+        geo.longitude = currentGeo.longitude;
+        geo.accuracy = currentGeo.accuracy;
+      }
+      return geo.label || geo.latitude ? geo : null;
+    }
+
+    function updateMapPreview(locationText) {
+      const embed = googleMapsEmbedUrl(locationText);
+      const link = googleMapsUrl(locationText);
+      if (!embed) {
+        $("#map-frame").hidden = true;
+        $("#map-link").hidden = true;
+        return;
+      }
+      $("#map-frame").src = embed;
+      $("#map-frame").hidden = false;
+      $("#map-link").href = link;
+      $("#map-link").hidden = false;
+    }
+
+    function photoPrompt(filename = "") {
+      const lower = filename.toLowerCase();
+      if (/plant|flower|tree|leaf|green|草|花|木|葉/.test(lower)) {
+        return {
+          title: "AIのみたて: しょくぶつかもしれません",
+          summary: "形、色、まわりの場所を見て、育ち方や環境のふしぎにつなげられます。",
+          questions: ["どうしてこの場所に生えているの？", "日なたと日かげで育ち方は変わるの？", "この葉っぱの形にはどんな意味があるの？"],
+          next: "同じ植物を別の場所でも探す"
+        };
+      }
+      if (/house|building|shop|street|city|akiya|空き家|建物|店|まち/.test(lower)) {
+        return {
+          title: "AIのみたて: まちや建物に関係しそうです",
+          summary: "使われ方、人の動き、古さ、新しさを見ると、地域の問いに育てられます。",
+          questions: ["どうしてこの場所はこう使われているの？", "人が集まる場所と集まらない場所は何が違うの？", "この建物をみんなの学び場にできるかな？"],
+          next: "まわりの人に何に使いたいか聞く"
+        };
+      }
+      return {
+        title: "AIのみたて: 気になるものを発見しました",
+        summary: "写真から、形、色、場所、使われ方に注目して問いを作れます。",
+        questions: ["これは何のためにあるの？", "どうしてこの形をしているの？", "これをもっとよくするには何ができる？"],
+        next: "写真を見ながら気づいたことを3つ書く"
+      };
+    }
+
+    function renderAiPrompt(prompt) {
+      $("#ai-title").textContent = prompt.title;
+      $("#ai-summary").textContent = prompt.summary;
+      $("#next-action").value = prompt.next;
+      $("#ai-questions").innerHTML = prompt.questions.map((question) => `<button type="button" data-ai-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("");
+      document.querySelectorAll("[data-ai-question]").forEach((button) => {
+        button.addEventListener("click", () => {
+          $("#wonder-text").value = button.dataset.aiQuestion;
+          $("#wonder-text").focus();
+        });
+      });
+    }
+
+    function startVoiceInput() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        $("#voice-status").textContent = "このブラウザでは音声入力が使えません。";
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = "ja-JP";
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      $("#voice-wonder").classList.add("listening");
+      $("#voice-status").textContent = "きいています...";
+      recognition.onresult = (event) => {
+        const text = Array.from(event.results).map((result) => result[0]?.transcript || "").join("");
+        $("#wonder-text").value = [$("#wonder-text").value.trim(), text].filter(Boolean).join("\n");
+        $("#voice-status").textContent = "音声を入れました。";
+      };
+      recognition.onerror = () => {
+        $("#voice-status").textContent = "音声入力を使えませんでした。";
+      };
+      recognition.onend = () => {
+        $("#voice-wonder").classList.remove("listening");
+      };
+      recognition.start();
+    }
+
+    function latestQuestion() {
+      return (state.questions || []).find((item) => item.audience === "kids") || (state.questions || [])[0] || null;
+    }
+
+    function addTask(stage, title, summary) {
+      const question = latestQuestion();
+      state.tasks.unshift({
+        id: "task_kids_" + Date.now(),
+        title,
+        stage,
+        summary,
+        source_question_id: question?.id || null,
+        audience: "kids",
+        created_at: new Date().toISOString()
+      });
+    }
+
+    function stageCount(stage) {
+      if (stage === "question") return (state.questions || []).filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん").length;
+      if (stage === "execution") return (state.tasks || []).filter((task) => task.stage === stage && task.audience === "kids").length + (state.materials || []).filter((item) => item.audience === "kids").length;
+      if (stage === "submit_business") return (state.feedback || []).filter((item) => item.audience === "kids").length;
+      return (state.tasks || []).filter((task) => task.stage === stage && task.audience === "kids").length;
+    }
+
+    function renderSteps() {
+      $("#kids-steps").innerHTML = processStages.map((stage) => {
+        const [label, tone, description] = stageLabels[stage];
+        const count = stageCount(stage);
+        return `<div class="step ${count ? "done" : ""}">
+          ${badge(String(count), count ? tone : "")}
+          <strong>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(description)}</small>
+        </div>`;
+      }).join("");
+    }
+
+    function renderLog() {
+      const rows = [
+        ...(state.questions || []).filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん").slice(0, 3).map((item) => ({ label: "ふしぎ", title: item.text, text: item.trigger || item.next_action || "", tone: "gold", geo: item.geo })),
+        ...(state.tasks || []).filter((item) => item.audience === "kids").slice(0, 3).map((item) => ({ label: stageLabels[item.stage]?.[0] || "たんけん", title: item.title, text: item.summary || "", tone: stageLabels[item.stage]?.[1] || "", geo: item.geo })),
+        ...(state.materials || []).filter((item) => item.audience === "kids").slice(0, 3).map((item) => ({ label: "やってみた", title: item.title, text: item.text || "", tone: "", geo: item.geo })),
+        ...(state.feedback || []).filter((item) => item.audience === "kids").slice(0, 3).map((item) => ({ label: "見せた", title: item.reviewer || "コメント", text: item.text || "", tone: "red", geo: item.geo }))
+      ].slice(0, 9);
+      $("#kids-log").innerHTML = rows.length
+        ? rows.map((item) => `<div class="card">
+          ${badge(item.label, item.tone)}
+          <strong>${escapeHtml(item.title || "たんけん")}</strong>
+          <small>${escapeHtml(item.text || "メモなし")}</small>
+          ${item.geo?.label ? `<a class="map-link" href="${escapeHtml(item.geo.map_url || googleMapsUrl(item.geo.label))}" target="_blank" rel="noopener">地図で見る</a>` : ""}
+        </div>`).join("")
+        : `<div class="card"><span class="badge gold">Start</span><strong>まだ たんけんはありません</strong><small>ふしぎをひとつ残します。</small></div>`;
+    }
+
+    function renderIdentity() {
+      const identity = state.identity || seed.identity;
+      $("#identity-label").textContent = identity.tanq_id
+        ? `${identity.tanq_id} / TANQ Pass Kids`
+        : `${identity.guest_session_id || "Guest"} / TANQ Pass Kids`;
+    }
+
+    function render() {
+      state = readState();
+      renderIdentity();
+      renderSteps();
+      renderLog();
+    }
+
+    function kidsPayload() {
+      return {
+        source_tool: "TANQ Pass Kids Tool",
+        identity: state.identity,
+        project: state.project,
+        question_seeds: state.questions.filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん"),
+        activity_logs: state.tasks.filter((item) => item.audience === "kids"),
+        materials: state.materials.filter((item) => item.audience === "kids"),
+        feedback: state.feedback.filter((item) => item.audience === "kids")
+      };
+    }
+
+    $("#open-project-tool").addEventListener("click", () => {
+      window.open(projectToolUrl(), "_blank", "noopener");
+    });
+
+    $("#photo-button").addEventListener("click", () => $("#photo-input").click());
+    $("#photo-input").addEventListener("change", () => {
+      const file = $("#photo-input").files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        $("#photo-preview").src = reader.result;
+        $("#photo-preview").hidden = false;
+      };
+      reader.readAsDataURL(file);
+      const prompt = photoPrompt(file.name);
+      photoDraft = { name: file.name, type: file.type, aiTitle: prompt.title, aiSummary: prompt.summary };
+      renderAiPrompt(prompt);
+    });
+
+    $("#voice-wonder").addEventListener("click", startVoiceInput);
+    $("#current-location").addEventListener("click", () => {
+      if (!navigator.geolocation) {
+        $("#location-status").textContent = "このブラウザでは現在地を使えません。";
+        return;
+      }
+      $("#location-status").textContent = "場所を調べています...";
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        currentGeo = { latitude, longitude, accuracy };
+        const latLng = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+        $("#photo-location").value = latLng;
+        $("#share-location").value = latLng;
+        $("#location-status").textContent = `場所を入れました。誤差 約${Math.round(accuracy)}m`;
+        updateMapPreview(latLng);
+      }, () => {
+        $("#location-status").textContent = "現在地を取得できませんでした。場所名を手で入れられます。";
+      }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+    });
+
+    $("#map-preview-button").addEventListener("click", () => {
+      const locationText = $("#share-location").value.trim() || $("#photo-location").value.trim();
+      if (!locationText) return;
+      $("#share-location").value = locationText;
+      updateMapPreview(locationText);
+    });
+
+    $("#add-wonder").addEventListener("click", () => {
+      const text = $("#wonder-text").value.trim();
+      if (!text) return;
+      const photoGeo = buildGeo($("#photo-location").value, $("#photo-location-note").value);
+      const question = {
+        id: "q_kids_" + Date.now(),
+        text,
+        trigger: $("#wonder-place").value.trim(),
+        domain: "Kidsたんけん",
+        maturity: "seed",
+        reason: "ふしぎだと思ったこと",
+        next_action: $("#next-action").value.trim(),
+        promoted: false,
+        audience: "kids",
+        input_mode: photoDraft ? "photo_ai_voice_ready" : "text_voice_ready",
+        photo_observation: photoDraft ? {
+          file_name: photoDraft.name,
+          ai_title: photoDraft.aiTitle,
+          ai_summary: photoDraft.aiSummary,
+          geo: photoGeo
+        } : null,
+        geo: photoGeo,
+        created_at: new Date().toISOString()
+      };
+      state.questions = [question, ...(state.questions || [])];
+      if (photoDraft) {
+        state.materials.unshift({
+          id: "mat_kids_photo_" + Date.now(),
+          title: "しゃしんから見つけたふしぎ",
+          kind: "Kids写真",
+          url: "",
+          text: `${photoDraft.aiTitle}\n${photoDraft.aiSummary}`,
+          audience: "kids",
+          geo: photoGeo,
+          source_question_id: question.id,
+          created_at: new Date().toISOString()
+        });
+      }
+      $("#wonder-text").value = "";
+      $("#wonder-place").value = "";
+      $("#next-action").value = "";
+      $("#photo-location-note").value = "";
+      saveState();
+      render();
+    });
+
+    $("#promote-wonder").addEventListener("click", () => {
+      const question = latestQuestion();
+      if (!question) return;
+      state.project = {
+        ...state.project,
+        owner: "TANQ Pass Kids",
+        name: question.text.length > 24 ? question.text.slice(0, 24) + "..." : question.text,
+        question: question.text,
+        hypothesis: "ふしぎを、写真・観察・人に聞くことからたんけんにする。"
+      };
+      state.questions = state.questions.map((item) => item.id === question.id ? { ...item, promoted: true, promoted_project_id: state.project.id, promoted_at: new Date().toISOString() } : item);
+      addTask("ideation", "ふしぎをたんけんにする", question.next_action || question.reason || "つぎに調べることを決める。");
+      saveState();
+      render();
+      window.open(projectToolUrl(), "_blank", "noopener");
+    });
+
+    document.querySelectorAll("[data-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const action = button.dataset.action;
+        const now = new Date().toISOString();
+        if (action === "idea") {
+          const text = $("#idea-text").value.trim();
+          if (!text) return;
+          addTask("ideation", "やってみたい", text);
+          $("#idea-text").value = "";
+        }
+        if (action === "prediction") {
+          const text = $("#prediction-text").value.trim();
+          if (!text) return;
+          addTask("hypothesis", "よそう", text);
+          $("#prediction-text").value = "";
+        }
+        if (action === "plan") {
+          const text = $("#plan-text").value.trim();
+          if (!text) return;
+          addTask("master_plan", "けいかく", text);
+          $("#plan-text").value = "";
+        }
+        if (action === "activity") {
+          const text = $("#activity-text").value.trim();
+          if (!text) return;
+          const geo = buildGeo($("#photo-location").value, $("#photo-location-note").value);
+          addTask("execution", "やってみた", text);
+          state.materials.unshift({
+            id: "mat_kids_" + Date.now(),
+            title: "やってみた記録",
+            kind: "Kids作品・観察",
+            url: "",
+            text,
+            audience: "kids",
+            geo,
+            created_at: now
+          });
+          $("#activity-text").value = "";
+        }
+        if (action === "share") {
+          const text = $("#share-text").value.trim();
+          if (!text) return;
+          const shareLocation = $("#share-location").value.trim() || $("#photo-location").value.trim();
+          const geo = buildGeo(shareLocation, "見せる場所");
+          state.feedback.unshift({
+            id: "fb_kids_" + Date.now(),
+            reviewer: "先生・家族・友だち",
+            level: "2",
+            text,
+            audience: "kids",
+            geo,
+            map_url: geo?.map_url || "",
+            created_at: now
+          });
+          if (shareLocation) updateMapPreview(shareLocation);
+          $("#share-text").value = "";
+        }
+        if (action === "project") {
+          window.open(projectToolUrl(), "_blank", "noopener");
+          return;
+        }
+        saveState();
+        render();
+      });
+    });
+
+    $("#copy-kids-payload").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(JSON.stringify(kidsPayload(), null, 2));
+    });
+
+    saveState();
+    render();
+  </script>
+</body>
+</html>
