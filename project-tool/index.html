@@ -141,6 +141,7 @@
       white-space: nowrap;
     }
     .badge.green { color: var(--green); background: rgba(36, 107, 85, .12); }
+    .badge.blue { color: var(--blue); background: rgba(45, 95, 138, .12); }
     .badge.gold { color: var(--gold); background: rgba(164, 116, 34, .14); }
     .badge.red { color: var(--red); background: rgba(166, 78, 61, .12); }
     label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
@@ -447,12 +448,104 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
     }
+    .innovation-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(320px, .9fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .score-card {
+      min-height: 118px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .score-card b { font-size: 30px; font-weight: 500; }
+    .seed-card {
+      padding: 16px;
+      border: 1px solid rgba(36,107,85,.35);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(36,107,85,.1), transparent 46%),
+        linear-gradient(315deg, rgba(45,95,138,.08), transparent 42%),
+        var(--surface);
+      display: grid;
+      gap: 12px;
+    }
+    .seed-card h3 { font-size: 22px; }
+    .score-bars {
+      display: grid;
+      gap: 10px;
+    }
+    .score-bar {
+      display: grid;
+      grid-template-columns: 112px 1fr 32px;
+      gap: 10px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .score-bar span {
+      height: 8px;
+      border-radius: 999px;
+      background: rgba(107,101,89,.16);
+      overflow: hidden;
+    }
+    .score-bar span i {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--gold), var(--green), var(--blue));
+    }
+    .formation-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .formation-card {
+      min-height: 132px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .innovation-path {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .path-step {
+      min-height: 86px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,253,248,.76);
+      display: grid;
+      gap: 6px;
+      align-content: start;
+    }
+    .path-step.active {
+      border-color: rgba(36,107,85,.55);
+      background: linear-gradient(180deg, rgba(36,107,85,.1), var(--surface));
+    }
     @media (max-width: 980px) {
       .shell { grid-template-columns: 1fr; }
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       main { padding: 20px; }
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log { grid-template-columns: 1fr; }
+      .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log, .innovation-grid, .score-grid, .formation-grid, .innovation-path { grid-template-columns: 1fr; }
       .identity-flow { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .question-card { grid-template-columns: 1fr; }
@@ -478,6 +571,7 @@
         <button data-tab="board">Process</button>
         <button data-tab="materials">Materials</button>
         <button data-tab="tools">Tools</button>
+        <button data-tab="innovation">Innovation</button>
         <button data-tab="connect">Connect</button>
       </nav>
       <div class="session">
@@ -867,11 +961,78 @@
         </div>
       </section>
 
+      <section id="innovation" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">TANQ Innovation Engine</p>
+                <h2>探究ログをInnovation Seedへ変換する</h2>
+              </div>
+              <span class="badge green" id="innovation-readiness-badge">Ready</span>
+            </div>
+            <p class="lead">問い、証跡、AI相談、フィードバック、人的資本をGraphとして束ね、事業組成・研究化・地域実証へ進める候補を抽出します。</p>
+            <div class="innovation-path">
+              <div class="path-step active"><small>01</small><strong>探究資産</strong><small>問い・写真・資料・会話</small></div>
+              <div class="path-step active"><small>02</small><strong>信頼化</strong><small>証跡・評価・レビュー</small></div>
+              <div class="path-step active"><small>03</small><strong>Seed化</strong><small>社会価値と仮説</small></div>
+              <div class="path-step"><small>04</small><strong>Formation</strong><small>仲間・役割・PPP</small></div>
+              <div class="path-step"><small>05</small><strong>実装</strong><small>事業・研究・政策</small></div>
+            </div>
+          </div>
+
+          <div class="panel full">
+            <div class="score-grid">
+              <div class="score-card"><small>Innovation Score</small><b id="innovation-score">0</b><span class="badge green">総合</span></div>
+              <div class="score-card"><small>Assets</small><b id="innovation-assets">0</b><span class="badge gold">探究資産</span></div>
+              <div class="score-card"><small>Trust Level</small><b id="innovation-trust">L1</b><span class="badge blue">信頼</span></div>
+              <div class="score-card"><small>Formation</small><b id="innovation-formation-count">0</b><span class="badge red">候補</span></div>
+            </div>
+          </div>
+
+          <div class="panel full">
+            <div class="innovation-grid">
+              <div>
+                <div class="section-head">
+                  <h2>Innovation Seed</h2>
+                  <div class="actions">
+                    <button class="primary" id="generate-innovation-seed" type="button">Seedを生成</button>
+                    <button class="secondary" id="sync-innovation" type="button">Graphへ反映</button>
+                  </div>
+                </div>
+                <div id="innovation-seed-view"></div>
+              </div>
+              <div>
+                <h2>価値スコア</h2>
+                <div class="score-bars" id="innovation-score-bars"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel half">
+            <h2>事業組成候補</h2>
+            <div class="timeline" id="business-candidate-list"></div>
+          </div>
+          <div class="panel half">
+            <h2>AI相談ログの信頼レベル変換</h2>
+            <div class="timeline" id="ai-trust-asset-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>チーム形成候補</h2>
+            <div class="formation-grid" id="formation-candidate-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>Innovation Payload</h2>
+            <pre class="payload-box" id="innovation-payload"></pre>
+          </div>
+        </div>
+      </section>
+
       <section id="connect" class="tab">
         <div class="grid">
           <div class="panel half">
             <h2>TANQ Graphへ送る</h2>
-            <p class="lead">保存すると、同じFirestoreの`tanq_question_seeds`、`tanq_projects`、`tanq_activity_logs`、`tanq_materials`、`tanq_feedback`へ書き込みます。外部API化する場合も、このJSONを送信単位にします。</p>
+            <p class="lead">保存すると、同じFirestoreの`tanq_question_seeds`、`tanq_projects`、`tanq_activity_logs`、`tanq_materials`、`tanq_feedback`、`tanq_innovation_seeds`へ書き込みます。外部API化する場合も、このJSONを送信単位にします。</p>
             <div class="actions">
               <button class="primary" id="sync-graph">TANQ Graphへ同期</button>
               <button class="secondary" id="copy-payload">JSONをコピー</button>
@@ -886,6 +1047,7 @@
               <div class="timeline-item"><small>POST</small><strong>/api/events</strong><span class="badge">Activity</span></div>
               <div class="timeline-item"><small>POST</small><strong>/api/materials</strong><span class="badge gold">Evidence</span></div>
               <div class="timeline-item"><small>POST</small><strong>/api/feedback</strong><span class="badge red">Review</span></div>
+              <div class="timeline-item"><small>POST</small><strong>/api/innovation-seeds</strong><span class="badge green">Innovation</span></div>
             </div>
           </div>
           <div class="panel full">
@@ -1016,7 +1178,9 @@
       tasks: [],
       materials: [],
       feedback: [],
-      toolImports: []
+      toolImports: [],
+      innovationSeeds: [],
+      formationCandidates: []
     };
     const $ = (selector) => document.querySelector(selector);
 
@@ -1030,6 +1194,8 @@
           materials: saved.materials || [],
           feedback: saved.feedback || [],
           toolImports: saved.toolImports || [],
+          innovationSeeds: saved.innovationSeeds || [],
+          formationCandidates: saved.formationCandidates || [],
           identity: {
             ...structuredClone(seed.identity),
             ...(saved.identity || {})
@@ -1220,7 +1386,7 @@
         created_at: state.identity?.created_at || new Date().toISOString()
       };
       if (state.identity.tanq_id) {
-        ["aiConsultations", "questions", "tasks", "materials", "feedback", "toolImports"].forEach((key) => {
+        ["aiConsultations", "questions", "tasks", "materials", "feedback", "toolImports", "innovationSeeds", "formationCandidates"].forEach((key) => {
           state[key] = (state[key] || []).map((item) => ({
             ...item,
             tanq_id: item.tanq_id || state.identity.tanq_id,
@@ -1256,9 +1422,192 @@
       };
     }
 
+    function clampScore(value) {
+      return Math.max(1, Math.min(5, Math.round(value)));
+    }
+
+    function sourceCorpus() {
+      const project = collectFormProject();
+      return [
+        project.name,
+        project.question,
+        project.hypothesis,
+        ...(state.questions || []).map((item) => `${item.text} ${item.reason || ""} ${item.next_action || ""}`),
+        ...(state.tasks || []).map((item) => `${item.title} ${item.summary || ""}`),
+        ...(state.materials || []).map((item) => `${item.title} ${item.text || ""} ${item.url || ""}`),
+        ...(state.feedback || []).map((item) => `${item.reviewer || ""} ${item.text || ""}`),
+        ...(state.aiConsultations || []).map((item) => `${item.title || item.question || ""} ${aiConsultationSummary(item)} ${item.insight || ""} ${item.next_question || ""}`)
+      ].join("\n").toLowerCase();
+    }
+
+    function keywordCount(text, keywords) {
+      return keywords.reduce((count, keyword) => count + (text.includes(keyword.toLowerCase()) ? 1 : 0), 0);
+    }
+
+    function innovationScores() {
+      const text = sourceCorpus();
+      const evidenceCount = (state.materials || []).length + (state.feedback || []).length + (state.aiConsultations || []).length;
+      const activityCount = (state.questions || []).length + (state.tasks || []).length;
+      return {
+        social: clampScore(2 + keywordCount(text, ["地域", "社会", "環境", "教育", "空き家", "空き店舗", "福祉", "自治体", "sdgs"]) + Math.min(1, evidenceCount / 4)),
+        market: clampScore(1 + keywordCount(text, ["事業", "顧客", "収益", "市場", "企業", "契約", "ppp", "mvp", "ビジネス"]) + Math.min(1, activityCount / 5)),
+        feasibility: clampScore(1 + Math.min(3, activityCount / 2) + Math.min(1, evidenceCount / 4)),
+        education: clampScore(2 + keywordCount(text, ["学び", "教育", "学校", "探究", "先生", "生徒", "授業", "大学"]) + Math.min(1, (state.feedback || []).length / 2)),
+        research: clampScore(1 + keywordCount(text, ["調査", "仮説", "検証", "研究", "データ", "ヒアリング", "観察"]) + Math.min(2, evidenceCount / 3))
+      };
+    }
+
+    function innovationScoreValue(scores = innovationScores()) {
+      const values = Object.values(scores);
+      return Math.round(values.reduce((sum, value) => sum + value, 0) / (values.length * 5) * 100);
+    }
+
+    function latestQuestionText() {
+      return (state.questions || [])[0]?.text || collectFormProject().question || "まだ問いが設定されていません";
+    }
+
+    function trustLevelFromState() {
+      const project = collectFormProject();
+      const feedbackLevel = Math.max(0, ...(state.feedback || []).map((item) => Number(item.level || 0)));
+      const materialTrust = (state.materials || []).length ? 2 : 1;
+      return Math.max(stageTrust[project.trust_stage] || 1, feedbackLevel, materialTrust);
+    }
+
+    function buildInnovationSeed() {
+      const project = collectFormProject();
+      const scores = innovationScores();
+      const identity = state.identity || seed.identity;
+      const scoreValue = innovationScoreValue(scores);
+      const mainQuestion = latestQuestionText();
+      const evidenceTitles = (state.materials || []).slice(0, 3).map((item) => item.title);
+      const aiInsights = (state.aiConsultations || []).slice(0, 2).map((item) => item.insight || aiConsultationSummary(item)).filter(Boolean);
+      return {
+        id: "iseed_" + Date.now(),
+        graph_type: "innovation_seed",
+        tanq_id: identity.tanq_id || null,
+        guest_session_id: identity.guest_session_id || null,
+        subject_id: effectiveSubjectId(),
+        subject_kind: effectiveSubjectKind(),
+        project_id: project.id,
+        source_question_ids: (state.questions || []).slice(0, 5).map((item) => item.id),
+        source_material_ids: (state.materials || []).slice(0, 8).map((item) => item.id),
+        source_ai_consultation_ids: (state.aiConsultations || []).slice(0, 8).map((item) => item.id),
+        title: project.name || mainQuestion,
+        question: mainQuestion,
+        problem: `${mainQuestion} という問いは、個人の気づきに留まらず、地域・教育・事業の接点を作る可能性があります。`,
+        idea: `${project.hypothesis || "調査と実証を通じて、探究を社会実装へ進める。"} これを小さな実証単位に分解し、関係者と検証します。`,
+        social_value: "探究者の問いを、地域課題解決、学習成果、人的資本、事業開発の共通資産として扱う。",
+        scores,
+        innovation_score: scoreValue,
+        evidence_summary: evidenceTitles.length ? evidenceTitles.join(" / ") : "まだ証跡は少ないため、観察・資料・フィードバックの追加が次の課題です。",
+        ai_insight_summary: aiInsights.length ? aiInsights.join(" / ") : "AI相談ログを追加すると、洞察と次の問いをSeedに反映できます。",
+        trust_level: trustLevelFromState(),
+        opportunity_type: scoreValue >= 78 ? "事業組成候補" : scoreValue >= 62 ? "地域実証候補" : "探究育成候補",
+        next_step: scoreValue >= 70 ? "PPMで90日実証計画を作り、関係者候補を割り当てる。" : "問い、証跡、AI相談ログを増やしてSeedの信頼度を上げる。",
+        required_support: ["PPM設計", "牧山式インテリジェンス調査", "外部レビュー", "TANQ Graph同期"],
+        created_at: new Date().toISOString()
+      };
+    }
+
+    function buildBusinessCandidates(seedRecord = latestInnovationSeed()) {
+      if (!seedRecord) return [];
+      const scores = seedRecord.scores || innovationScores();
+      const candidates = [
+        {
+          id: "biz_ppp_" + seedRecord.id,
+          title: "地域PPP実証プロジェクト",
+          route: "学校・自治体・企業・地域団体",
+          fit: scores.social + scores.feasibility + scores.education,
+          next: "PPMで関係者、課題、成果指標、90日実証を設計する。"
+        },
+        {
+          id: "biz_intel_" + seedRecord.id,
+          title: "牧山式インテリジェンス調査",
+          route: "市場・競合・政策・顧客仮説",
+          fit: scores.market + scores.research + scores.feasibility,
+          next: "事業化する場合の市場仮説とリスクを調査する。"
+        },
+        {
+          id: "biz_learning_" + seedRecord.id,
+          title: "探究プログラム化",
+          route: "教材・講座・資格・大学連携",
+          fit: scores.education + scores.research + scores.social,
+          next: "授業化、講座化、成果物評価の型を作る。"
+        }
+      ];
+      return candidates.sort((a, b) => b.fit - a.fit).map((item, index) => ({
+        ...item,
+        rank: index + 1,
+        priority: item.fit >= 12 ? "High" : item.fit >= 9 ? "Middle" : "Early"
+      }));
+    }
+
+    function buildFormationCandidates(seedRecord = latestInnovationSeed()) {
+      if (!seedRecord) return [];
+      const roles = [
+        ["Question Owner", "問いの背景と違和感を説明し続ける人", "TANQ Passport / Kids"],
+        ["PPM Lead", "工程、関係者、合意形成、リスクを管理する人", "PPM"],
+        ["Research Lead", "資料、ヒアリング、先行事例を調査する人", "牧山式インテリジェンス"],
+        ["Evidence Keeper", "写真、資料、AI相談、フィードバックをGraph化する人", "TANQ Graph"],
+        ["Business Designer", "価値仮説、顧客、MVP、収益モデルを作る人", "Proofolio"],
+        ["External Reviewer", "先生、上司、専門家、企業、自治体として信頼度を上げる人", "Review"]
+      ];
+      return roles.map(([role, reason, tool], index) => ({
+        id: `form_${seedRecord.id}_${index + 1}`,
+        graph_type: "formation_candidate",
+        tanq_id: seedRecord.tanq_id || null,
+        project_id: seedRecord.project_id,
+        innovation_seed_id: seedRecord.id,
+        role,
+        reason,
+        recommended_tool: tool,
+        priority: index < 3 ? "High" : "Middle",
+        created_at: new Date().toISOString()
+      }));
+    }
+
+    function buildAiTrustAssets() {
+      return (state.aiConsultations || []).slice(0, 8).map((item) => {
+        const imported = (state.materials || []).some((material) => material.source_record_id === item.id);
+        const hasFeedback = (state.feedback || []).length > 0;
+        const level = hasFeedback ? 3 : imported ? 2 : 1;
+        return {
+          id: "trust_" + item.id,
+          source_id: item.id,
+          title: item.title || item.question || "AI相談ログ",
+          current_level: `L${level}`,
+          current_state: level === 3 ? "フィードバック接続済み" : imported ? "資料化済み" : "AI相談",
+          next_state: level >= 3 ? "外部レビュー・提出へ" : imported ? "先生・上司・専門家レビューへ" : "資料化して証跡へ",
+          summary: aiConsultationSummary(item)
+        };
+      });
+    }
+
+    function latestInnovationSeed() {
+      return (state.innovationSeeds || [])[0] || null;
+    }
+
+    function buildInnovationPayload() {
+      const seedRecord = latestInnovationSeed();
+      const draftSeed = seedRecord || buildInnovationSeed();
+      const formationCandidates = (state.formationCandidates || []).length ? state.formationCandidates : buildFormationCandidates(seedRecord);
+      return {
+        engine: "TANQ Innovation Engine",
+        generated_at: new Date().toISOString(),
+        innovation_score: draftSeed.innovation_score,
+        trust_level: draftSeed.trust_level,
+        draft_seed: seedRecord ? null : draftSeed,
+        innovation_seeds: state.innovationSeeds || [],
+        business_candidates: buildBusinessCandidates(seedRecord),
+        formation_candidates: formationCandidates,
+        ai_trust_assets: buildAiTrustAssets()
+      };
+    }
+
     function graphPayload() {
       const project = collectFormProject();
       const identity = state.identity || seed.identity;
+      const innovationEngine = buildInnovationPayload();
       return {
         source_tool: "TANQ Project Tool",
         identity: {
@@ -1366,10 +1715,11 @@
           connector_method: item.connectorMethod,
           created_at: item.created_at
         })),
+        innovation_engine: innovationEngine,
         api_bundle: {
           endpoint: "/api/projects/" + project.id + "/bundle",
           method: "POST",
-          scopes: ["projects:write", "events:write", "materials:write", "feedback:write"]
+          scopes: ["projects:write", "events:write", "materials:write", "feedback:write", "innovation:write"]
         }
       };
     }
@@ -1415,6 +1765,18 @@
           source: item.source || "ChatGPT",
           type: "AI Consultation"
         });
+      }
+      for (const item of payload.innovation_engine.innovation_seeds || []) {
+        await saveFirebaseRecord("tanq_innovation_seeds", item);
+        await saveFirebaseRecord("tanq_activity_logs", {
+          ...item,
+          graph_type: "activity_log",
+          source: "TANQ Innovation Engine",
+          type: "Innovation Seed"
+        });
+      }
+      for (const item of payload.innovation_engine.formation_candidates || []) {
+        await saveFirebaseRecord("tanq_formation_candidates", item);
       }
       latestSync = new Date().toISOString();
       $("#sync-result").textContent = firebaseDb
@@ -1924,6 +2286,138 @@
       $("#graph-payload").textContent = JSON.stringify(graphPayload(), null, 2);
     }
 
+    function scoreLabel(key) {
+      return {
+        social: "社会性",
+        market: "市場性",
+        feasibility: "実現性",
+        education: "教育性",
+        research: "研究性"
+      }[key] || key;
+    }
+
+    function renderScoreBars(scores = innovationScores()) {
+      $("#innovation-score-bars").innerHTML = Object.entries(scores).map(([key, value]) => (
+        `<div class="score-bar">
+          <strong>${escapeHtml(scoreLabel(key))}</strong>
+          <span><i style="width:${value * 20}%"></i></span>
+          <b>${value}</b>
+        </div>`
+      )).join("");
+    }
+
+    function renderInnovationSeed(seedRecord) {
+      if (!seedRecord) {
+        $("#innovation-seed-view").innerHTML = `<div class="seed-card">
+          <span class="badge gold">Draft</span>
+          <h3>まだInnovation Seedは生成されていません</h3>
+          <p class="lead">問い、資料、AI相談ログ、フィードバックをもとにSeedを生成します。まずは「Seedを生成」を押してください。</p>
+        </div>`;
+        return;
+      }
+      $("#innovation-seed-view").innerHTML = `<div class="seed-card">
+        <div class="badge-row">
+          ${badge(seedRecord.opportunity_type || "Innovation Seed", "green")}
+          ${badge(`L${seedRecord.trust_level || 1}`, "gold")}
+          ${badge(`${seedRecord.innovation_score || 0} / 100`)}
+        </div>
+        <h3>${escapeHtml(seedRecord.title)}</h3>
+        <div>
+          <h3>問い</h3>
+          <small>${escapeHtml(seedRecord.question)}</small>
+        </div>
+        <div>
+          <h3>課題仮説</h3>
+          <small>${escapeHtml(seedRecord.problem)}</small>
+        </div>
+        <div>
+          <h3>事業・実装アイデア</h3>
+          <small>${escapeHtml(seedRecord.idea)}</small>
+        </div>
+        <div>
+          <h3>次の一歩</h3>
+          <small>${escapeHtml(seedRecord.next_step)}</small>
+        </div>
+      </div>`;
+    }
+
+    function renderBusinessCandidates(seedRecord) {
+      const candidates = buildBusinessCandidates(seedRecord);
+      $("#business-candidate-list").innerHTML = candidates.length
+        ? candidates.map((item) => `<div class="timeline-item">
+          <small>Rank ${item.rank}</small>
+          <strong>${escapeHtml(item.title)}<br><small>${escapeHtml(item.route)}</small><br><small>${escapeHtml(item.next)}</small></strong>
+          ${badge(item.priority, item.priority === "High" ? "green" : "gold")}
+        </div>`).join("")
+        : `<div class="timeline-item"><small>Empty</small><strong>Seed生成後に候補を表示します</strong>${badge("Ready")}</div>`;
+    }
+
+    function renderFormationCandidates(seedRecord) {
+      const candidates = (state.formationCandidates || []).length ? state.formationCandidates : buildFormationCandidates(seedRecord);
+      $("#formation-candidate-list").innerHTML = candidates.length
+        ? candidates.map((item) => `<div class="formation-card">
+          ${badge(item.priority, item.priority === "High" ? "green" : "gold")}
+          <strong>${escapeHtml(item.role)}</strong>
+          <small>${escapeHtml(item.reason)}</small>
+          ${badge(item.recommended_tool || "TANQ")}
+        </div>`).join("")
+        : `<div class="formation-card"><span class="badge gold">Ready</span><strong>チーム候補なし</strong><small>Seedを生成すると役割候補を表示します。</small></div>`;
+    }
+
+    function renderAiTrustAssets() {
+      const assets = buildAiTrustAssets();
+      $("#ai-trust-asset-list").innerHTML = assets.length
+        ? assets.map((item) => `<div class="timeline-item">
+          <small>${escapeHtml(item.current_level)}</small>
+          <strong>${escapeHtml(item.title)}<br><small>${escapeHtml(item.current_state)} → ${escapeHtml(item.next_state)}</small><br><small>${escapeHtml(item.summary)}</small></strong>
+          ${badge("AI Asset", "gold")}
+        </div>`).join("")
+        : `<div class="timeline-item"><small>L1</small><strong>AI相談ログはまだありません<br><small>MaterialsのAI相談ログを保存すると、信頼レベル付き資産へ変換できます。</small></strong>${badge("Ready")}</div>`;
+    }
+
+    function renderInnovationEngine() {
+      const seedRecord = latestInnovationSeed();
+      const scores = seedRecord?.scores || innovationScores();
+      const scoreValue = seedRecord?.innovation_score || innovationScoreValue(scores);
+      const assets = (state.questions || []).length + (state.tasks || []).length + (state.materials || []).length + (state.feedback || []).length + (state.aiConsultations || []).length;
+      const trustLevel = seedRecord?.trust_level || trustLevelFromState();
+      const formationCount = (state.formationCandidates || []).length;
+      $("#innovation-score").textContent = scoreValue;
+      $("#innovation-assets").textContent = assets;
+      $("#innovation-trust").textContent = `L${trustLevel}`;
+      $("#innovation-formation-count").textContent = formationCount;
+      $("#innovation-readiness-badge").textContent = scoreValue >= 78 ? "Formation ready" : scoreValue >= 62 ? "Seed ready" : "Grow assets";
+      renderScoreBars(scores);
+      renderInnovationSeed(seedRecord);
+      renderBusinessCandidates(seedRecord);
+      renderFormationCandidates(seedRecord);
+      renderAiTrustAssets();
+      $("#innovation-payload").textContent = JSON.stringify(buildInnovationPayload(), null, 2);
+    }
+
+    function generateInnovationSeed() {
+      const record = buildInnovationSeed();
+      const candidates = buildFormationCandidates(record);
+      state.innovationSeeds = [record, ...(state.innovationSeeds || [])];
+      state.formationCandidates = candidates;
+      saveState(state);
+      render();
+      setStatus("innovation seed generated");
+    }
+
+    async function syncInnovationToGraph() {
+      if (!(state.innovationSeeds || []).length) generateInnovationSeed();
+      const payload = buildInnovationPayload();
+      for (const item of payload.innovation_seeds || []) {
+        await saveFirebaseRecord("tanq_innovation_seeds", item);
+      }
+      for (const item of payload.formation_candidates || []) {
+        await saveFirebaseRecord("tanq_formation_candidates", item);
+      }
+      render();
+      setStatus(firebaseDb ? "innovation synced" : "innovation saved local");
+    }
+
     function renderProjectForm() {
       $("#project-name").value = state.project.name || "";
       $("#project-owner").value = state.project.owner || "TANQ Passport";
@@ -1953,6 +2447,7 @@
       renderEvidence();
       renderAiConsultations();
       renderExternalTools();
+      renderInnovationEngine();
       renderPayload();
     }
 
@@ -2388,6 +2883,8 @@
     });
 
     $("#sync-graph").addEventListener("click", syncToGraph);
+    $("#generate-innovation-seed").addEventListener("click", generateInnovationSeed);
+    $("#sync-innovation").addEventListener("click", syncInnovationToGraph);
     $("#refresh-ai-consultations").addEventListener("click", refreshAiConsultations);
     $("#save-ai-log").addEventListener("click", () => saveAiConsultation());
     $("#save-ai-log-as-question").addEventListener("click", () => saveAiConsultation({ asQuestion: true }));
