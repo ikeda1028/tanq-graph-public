@@ -27,6 +27,7 @@ AIコーチも同じ4区分で分けます。
 - Firebase / Firestoreへ自動接続し、登録データを保存・照合できます。
 - デモ用のProject API Bundleを生成できます。
 - デモ用APIキーと登録団体ログインコードを発行できます。
+- `db-admin/`でFirestoreに蓄積されたコレクションを確認できます。
 - `coach-admin/`で、Kids / Passport / Proofolio / EncoreそれぞれのAIコーチ人格、問いの型、安全境界、API接続先を管理できます。
 
 ## 公開デモとしての安全性
@@ -36,8 +37,8 @@ AIコーチも同じ4区分で分けます。
 - 実APIキーは不要です。
 - バックエンドサーバーは不要です。
 - 実Google Drive OAuth接続は行いません。
-- Firebase設定がない場合、データはブラウザ内の`localStorage`に保存されます。
-- Firebase設定がある場合、ログイン、プロジェクト、資料、証明、APIキーのメタデータをFirestoreにも保存します。
+- 正式データはFirestoreを正とします。
+- `localStorage`は未ログイン時の一時下書き、画面状態、オフライン入力の退避だけに使います。
 - デモAPIキーはUI検証用です。
 - Firebase configを`firebase-config.js`に入れると、どの端末からアクセスしても同じFirestoreを使います。
 
@@ -126,6 +127,7 @@ service cloud.firestore {
 
 - TANQ Graph: `https://ikeda1028.github.io/tanq-graph-public/`
 - TANQ Project Tool: `https://ikeda1028.github.io/tanq-graph-public/project-tool/`
+- TANQ Firestore Admin: `https://ikeda1028.github.io/tanq-graph-public/db-admin/`
 - TANQ AI Coach Studio: `https://ikeda1028.github.io/tanq-graph-public/coach-admin/`
 
 Google Maps PlatformのAPIキーを使う場合は、API制限を`Maps Embed API`、ウェブサイト制限を`https://ikeda1028.github.io/*`に設定してください。

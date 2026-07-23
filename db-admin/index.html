@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ Firestore Admin</title>
+  <script src="../firebase-config.js?v=db-admin-20260723"></script>
+  <style>
+    :root {
+      --bg: #f6f3ea;
+      --panel: #fffdf7;
+      --ink: #22231f;
+      --muted: #686257;
+      --line: #d9d1c1;
+      --green: #256b57;
+      --blue: #2f5f8f;
+      --gold: #a97825;
+      --red: #a34b38;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(37,107,87,.1), transparent 38%),
+        linear-gradient(315deg, rgba(47,95,143,.1), transparent 44%),
+        var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    main { width: min(1280px, calc(100% - 36px)); margin: 0 auto; padding: 28px 0 54px; }
+    header, section, .panel, .record, .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    header {
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      background:
+        linear-gradient(135deg, rgba(37,107,87,.12), transparent 48%),
+        linear-gradient(315deg, rgba(169,120,37,.12), transparent 44%),
+        var(--panel);
+    }
+    .topbar, .actions, .badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .topbar { justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: #fffdf7;
+      background: conic-gradient(from 220deg, var(--green), var(--blue), var(--gold), var(--red), var(--green));
+      font-weight: 600;
+    }
+    h1, h2, h3, strong, p { margin: 0; }
+    h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1; font-weight: 500; }
+    h2 { font-size: 22px; font-weight: 500; }
+    h3 { font-size: 16px; font-weight: 500; }
+    small, .lead { color: var(--muted); line-height: 1.65; }
+    .lead { max-width: 900px; }
+    .layout { display: grid; grid-template-columns: 290px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .panel, section { display: grid; gap: 12px; padding: 16px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .metric { padding: 12px; display: grid; gap: 4px; min-height: 82px; }
+    .metric b { font-size: 26px; font-weight: 500; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      width: max-content;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--blue);
+      background: rgba(47,95,143,.12);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .badge.green { color: var(--green); background: rgba(37,107,87,.12); }
+    .badge.gold { color: var(--gold); background: rgba(169,120,37,.14); }
+    .badge.red { color: var(--red); background: rgba(163,75,56,.12); }
+    button, a.button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      text-decoration: none;
+      font: inherit;
+    }
+    .primary { border-color: transparent; color: #fffdf7; background: var(--green); }
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: rgba(255,253,247,.78);
+      font: inherit;
+    }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    .collection-list { display: grid; gap: 8px; }
+    .collection-button {
+      text-align: left;
+      display: grid;
+      gap: 4px;
+    }
+    .collection-button.active { border-color: rgba(37,107,87,.55); background: linear-gradient(180deg, rgba(37,107,87,.1), var(--panel)); }
+    .toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 190px auto auto; gap: 10px; align-items: end; }
+    .records { display: grid; gap: 10px; }
+    .record {
+      display: grid;
+      grid-template-columns: minmax(220px, .46fr) minmax(0, 1fr);
+      gap: 12px;
+      padding: 12px;
+      align-items: start;
+    }
+    .record-title { display: grid; gap: 6px; }
+    pre {
+      margin: 0;
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      color: #fffdf7;
+      background: #22231f;
+      white-space: pre-wrap;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .empty { padding: 16px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); background: rgba(255,253,247,.56); }
+    @media (max-width: 980px) {
+      main { width: min(100% - 28px, 1280px); }
+      .layout, .metrics, .toolbar, .record { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">DB</span>
+          <div>
+            <strong>TANQ Firestore Admin</strong>
+            <small id="connection-label">Firestore未接続</small>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="button" href="../" target="_blank" rel="noopener">TANQ Graph</a>
+          <a class="button" href="../project-tool/" target="_blank" rel="noopener">Project Tool</a>
+          <a class="button" href="../coach-admin/" target="_blank" rel="noopener">Coach Studio</a>
+        </div>
+      </div>
+      <div>
+        <span class="badge green">Firestore Source of Truth</span>
+        <h1>Firestoreの内容を確認する</h1>
+      </div>
+      <p class="lead">正式データはFirestoreに一本化します。ローカル保存はログイン前の一時下書きやオフライン入力に限定し、この管理画面では扱いません。</p>
+    </header>
+
+    <section>
+      <div class="metrics">
+        <div class="metric"><b id="metric-collections">0</b><small>Collections</small></div>
+        <div class="metric"><b id="metric-records">0</b><small>Records</small></div>
+        <div class="metric"><b id="metric-projects">0</b><small>Projects</small></div>
+        <div class="metric"><b id="metric-people">0</b><small>People / Orgs</small></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="connect-firestore" type="button">Firestoreを読み込み</button>
+        <button id="copy-all" type="button">全JSONコピー</button>
+        <button id="download-json" type="button">JSONダウンロード</button>
+        <small id="status">Firebase設定を確認してください。</small>
+      </div>
+    </section>
+
+    <div class="layout" style="margin-top:16px">
+      <aside class="panel" style="position:static;height:auto">
+        <h2>Collections</h2>
+        <div class="collection-list" id="collection-list"></div>
+      </aside>
+
+      <section>
+        <div class="toolbar">
+          <label>検索<input id="search" placeholder="ID、タイトル、本文、メールなど"></label>
+          <label>件数<select id="limit">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="200">200</option>
+          </select></label>
+          <button id="copy-collection" type="button">このCollectionをコピー</button>
+          <button id="clear-search" type="button">検索解除</button>
+        </div>
+        <div class="badge-row">
+          <span class="badge green" id="active-collection">collection</span>
+          <span class="badge" id="active-count">0 records</span>
+        </div>
+        <div class="records" id="records"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const firebaseSdkVersion = "12.16.0";
+    const firestoreCollections = [
+      "tanq_people",
+      "tanq_organizations",
+      "tanq_projects",
+      "tanq_question_seeds",
+      "tanq_activity_logs",
+      "tanq_materials",
+      "tanq_feedback",
+      "tanq_credentials",
+      "tanq_ai_consultations",
+      "tanq_innovation_seeds",
+      "tanq_formation_candidates",
+      "tanq_api_keys",
+      "tanq_ai_coaches"
+    ];
+    const $ = (selector) => document.querySelector(selector);
+    let firebaseDb = null;
+    let firebaseApi = null;
+    let activeCollection = "tanq_projects";
+    let dbView = { collections: {}, updated_at: null };
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function firebaseConfig() {
+      const config = window.TANQ_FIREBASE_CONFIG || window.firebaseConfig || null;
+      if (!config || !config.apiKey || !config.projectId) return null;
+      return config;
+    }
+
+    async function initFirebase() {
+      if (firebaseDb && firebaseApi) return true;
+      const config = firebaseConfig();
+      if (!config) {
+        $("#status").textContent = "Firebase設定がありません。firebase-config.jsを確認してください。";
+        return false;
+      }
+      try {
+        const appModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-app.js`);
+        const firestoreModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-firestore.js`);
+        const app = appModule.initializeApp(config, "tanq-db-admin-" + Date.now());
+        firebaseDb = firestoreModule.getFirestore(app);
+        firebaseApi = firestoreModule;
+        $("#connection-label").textContent = `Firestore / ${config.projectId}`;
+        return true;
+      } catch (error) {
+        $("#status").textContent = `Firestore接続に失敗: ${error.message}`;
+        return false;
+      }
+    }
+
+    function asRecord(collectionName, doc) {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        __collection: collectionName
+      };
+    }
+
+    async function loadFirestore() {
+      const ready = await initFirebase();
+      if (!ready) return;
+      const { collection, getDocs, query, limit } = firebaseApi;
+      const maxItems = Number($("#limit").value || 100);
+      dbView = { collections: {}, updated_at: new Date().toISOString() };
+      let total = 0;
+      $("#status").textContent = "Firestoreを読み込み中...";
+      for (const name of firestoreCollections) {
+        try {
+          const snapshot = await getDocs(query(collection(firebaseDb, name), limit(maxItems)));
+          const rows = snapshot.docs.map((doc) => asRecord(name, doc));
+          dbView.collections[name] = rows;
+          total += rows.length;
+        } catch (error) {
+          dbView.collections[name] = [{ id: `error_${name}`, __collection: name, error: error.message }];
+        }
+      }
+      $("#status").textContent = `Firestoreを読み込みました。${total}件`;
+      render();
+    }
+
+    function collectionNames() {
+      return firestoreCollections.filter((name) => dbView.collections[name]?.length || name === activeCollection);
+    }
+
+    function summarizeRecord(record) {
+      return record.title || record.name || record.question || record.text || record.email || record.role || record.id || "record";
+    }
+
+    function recordSubtitle(record) {
+      return [
+        record.type || record.graph_type || record.owner || record.interface || record.kind || "",
+        record.tanq_id || record.guest_session_id || record.subject_id || "",
+        record.created_at || record.updated_at || ""
+      ].filter(Boolean).join(" / ");
+    }
+
+    function filteredRecords() {
+      const q = $("#search").value.trim().toLowerCase();
+      return (dbView.collections[activeCollection] || []).filter((record) => {
+        if (!q) return true;
+        return JSON.stringify(record).toLowerCase().includes(q);
+      });
+    }
+
+    function renderCollections() {
+      const names = collectionNames();
+      if (!names.includes(activeCollection)) activeCollection = names[0] || "tanq_projects";
+      $("#collection-list").innerHTML = names.length ? names.map((name) => {
+        const rows = dbView.collections[name] || [];
+        return `<button class="collection-button ${name === activeCollection ? "active" : ""}" data-collection="${escapeHtml(name)}" type="button">
+          <strong>${escapeHtml(name)}</strong>
+          <small>${rows.length} records</small>
+        </button>`;
+      }).join("") : `<div class="empty">Firestoreを読み込むと表示されます。</div>`;
+      document.querySelectorAll("[data-collection]").forEach((button) => {
+        button.addEventListener("click", () => {
+          activeCollection = button.dataset.collection;
+          render();
+        });
+      });
+    }
+
+    function renderRecords() {
+      const rows = filteredRecords();
+      $("#active-collection").textContent = activeCollection;
+      $("#active-count").textContent = `${rows.length} records`;
+      $("#records").innerHTML = rows.length ? rows.map((record) => `<article class="record">
+        <div class="record-title">
+          <div class="badge-row">
+            <span class="badge green">Firestore</span>
+            <span class="badge">${escapeHtml(record.__collection)}</span>
+          </div>
+          <strong>${escapeHtml(summarizeRecord(record))}</strong>
+          <small>${escapeHtml(recordSubtitle(record))}</small>
+        </div>
+        <pre>${escapeHtml(JSON.stringify(record, null, 2))}</pre>
+      </article>`).join("") : `<div class="empty">この条件に合うレコードはありません。</div>`;
+    }
+
+    function renderMetrics() {
+      const names = Object.keys(dbView.collections);
+      const allRows = names.flatMap((name) => dbView.collections[name] || []);
+      $("#metric-collections").textContent = names.length;
+      $("#metric-records").textContent = allRows.length;
+      $("#metric-projects").textContent = (dbView.collections.tanq_projects || []).length;
+      $("#metric-people").textContent = (dbView.collections.tanq_people || []).length + (dbView.collections.tanq_organizations || []).length;
+    }
+
+    function render() {
+      renderCollections();
+      renderMetrics();
+      renderRecords();
+    }
+
+    async function copyText(text, button) {
+      await navigator.clipboard.writeText(text);
+      const before = button.textContent;
+      button.textContent = "コピーしました";
+      setTimeout(() => button.textContent = before, 1200);
+    }
+
+    $("#connect-firestore").addEventListener("click", loadFirestore);
+    $("#limit").addEventListener("change", loadFirestore);
+    $("#search").addEventListener("input", renderRecords);
+    $("#clear-search").addEventListener("click", () => {
+      $("#search").value = "";
+      renderRecords();
+    });
+    $("#copy-all").addEventListener("click", (event) => copyText(JSON.stringify(dbView, null, 2), event.currentTarget));
+    $("#copy-collection").addEventListener("click", (event) => copyText(JSON.stringify({ [activeCollection]: filteredRecords() }, null, 2), event.currentTarget));
+    $("#download-json").addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(dbView, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `tanq-firestore-admin-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    render();
+  </script>
+</body>
+</html>
