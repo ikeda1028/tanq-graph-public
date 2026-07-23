@@ -141,6 +141,11 @@
       display: grid;
       gap: 8px;
     }
+    .ai-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
     .ai-status {
       color: var(--muted);
       font-size: 12px;
@@ -307,7 +312,11 @@
         <h2>AIにきいてみる</h2>
         <div class="ai-coach-grid">
           <div class="panel">
-            <p class="lead">いまの写真、ふしぎ、場所から、AIが「見えたこと」「次の問い」「やってみること」を出します。</p>
+            <p class="lead">いまの写真、ふしぎ、場所、年齢/月齢から、AIが「これは何か」「構造的問い」「生成的問い」「やってみること」を出します。</p>
+            <div class="form-grid">
+              <label>年齢<input id="kids-age" type="number" min="0" max="12" placeholder="例: 7"></label>
+              <label>月齢<input id="kids-months" type="number" min="0" max="155" placeholder="例: 84"></label>
+            </div>
             <label>AI APIエンドポイントURL<input id="ai-endpoint" placeholder="https://.../api/kids-coach"></label>
             <div class="actions">
               <button class="primary" id="ask-ai" type="button">AIにきく</button>
@@ -396,9 +405,45 @@
     };
     const $ = (selector) => document.querySelector(selector);
     const aiEndpointKey = "tanq-kids-ai-endpoint";
+    const coachConfigKey = "tanq-ai-coach-configs";
     let state = readState();
     let photoDraft = null;
     let currentGeo = null;
+
+    const defaultCoachConfigs = {
+      kids: {
+        name: "Mite Coach",
+        role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるコーチ",
+        tone: "やさしい、短い、安心できる、断定しすぎない",
+        structural: "色、形、数、場所、比較、原因、証拠を問いにする",
+        generative: "遊び、想像、改善、作品、誰かに見せる行動へ広げる",
+        safety: "危険な場所、知らない人、個人情報、医療判断は大人と確認する"
+      },
+      passport: {
+        name: "Quest Mentor",
+        role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ育てるコーチ",
+        tone: "伴走型、少し挑戦的、根拠を求める",
+        structural: "問い、背景、先行事例、仮説、検証方法、評価指標を整理する",
+        generative: "社会課題、進路、研究、プロトタイプ、発表へ広げる",
+        safety: "出典、著作権、個人情報、学校提出前の確認を促す"
+      },
+      proofolio: {
+        name: "Value Architect",
+        role: "社会人の経験、成果、人的資本、事業価値を構造化するコーチ",
+        tone: "実務的、客観的、価値仮説を明確にする",
+        structural: "成果、役割、証跡、関係者、再現性、事業インパクトを整理する",
+        generative: "新規事業、顧客価値、提携、収益モデル、キャリア資産へ広げる",
+        safety: "機密情報、契約、所属組織のルールに注意する"
+      },
+      encore: {
+        name: "Encore Navigator",
+        role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するコーチ",
+        tone: "敬意ある、落ち着いた、経験の価値を見える化する",
+        structural: "経験、暗黙知、人脈、信頼、譲渡可能なスキルを整理する",
+        generative: "顧問、地域PPP、教育支援、起業、次世代支援へ広げる",
+        safety: "雇用、契約、守秘義務、健康や生活設計の専門判断は避ける"
+      }
+    };
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
@@ -430,6 +475,18 @@
       state.identity = { ...state.identity, interface: "kids", entry: state.identity.entry || "kids" };
       state.project = { ...state.project, owner: "TANQ Pass Kids" };
       localStorage.setItem(storageKey, JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+    }
+
+    function coachConfigs() {
+      try {
+        return { ...defaultCoachConfigs, ...(JSON.parse(localStorage.getItem(coachConfigKey) || "{}") || {}) };
+      } catch {
+        return defaultCoachConfigs;
+      }
+    }
+
+    function currentCoachConfig() {
+      return coachConfigs().kids || defaultCoachConfigs.kids;
     }
 
     function projectToolUrl() {
@@ -529,6 +586,92 @@
       return String(value).split("\n").map((item) => item.trim()).filter(Boolean);
     }
 
+    function learnerProfile() {
+      const ageValue = $("#kids-age")?.value || state.identity?.age || "";
+      const monthValue = $("#kids-months")?.value || state.identity?.months || "";
+      const age = Number(ageValue);
+      const months = Number(monthValue || (Number.isFinite(age) ? age * 12 : ""));
+      let level = "低学年";
+      let levelLabel = "小学生低学年向け";
+      if (Number.isFinite(months) && months < 36) {
+        level = "乳幼児";
+        levelLabel = "乳幼児と保護者向け";
+      } else if (Number.isFinite(months) && months < 72) {
+        level = "幼児";
+        levelLabel = "幼児向け";
+      } else if (Number.isFinite(age) && age >= 9) {
+        level = "高学年";
+        levelLabel = "小学生高学年向け";
+      } else if (Number.isFinite(age) && age >= 6) {
+        level = "低学年";
+        levelLabel = "小学生低学年向け";
+      }
+      return {
+        age: Number.isFinite(age) ? age : "",
+        months: Number.isFinite(months) ? months : "",
+        level,
+        levelLabel
+      };
+    }
+
+    function questionSetForLevel(level, domain) {
+      const domainText = domain || "見つけたもの";
+      if (level === "乳幼児") {
+        return {
+          structural: [
+            "どんな色が見えるかな？",
+            "大きいかな、小さいかな？",
+            "さわるとどんな感じがしそうかな？"
+          ],
+          generative: [
+            "これに名前をつけるなら何にする？",
+            "これが動いたら、どこへ行きそう？",
+            "もう一つ見つけるなら何を探す？"
+          ]
+        };
+      }
+      if (level === "幼児") {
+        return {
+          structural: [
+            `${domainText}は何色、何形、どんな大きさかな？`,
+            "同じところと違うところはどこかな？",
+            "どこにあって、まわりには何があるかな？"
+          ],
+          generative: [
+            "これを使って遊びを作るなら、どんな遊び？",
+            "これが困っているとしたら、何を助けてほしいかな？",
+            "もっと面白くするには何を足したい？"
+          ]
+        };
+      }
+      if (level === "高学年") {
+        return {
+          structural: [
+            "何が原因で、この状態になっていると考えられる？",
+            "証拠として写真から言えることと言えないことは何？",
+            "別の場所や時間で比べると、どんな違いが出そう？"
+          ],
+          generative: [
+            "この発見から、地域や学校をよくするアイデアは作れる？",
+            "誰と協力すれば、もっと深く調べられる？",
+            "小さな実験やプロトタイプにするとしたら何を作る？"
+          ]
+        };
+      }
+      return {
+        structural: [
+          "何が見える？形、色、数で言うとどうなる？",
+          "同じものをほかの場所でも見つけられる？",
+          "どうしてこうなったと思う？"
+        ],
+        generative: [
+          "もし自分で変えられるなら、どう変えたい？",
+          "これを使って新しい遊びや道具を作るなら？",
+          "次に誰へ聞くと、もっとわかりそう？"
+        ]
+      };
+    }
+
     function localAiCoach() {
       const wonder = $("#wonder-text").value.trim();
       const place = $("#wonder-place").value.trim() || $("#photo-location").value.trim() || $("#share-location").value.trim();
@@ -558,11 +701,19 @@
         questions = ["どうしてこの場所にあるの？", "季節や天気で変わるかな？", "近くにはどんな仲間があるかな？"];
         actions = ["時間を変えてもう一度見る", "大きさや色をメモする", "図鑑や検索で名前を調べる"];
       }
+      const profile = learnerProfile();
+      const coach = currentCoachConfig();
+      const levelQuestions = questionSetForLevel(profile.level, domain);
       return {
         title: `${domain}を見つけました`,
+        coach_name: coach.name,
+        object_guess: domain,
+        learner_level: profile.levelLabel,
         observation: photoSummary,
         encouragement: "いい問いです。答えを急がず、まずは見たことを証拠として残すと探究になります。",
         questions,
+        structural_questions: levelQuestions.structural,
+        generative_questions: levelQuestions.generative,
         actions: next ? [next, ...actions].slice(0, 3) : actions,
         safety_note: "わからない場所へ一人で行かず、大人と一緒に確かめましょう。",
         source: "local"
@@ -573,9 +724,14 @@
       const fallback = localAiCoach();
       return {
         title: data?.title || data?.headline || fallback.title,
+        coach_name: data?.coach_name || data?.coach || fallback.coach_name,
+        object_guess: data?.object_guess || data?.object || fallback.object_guess,
+        learner_level: data?.learner_level || data?.level || fallback.learner_level,
         observation: data?.observation || data?.summary || fallback.observation,
         encouragement: data?.encouragement || data?.message || fallback.encouragement,
         questions: Array.isArray(data?.questions) && data.questions.length ? data.questions : fallback.questions,
+        structural_questions: Array.isArray(data?.structural_questions) && data.structural_questions.length ? data.structural_questions : fallback.structural_questions,
+        generative_questions: Array.isArray(data?.generative_questions) && data.generative_questions.length ? data.generative_questions : fallback.generative_questions,
         actions: Array.isArray(data?.actions) && data.actions.length ? data.actions : fallback.actions,
         safety_note: data?.safety_note || data?.safety || fallback.safety_note,
         source: data?.source || "api"
@@ -584,11 +740,24 @@
 
     function renderAiCoach(result) {
       $("#ai-coach-output").innerHTML = `<strong>${escapeHtml(result.title)}</strong>
+        <div class="ai-meta">
+          ${badge(result.coach_name || "AI Coach")}
+          ${badge(result.object_guess || "写真のみたて", "green")}
+          ${badge(result.learner_level || "Kids", "gold")}
+        </div>
         <small>${escapeHtml(result.observation)}</small>
         <small>${escapeHtml(result.encouragement)}</small>
         <div class="ai-suggestion">
-          <h3>つぎの問い</h3>
-          ${result.questions.slice(0, 4).map((question) => `<button type="button" data-coach-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("")}
+          <h3>構造的問い</h3>
+          ${result.structural_questions.slice(0, 4).map((question) => `<button type="button" data-coach-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("")}
+        </div>
+        <div class="ai-suggestion">
+          <h3>生成的問い</h3>
+          ${result.generative_questions.slice(0, 4).map((question) => `<button type="button" data-coach-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("")}
+        </div>
+        <div class="ai-suggestion">
+          <h3>追加の問い</h3>
+          ${result.questions.slice(0, 3).map((question) => `<button type="button" data-coach-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("")}
         </div>
         <div class="ai-suggestion">
           <h3>やってみること</h3>
@@ -623,6 +792,8 @@
               wonder: $("#wonder-text").value.trim(),
               place: $("#wonder-place").value.trim(),
               location: $("#photo-location").value.trim() || $("#share-location").value.trim(),
+              learner: learnerProfile(),
+              coach: currentCoachConfig(),
               next_action: $("#next-action").value.trim(),
               photo_observation: photoDraft,
               image_data_url: $("#photo-preview").hidden ? null : $("#photo-preview").src,
@@ -649,7 +820,14 @@
         text: [
           result.observation,
           result.encouragement,
-          "つぎの問い:",
+          `コーチ: ${result.coach_name || ""}`,
+          `写真のみたて: ${result.object_guess || ""}`,
+          `発達レベル: ${result.learner_level || ""}`,
+          "構造的問い:",
+          ...result.structural_questions,
+          "生成的問い:",
+          ...result.generative_questions,
+          "追加の問い:",
           ...result.questions,
           "やってみること:",
           ...result.actions,
@@ -754,6 +932,8 @@
       renderIdentity();
       renderSteps();
       renderLog();
+      $("#kids-age").value = state.identity?.age || "";
+      $("#kids-months").value = state.identity?.months || "";
       $("#ai-endpoint").value = localStorage.getItem(aiEndpointKey) || "";
     }
 
@@ -789,6 +969,16 @@
     });
 
     $("#voice-wonder").addEventListener("click", startVoiceInput);
+    ["kids-age", "kids-months"].forEach((id) => {
+      $(`#${id}`).addEventListener("change", () => {
+        state.identity = {
+          ...state.identity,
+          age: $("#kids-age").value.trim(),
+          months: $("#kids-months").value.trim()
+        };
+        saveState();
+      });
+    });
     $("#save-ai-endpoint").addEventListener("click", () => {
       localStorage.setItem(aiEndpointKey, $("#ai-endpoint").value.trim());
       $("#ai-status").textContent = "AI接続先を保存しました。";

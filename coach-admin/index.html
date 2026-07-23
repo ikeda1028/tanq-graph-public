@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ AI Coach Studio</title>
+  <style>
+    :root {
+      --bg: #f4f0e7;
+      --panel: #fffdf8;
+      --ink: #24241f;
+      --muted: #6b6559;
+      --line: #d7cdb9;
+      --green: #246b55;
+      --blue: #2d5f8a;
+      --gold: #a47422;
+      --red: #a64e3d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(36,107,85,.1), transparent 36%),
+        linear-gradient(315deg, rgba(45,95,138,.1), transparent 42%),
+        var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    main { width: min(1220px, calc(100% - 36px)); margin: 0 auto; padding: 28px 0 52px; }
+    header, section, .card, .editor, .preview {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    header {
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+      margin-bottom: 16px;
+      background:
+        linear-gradient(135deg, rgba(36,107,85,.12), transparent 48%),
+        linear-gradient(315deg, rgba(164,116,34,.12), transparent 42%),
+        var(--panel);
+    }
+    .topbar, .actions, .tabs, .badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .topbar { justify-content: space-between; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      color: #fffdf8;
+      background: conic-gradient(from 230deg, var(--green), var(--blue), var(--gold), var(--red), var(--green));
+      font-weight: 600;
+    }
+    h1, h2, h3, strong, p { margin: 0; }
+    h1 { font-size: clamp(34px, 5vw, 58px); line-height: 1; font-weight: 500; }
+    h2 { font-size: 24px; font-weight: 500; }
+    h3 { font-size: 17px; font-weight: 500; }
+    small, .lead { color: var(--muted); line-height: 1.65; }
+    .lead { max-width: 920px; }
+    .layout { display: grid; grid-template-columns: minmax(260px, .82fr) minmax(0, 1.18fr); gap: 16px; align-items: start; }
+    section, .editor, .preview, .card { display: grid; gap: 12px; padding: 16px; }
+    .coach-list { display: grid; gap: 10px; }
+    .card {
+      min-height: 132px;
+      text-align: left;
+      cursor: pointer;
+      color: var(--ink);
+    }
+    .card.active { border-color: rgba(36,107,85,.55); background: linear-gradient(180deg, rgba(36,107,85,.1), var(--panel)); }
+    .icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: inline-grid;
+      place-items: center;
+      color: #fffdf8;
+      background: var(--green);
+      font-weight: 600;
+    }
+    .icon.passport { background: var(--blue); }
+    .icon.proofolio { background: var(--gold); }
+    .icon.encore { background: var(--red); }
+    .badge {
+      display: inline-flex;
+      width: max-content;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--blue);
+      background: rgba(45,95,138,.12);
+      font-size: 12px;
+    }
+    .badge.green { color: var(--green); background: rgba(36,107,85,.12); }
+    .badge.gold { color: var(--gold); background: rgba(164,116,34,.14); }
+    .badge.red { color: var(--red); background: rgba(166,78,61,.12); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: rgba(255,253,248,.8);
+      font: inherit;
+    }
+    textarea { min-height: 86px; resize: vertical; }
+    .big { min-height: 118px; }
+    button, a.button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--ink);
+      background: var(--panel);
+      cursor: pointer;
+      text-decoration: none;
+      font: inherit;
+    }
+    .primary { border-color: transparent; color: #fffdf8; background: var(--green); }
+    .danger { color: var(--red); }
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .question-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; background: rgba(45,95,138,.07); }
+    pre {
+      margin: 0;
+      max-height: 280px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #24241f;
+      color: #fffdf8;
+      white-space: pre-wrap;
+      font-size: 12px;
+    }
+    @media (max-width: 980px) {
+      main { width: min(100% - 28px, 1220px); }
+      .layout, .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="topbar">
+        <div class="brand">
+          <span class="mark">AI</span>
+          <div>
+            <strong>TANQ AI Coach Studio</strong>
+            <small>Kids / Passport / Proofolio / Encore</small>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="button" href="../kids-tool/" target="_blank" rel="noopener">Kids Tool</a>
+          <a class="button" href="../project-tool/" target="_blank" rel="noopener">Project Tool</a>
+        </div>
+      </div>
+      <div>
+        <p class="badge green">Coach Orchestration</p>
+        <h1>探究者に合わせて、AIコーチを作る</h1>
+      </div>
+      <p class="lead">TANQのAIは一人の万能キャラクターではなく、年齢、経験、探究段階、社会実装の深さに合わせて役割を変えます。ここで各インターフェイスのコーチ人格、問いの型、安全境界、API接続先を管理します。</p>
+    </header>
+
+    <div class="layout">
+      <section>
+        <h2>Coach Lineup</h2>
+        <div class="coach-list" id="coach-list"></div>
+      </section>
+
+      <div class="editor">
+        <div class="badge-row">
+          <span class="badge green" id="target-label">TANQ Pass Kids</span>
+          <span class="badge" id="coach-id-label">kids</span>
+        </div>
+        <h2 id="editor-title">Coach Editor</h2>
+        <div class="grid-2">
+          <label>コーチ名<input id="coach-name"></label>
+          <label>対象<select id="coach-audience"></select></label>
+        </div>
+        <label>役割<textarea id="coach-role" class="big"></textarea></label>
+        <label>キャラクター / 口調<textarea id="coach-tone"></textarea></label>
+        <div class="grid-2">
+          <label>構造的問いの方針<textarea id="coach-structural"></textarea></label>
+          <label>生成的問いの方針<textarea id="coach-generative"></textarea></label>
+        </div>
+        <label>安全境界<textarea id="coach-safety"></textarea></label>
+        <div class="grid-2">
+          <label>AI APIエンドポイント<input id="coach-endpoint" placeholder="例: https://.../api/kids-coach"></label>
+          <label>モデルメモ<input id="coach-model" placeholder="例: gpt-4.1-mini / gpt-4o-mini"></label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="save-coach" type="button">保存</button>
+          <button id="copy-coach-json" type="button">JSONコピー</button>
+          <button class="danger" id="reset-coach" type="button">初期値に戻す</button>
+        </div>
+      </div>
+    </div>
+
+    <section style="margin-top:16px">
+      <h2>Preview</h2>
+      <div class="grid-2">
+        <div class="preview">
+          <h3>問い返しプレビュー</h3>
+          <div class="question-box">
+            <span class="badge gold">構造的問い</span>
+            <strong id="preview-structural">何が見える？形、色、数で言うとどうなる？</strong>
+          </div>
+          <div class="question-box">
+            <span class="badge green">生成的問い</span>
+            <strong id="preview-generative">もし自分で変えられるなら、どう変えたい？</strong>
+          </div>
+          <small id="preview-safety">安全メモ</small>
+        </div>
+        <div class="preview">
+          <h3>保存JSON</h3>
+          <pre id="json-preview"></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const coachConfigKey = "tanq-ai-coach-configs";
+    const $ = (selector) => document.querySelector(selector);
+    const labels = {
+      kids: "TANQ Pass Kids",
+      passport: "TANQ Passport",
+      proofolio: "Proofolio",
+      encore: "Proofolio Encore"
+    };
+    const defaultCoaches = {
+      kids: {
+        name: "Mite Coach",
+        role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるコーチ",
+        tone: "やさしい、短い、安心できる、断定しすぎない",
+        structural: "色、形、数、場所、比較、原因、証拠を問いにする",
+        generative: "遊び、想像、改善、作品、誰かに見せる行動へ広げる",
+        safety: "危険な場所、知らない人、個人情報、医療判断は大人と確認する",
+        endpoint: "http://127.0.0.1:4180/api/kids-coach",
+        model: "gpt-4.1-mini"
+      },
+      passport: {
+        name: "Quest Mentor",
+        role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ育てるコーチ",
+        tone: "伴走型、少し挑戦的、根拠を求める",
+        structural: "問い、背景、先行事例、仮説、検証方法、評価指標を整理する",
+        generative: "社会課題、進路、研究、プロトタイプ、発表へ広げる",
+        safety: "出典、著作権、個人情報、学校提出前の確認を促す",
+        endpoint: "",
+        model: "gpt-4.1-mini"
+      },
+      proofolio: {
+        name: "Value Architect",
+        role: "社会人の経験、成果、人的資本、事業価値を構造化するコーチ",
+        tone: "実務的、客観的、価値仮説を明確にする",
+        structural: "成果、役割、証跡、関係者、再現性、事業インパクトを整理する",
+        generative: "新規事業、顧客価値、提携、収益モデル、キャリア資産へ広げる",
+        safety: "機密情報、契約、所属組織のルールに注意する",
+        endpoint: "",
+        model: "gpt-4.1-mini"
+      },
+      encore: {
+        name: "Encore Navigator",
+        role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するコーチ",
+        tone: "敬意ある、落ち着いた、経験の価値を見える化する",
+        structural: "経験、暗黙知、人脈、信頼、譲渡可能なスキルを整理する",
+        generative: "顧問、地域PPP、教育支援、起業、次世代支援へ広げる",
+        safety: "雇用、契約、守秘義務、健康や生活設計の専門判断は避ける",
+        endpoint: "",
+        model: "gpt-4.1-mini"
+      }
+    };
+    let selected = "kids";
+    let coaches = readCoaches();
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function readCoaches() {
+      try {
+        return { ...defaultCoaches, ...(JSON.parse(localStorage.getItem(coachConfigKey) || "{}") || {}) };
+      } catch {
+        return structuredClone(defaultCoaches);
+      }
+    }
+
+    function saveCoaches() {
+      localStorage.setItem(coachConfigKey, JSON.stringify(coaches));
+    }
+
+    function coachIcon(id) {
+      return id === "kids" ? "KC" : id === "passport" ? "QM" : id === "proofolio" ? "VA" : "EN";
+    }
+
+    function toneClass(id) {
+      return id === "passport" ? "passport" : id === "proofolio" ? "proofolio" : id === "encore" ? "encore" : "";
+    }
+
+    function renderList() {
+      $("#coach-list").innerHTML = Object.entries(coaches).map(([id, coach]) => `<button class="card ${id === selected ? "active" : ""}" data-coach="${id}" type="button">
+        <span class="icon ${toneClass(id)}">${coachIcon(id)}</span>
+        <strong>${escapeHtml(coach.name)}</strong>
+        <small>${escapeHtml(labels[id] || id)}</small>
+        <small>${escapeHtml(coach.role)}</small>
+      </button>`).join("");
+      document.querySelectorAll("[data-coach]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selected = button.dataset.coach;
+          render();
+        });
+      });
+    }
+
+    function loadEditor() {
+      const coach = coaches[selected];
+      $("#target-label").textContent = labels[selected] || selected;
+      $("#coach-id-label").textContent = selected;
+      $("#editor-title").textContent = coach.name;
+      $("#coach-name").value = coach.name || "";
+      $("#coach-audience").innerHTML = Object.entries(labels).map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
+      $("#coach-audience").value = selected;
+      $("#coach-role").value = coach.role || "";
+      $("#coach-tone").value = coach.tone || "";
+      $("#coach-structural").value = coach.structural || "";
+      $("#coach-generative").value = coach.generative || "";
+      $("#coach-safety").value = coach.safety || "";
+      $("#coach-endpoint").value = coach.endpoint || "";
+      $("#coach-model").value = coach.model || "";
+      $("#preview-structural").textContent = coach.structural || "";
+      $("#preview-generative").textContent = coach.generative || "";
+      $("#preview-safety").textContent = coach.safety || "";
+      $("#json-preview").textContent = JSON.stringify({ [selected]: coach }, null, 2);
+    }
+
+    function readEditor() {
+      return {
+        name: $("#coach-name").value.trim(),
+        role: $("#coach-role").value.trim(),
+        tone: $("#coach-tone").value.trim(),
+        structural: $("#coach-structural").value.trim(),
+        generative: $("#coach-generative").value.trim(),
+        safety: $("#coach-safety").value.trim(),
+        endpoint: $("#coach-endpoint").value.trim(),
+        model: $("#coach-model").value.trim()
+      };
+    }
+
+    function render() {
+      renderList();
+      loadEditor();
+    }
+
+    $("#save-coach").addEventListener("click", () => {
+      const target = $("#coach-audience").value;
+      coaches[target] = readEditor();
+      if (target !== selected) {
+        delete coaches[selected];
+        selected = target;
+      }
+      saveCoaches();
+      render();
+    });
+
+    $("#reset-coach").addEventListener("click", () => {
+      coaches[selected] = structuredClone(defaultCoaches[selected]);
+      saveCoaches();
+      render();
+    });
+
+    $("#copy-coach-json").addEventListener("click", async () => {
+      const text = JSON.stringify(coaches, null, 2);
+      await navigator.clipboard.writeText(text);
+      $("#copy-coach-json").textContent = "コピーしました";
+      setTimeout(() => $("#copy-coach-json").textContent = "JSONコピー", 1200);
+    });
+
+    ["coach-name", "coach-role", "coach-tone", "coach-structural", "coach-generative", "coach-safety", "coach-endpoint", "coach-model"].forEach((id) => {
+      $(`#${id}`).addEventListener("input", () => {
+        coaches[selected] = readEditor();
+        loadEditor();
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>

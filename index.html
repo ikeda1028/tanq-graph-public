@@ -38,7 +38,7 @@
     .brand span, small, .muted { color: var(--muted); }
     .brand span { font-size: 12px; display: block; }
     .nav { display: grid; gap: 8px; }
-    .nav button { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; }
+    .nav button, .nav a { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
     .nav button.active { background: var(--panel); border-color: var(--line); color: var(--ink); box-shadow: 0 8px 20px rgba(54,45,30,.08); }
     .session-box { margin-top: 18px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); display: grid; gap: 8px; }
     .session-box button { width: 100%; }
@@ -265,6 +265,7 @@
         <button data-tab="org-login">Org Login</button>
         <button data-tab="drive">Drive</button>
         <button data-tab="views">Kids / Passport / Proofolio</button>
+        <a href="coach-admin/" target="_blank" rel="noopener">AI Coach Studio</a>
       </nav>
       <div class="session-box">
         <small id="entry-session-label">未選択</small>
@@ -281,6 +282,7 @@
           <div class="actions" style="margin-top:18px">
             <a class="primary" href="project-tool/" target="_blank" rel="noopener">TANQ Project Toolを開く</a>
             <a class="secondary" href="project-tool/#kids" target="_blank" rel="noopener">Kidsインターフェイスを見る</a>
+            <a class="secondary" href="coach-admin/" target="_blank" rel="noopener">AI Coach Studioを開く</a>
           </div>
         </div>
         <div class="interfaces">
