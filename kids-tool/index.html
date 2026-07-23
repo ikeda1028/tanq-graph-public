@@ -114,7 +114,7 @@
       background: rgba(45,95,138,.08);
     }
     .ai-list { display: grid; gap: 8px; }
-    .ai-list button {
+    .ai-list button, .ai-suggestion button {
       text-align: left;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -122,6 +122,28 @@
       color: var(--ink);
       background: var(--surface);
       cursor: pointer;
+    }
+    .ai-coach-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+      gap: 12px;
+      align-items: start;
+    }
+    .ai-output {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid rgba(45,95,138,.28);
+      border-radius: 8px;
+      background: rgba(45,95,138,.08);
+    }
+    .ai-suggestion {
+      display: grid;
+      gap: 8px;
+    }
+    .ai-status {
+      color: var(--muted);
+      font-size: 12px;
     }
     .actions, .voice-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .primary, .secondary {
@@ -193,7 +215,7 @@
     .map-link { color: var(--blue); text-decoration: none; font-size: 13px; }
     @media (max-width: 980px) {
       main { width: min(100% - 28px, 1180px); }
-      .grid, .kids-hero, .photo-panel, .form-grid, .steps, .action-grid, .log-grid { grid-template-columns: 1fr; }
+      .grid, .kids-hero, .photo-panel, .form-grid, .steps, .action-grid, .log-grid, .ai-coach-grid { grid-template-columns: 1fr; }
       .full, .wide, .half, .narrow { grid-column: auto; }
     }
   </style>
@@ -278,6 +300,29 @@
       </section>
 
       <section class="panel full">
+        <div class="badge-row">
+          <span class="badge green">AI Coach</span>
+          <span class="badge gold">Safety first</span>
+        </div>
+        <h2>AIにきいてみる</h2>
+        <div class="ai-coach-grid">
+          <div class="panel">
+            <p class="lead">いまの写真、ふしぎ、場所から、AIが「見えたこと」「次の問い」「やってみること」を出します。</p>
+            <label>AI APIエンドポイントURL<input id="ai-endpoint" placeholder="https://.../api/kids-coach"></label>
+            <div class="actions">
+              <button class="primary" id="ask-ai" type="button">AIにきく</button>
+              <button class="secondary" id="save-ai-endpoint" type="button">接続先を保存</button>
+              <small class="ai-status" id="ai-status">未設定でも内蔵AIコーチで動きます。</small>
+            </div>
+          </div>
+          <div class="ai-output" id="ai-coach-output">
+            <strong>AIコーチ</strong>
+            <small>ふしぎや写真を入れてから「AIにきく」を押してください。</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel full">
         <div class="action-grid">
           <button class="action-card" data-action="idea" type="button"><span class="badge green">+</span><strong>やってみたい</strong><small>アイデアを出す</small></button>
           <button class="action-card" data-action="prediction" type="button"><span class="badge gold">?</span><strong>よそう</strong><small>こうかもしれない</small></button>
@@ -350,6 +395,7 @@
       feedback: []
     };
     const $ = (selector) => document.querySelector(selector);
+    const aiEndpointKey = "tanq-kids-ai-endpoint";
     let state = readState();
     let photoDraft = null;
     let currentGeo = null;
@@ -479,6 +525,144 @@
       });
     }
 
+    function textLines(value = "") {
+      return String(value).split("\n").map((item) => item.trim()).filter(Boolean);
+    }
+
+    function localAiCoach() {
+      const wonder = $("#wonder-text").value.trim();
+      const place = $("#wonder-place").value.trim() || $("#photo-location").value.trim() || $("#share-location").value.trim();
+      const next = $("#next-action").value.trim();
+      const photoSummary = photoDraft ? `${photoDraft.aiTitle}。${photoDraft.aiSummary}` : "写真はまだ入っていません。";
+      const baseQuestion = wonder || latestQuestion()?.text || "気になるものを見つけた";
+      const placeText = place ? `${place}で見つけたこと` : "見つけた場所";
+      const topic = `${baseQuestion} / ${placeText}`.toLowerCase();
+      let domain = "身近なふしぎ";
+      let questions = [
+        "どうしてそうなっているの？",
+        "ほかの場所でも同じかな？",
+        "だれに聞いたらわかりそうかな？"
+      ];
+      let actions = [
+        "同じものをもう一度写真に撮る",
+        "気づいたことを3つ書く",
+        "家族や先生に1つ質問する"
+      ];
+      if (/空き家|建物|店|まち|公園|地域|street|shop|house/.test(topic)) {
+        domain = "まちのふしぎ";
+        questions = ["人が集まる場所と集まらない場所は何が違うの？", "この場所は昔どんな使われ方をしていたの？", "みんななら何に使いたいかな？"];
+        actions = ["まわりの人に使い道を聞く", "地図に場所を残す", "似た場所を2つ探す"];
+      }
+      if (/草|花|木|葉|虫|鳥|魚|plant|flower|tree|leaf/.test(topic + photoSummary.toLowerCase())) {
+        domain = "自然のふしぎ";
+        questions = ["どうしてこの場所にあるの？", "季節や天気で変わるかな？", "近くにはどんな仲間があるかな？"];
+        actions = ["時間を変えてもう一度見る", "大きさや色をメモする", "図鑑や検索で名前を調べる"];
+      }
+      return {
+        title: `${domain}を見つけました`,
+        observation: photoSummary,
+        encouragement: "いい問いです。答えを急がず、まずは見たことを証拠として残すと探究になります。",
+        questions,
+        actions: next ? [next, ...actions].slice(0, 3) : actions,
+        safety_note: "わからない場所へ一人で行かず、大人と一緒に確かめましょう。",
+        source: "local"
+      };
+    }
+
+    function normalizeAiCoachResponse(data) {
+      const fallback = localAiCoach();
+      return {
+        title: data?.title || data?.headline || fallback.title,
+        observation: data?.observation || data?.summary || fallback.observation,
+        encouragement: data?.encouragement || data?.message || fallback.encouragement,
+        questions: Array.isArray(data?.questions) && data.questions.length ? data.questions : fallback.questions,
+        actions: Array.isArray(data?.actions) && data.actions.length ? data.actions : fallback.actions,
+        safety_note: data?.safety_note || data?.safety || fallback.safety_note,
+        source: data?.source || "api"
+      };
+    }
+
+    function renderAiCoach(result) {
+      $("#ai-coach-output").innerHTML = `<strong>${escapeHtml(result.title)}</strong>
+        <small>${escapeHtml(result.observation)}</small>
+        <small>${escapeHtml(result.encouragement)}</small>
+        <div class="ai-suggestion">
+          <h3>つぎの問い</h3>
+          ${result.questions.slice(0, 4).map((question) => `<button type="button" data-coach-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`).join("")}
+        </div>
+        <div class="ai-suggestion">
+          <h3>やってみること</h3>
+          ${result.actions.slice(0, 4).map((action) => `<button type="button" data-coach-action="${escapeHtml(action)}">${escapeHtml(action)}</button>`).join("")}
+        </div>
+        <small>${escapeHtml(result.safety_note)}</small>`;
+      document.querySelectorAll("[data-coach-question]").forEach((button) => {
+        button.addEventListener("click", () => {
+          $("#wonder-text").value = button.dataset.coachQuestion;
+          $("#wonder-text").focus();
+        });
+      });
+      document.querySelectorAll("[data-coach-action]").forEach((button) => {
+        button.addEventListener("click", () => {
+          $("#next-action").value = button.dataset.coachAction;
+          $("#next-action").focus();
+        });
+      });
+    }
+
+    async function askAiCoach() {
+      const endpoint = $("#ai-endpoint").value.trim();
+      $("#ai-status").textContent = endpoint ? "AIに聞いています..." : "内蔵AIコーチで考えています...";
+      let result = null;
+      if (endpoint) {
+        try {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mode: "kids_coach",
+              wonder: $("#wonder-text").value.trim(),
+              place: $("#wonder-place").value.trim(),
+              location: $("#photo-location").value.trim() || $("#share-location").value.trim(),
+              next_action: $("#next-action").value.trim(),
+              photo_observation: photoDraft,
+              image_data_url: $("#photo-preview").hidden ? null : $("#photo-preview").src,
+              recent: kidsPayload()
+            })
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          result = normalizeAiCoachResponse(await response.json());
+          $("#ai-status").textContent = "AI APIから返答しました。";
+        } catch (error) {
+          result = localAiCoach();
+          $("#ai-status").textContent = `API接続に失敗したため内蔵AIで表示しました。${error.message}`;
+        }
+      } else {
+        result = localAiCoach();
+        $("#ai-status").textContent = "内蔵AIコーチで表示しました。";
+      }
+      renderAiCoach(result);
+      state.materials.unshift({
+        id: "mat_kids_ai_" + Date.now(),
+        title: result.title,
+        kind: "Kids AI Coach",
+        url: endpoint || "",
+        text: [
+          result.observation,
+          result.encouragement,
+          "つぎの問い:",
+          ...result.questions,
+          "やってみること:",
+          ...result.actions,
+          result.safety_note
+        ].join("\n"),
+        audience: "kids",
+        source: result.source,
+        created_at: new Date().toISOString()
+      });
+      saveState();
+      render();
+    }
+
     function startVoiceInput() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
@@ -570,6 +754,7 @@
       renderIdentity();
       renderSteps();
       renderLog();
+      $("#ai-endpoint").value = localStorage.getItem(aiEndpointKey) || "";
     }
 
     function kidsPayload() {
@@ -604,6 +789,11 @@
     });
 
     $("#voice-wonder").addEventListener("click", startVoiceInput);
+    $("#save-ai-endpoint").addEventListener("click", () => {
+      localStorage.setItem(aiEndpointKey, $("#ai-endpoint").value.trim());
+      $("#ai-status").textContent = "AI接続先を保存しました。";
+    });
+    $("#ask-ai").addEventListener("click", askAiCoach);
     $("#current-location").addEventListener("click", () => {
       if (!navigator.geolocation) {
         $("#location-status").textContent = "このブラウザでは現在地を使えません。";
