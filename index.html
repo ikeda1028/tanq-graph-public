@@ -887,6 +887,10 @@
       return `${prefix}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
     }
 
+    function normalizeEmail(email = "") {
+      return String(email || "").trim().toLowerCase();
+    }
+
     function readDemoDb() {
       try {
         const db = JSON.parse(localStorage.getItem("tanq-graph-demo-db") || "null");
@@ -916,10 +920,17 @@
       }) || null;
     }
 
+    function findDbRecordByEmail(records = [], email = "") {
+      const normalized = normalizeEmail(email);
+      if (!normalized) return null;
+      return records.find((record) => normalizeEmail(record.email) === normalized) || null;
+    }
+
     function upsertDbPerson(person) {
       const db = readDemoDb();
       const people = db.people || [];
-      const index = people.findIndex((item) => item.id === person.id || (person.email && item.email === person.email));
+      const personEmail = normalizeEmail(person.email);
+      const index = people.findIndex((item) => item.id === person.id || (personEmail && normalizeEmail(item.email) === personEmail));
       if (index >= 0) people[index] = { ...people[index], ...person, updated_at: new Date().toISOString() };
       else people.unshift(person);
       writeDemoDb({ ...db, people });
@@ -929,7 +940,8 @@
     function upsertDbOrganization(organization) {
       const db = readDemoDb();
       const organizations = db.organizations || [];
-      const index = organizations.findIndex((item) => item.id === organization.id || (organization.email && item.email === organization.email));
+      const orgEmail = normalizeEmail(organization.email);
+      const index = organizations.findIndex((item) => item.id === organization.id || (orgEmail && normalizeEmail(item.email) === orgEmail));
       if (index >= 0) organizations[index] = { ...organizations[index], ...organization, updated_at: new Date().toISOString() };
       else organizations.unshift(organization);
       writeDemoDb({ ...db, organizations });
@@ -1066,15 +1078,43 @@
       return null;
     }
 
+    async function findFirebaseRecordByEmail(collectionName, email = "") {
+      if (!firebaseDb || !firebaseApi) return null;
+      const normalized = normalizeEmail(email);
+      if (!normalized) return null;
+      const { collection, getDocs, query, where, limit } = firebaseApi;
+      try {
+        const emailQuery = query(collection(firebaseDb, collectionName), where("email_lower", "==", normalized), limit(1));
+        const matches = await getDocs(emailQuery);
+        if (!matches.empty) {
+          const first = matches.docs[0];
+          return { id: first.id, ...first.data() };
+        }
+      } catch (error) {
+        $("#database-status").textContent = `Firestore重複確認待ち: ${collectionName} / ${error.message}`;
+      }
+      return null;
+    }
+
+    async function findExistingPersonByEmail(email = "") {
+      const db = readDemoDb();
+      return findDbRecordByEmail(db.people, email) || await findFirebaseRecordByEmail("tanq_people", email);
+    }
+
+    async function findExistingOrganizationByEmail(email = "") {
+      const db = readDemoDb();
+      return findDbRecordByEmail(db.organizations, email) || await findFirebaseRecordByEmail("tanq_organizations", email);
+    }
+
     async function savePersonRecord(person) {
-      const saved = upsertDbPerson(person);
-      await saveFirebaseRecord("tanq_people", { ...saved, email_lower: String(saved.email || "").toLowerCase() });
+      const saved = upsertDbPerson({ ...person, email_lower: normalizeEmail(person.email) });
+      await saveFirebaseRecord("tanq_people", { ...saved, email_lower: normalizeEmail(saved.email) });
       return saved;
     }
 
     async function saveOrganizationRecord(organization) {
-      const saved = upsertDbOrganization(organization);
-      await saveFirebaseRecord("tanq_organizations", { ...saved, email_lower: String(saved.email || "").toLowerCase() });
+      const saved = upsertDbOrganization({ ...organization, email_lower: normalizeEmail(organization.email) });
+      await saveFirebaseRecord("tanq_organizations", { ...saved, email_lower: normalizeEmail(saved.email) });
       return saved;
     }
 
@@ -1357,7 +1397,16 @@
         return { apiKey, state: next };
       }
       if (path === "/api/orgs") {
-        const organization = {
+        const existing = await findExistingOrganizationByEmail(body.email);
+        const organization = existing ? {
+          ...existing,
+          name: existing.name || body.name || "登録団体",
+          type: existing.type || body.type || "学校",
+          purpose: existing.purpose || body.purpose || "",
+          status: existing.status || "active",
+          duplicate_reused: true,
+          updated_at: new Date().toISOString()
+        } : {
           id: "org_" + Date.now(),
           name: body.name || "登録団体",
           type: body.type || "学校",
@@ -1367,7 +1416,10 @@
           loginCode: generateOrgCode(),
           created_at: new Date().toISOString()
         };
-        store.organizations = [organization, ...(store.organizations || [])];
+        const orgEmail = normalizeEmail(organization.email);
+        const existingIndex = (store.organizations || []).findIndex((item) => item.id === organization.id || (orgEmail && normalizeEmail(item.email) === orgEmail));
+        if (existingIndex >= 0) store.organizations[existingIndex] = { ...store.organizations[existingIndex], ...organization };
+        else store.organizations = [organization, ...(store.organizations || [])];
         const next = saveLocal(store);
         await saveOrganizationRecord({
           ...organization,
@@ -2275,12 +2327,13 @@
     });
 
     $("#register-org").addEventListener("click", async () => {
+      const email = $("#org-email").value.trim();
       const result = await api("/api/orgs", {
         method: "POST",
         body: JSON.stringify({
           name: $("#org-name").value.trim(),
           type: $("#org-type").value,
-          email: $("#org-email").value.trim(),
+          email,
           purpose: $("#org-purpose").value
         })
       });
@@ -2291,9 +2344,9 @@
       $("#api-key-secret").textContent = JSON.stringify({
         organization: result.organization.name,
         loginCode: result.organization.loginCode,
-        note: "団体ログイン画面でこのコードを使います。"
+        note: result.organization.duplicate_reused ? "同じメールの登録団体があったため、既存IDを再利用しました。" : "団体ログイン画面でこのコードを使います。"
       }, null, 2);
-      setStatus("organization registered");
+      setStatus(result.organization.duplicate_reused ? "organization reused" : "organization registered");
     });
 
     $("#org-login-button").addEventListener("click", () => {
@@ -2349,7 +2402,15 @@
       const name = $("#entry-person-name").value.trim() || "ポートフォリオ利用者";
       const age = $("#entry-person-age").value;
       const email = $("#entry-person-email").value.trim();
-      const person = await savePersonRecord({
+      const existing = await findExistingPersonByEmail(email);
+      const person = await savePersonRecord(existing ? {
+        ...existing,
+        name: existing.name || name,
+        age: existing.age || age,
+        interfaceMode: existing.interfaceMode || recommendedInterface(existing.age || age),
+        duplicate_reused: true,
+        updated_at: new Date().toISOString()
+      } : {
         id: `person_${Date.now()}`,
         name,
         age,
@@ -2375,9 +2436,11 @@
         db: activeDbLabel(),
         started_at: new Date().toISOString()
       });
-      $("#database-status").textContent = `${activeDbLabel()}に新規登録しました。利用者ID: ${person.id} / ログインコード: ${person.loginCode}`;
+      $("#database-status").textContent = person.duplicate_reused
+        ? `${activeDbLabel()}で既存登録を再利用しました。利用者ID: ${person.id} / ログインコード: ${person.loginCode}`
+        : `${activeDbLabel()}に新規登録しました。利用者ID: ${person.id} / ログインコード: ${person.loginCode}`;
       render();
-      setStatus("person registered");
+      setStatus(person.duplicate_reused ? "person reused" : "person registered");
     });
 
     $("#login-person").addEventListener("click", async () => {
@@ -2439,10 +2502,12 @@
       $("#api-key-secret").textContent = JSON.stringify({
         organization: result.organization.name,
         loginCode: result.organization.loginCode,
-        note: "公開デモでは入口で団体セッションを作成します。本番では審査済み団体ログインに置き換えます。"
+        note: result.organization.duplicate_reused ? "同じメールの登録団体があったため、既存IDを再利用しました。" : "公開デモでは入口で団体セッションを作成します。本番では審査済み団体ログインに置き換えます。"
       }, null, 2);
-      $("#database-status").textContent = `${activeDbLabel()}に団体を新規登録しました。団体ID: ${dbOrg.id} / ログインコード: ${dbOrg.loginCode}`;
-      setStatus("organization registered");
+      $("#database-status").textContent = result.organization.duplicate_reused
+        ? `${activeDbLabel()}で既存団体を再利用しました。団体ID: ${dbOrg.id} / ログインコード: ${dbOrg.loginCode}`
+        : `${activeDbLabel()}に団体を新規登録しました。団体ID: ${dbOrg.id} / ログインコード: ${dbOrg.loginCode}`;
+      setStatus(result.organization.duplicate_reused ? "organization reused" : "organization registered");
     });
 
     $("#login-org-entry").addEventListener("click", async () => {
