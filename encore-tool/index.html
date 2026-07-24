@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Proofolio Encore</title>
+  <script src="../firebase-config.js?v=encore-20260725"></script>
+  <style>
+    :root {
+      --bg: #f4f0e8;
+      --panel: #fffdf8;
+      --ink: #22231f;
+      --muted: #6b6559;
+      --line: #d8cfbd;
+      --green: #256b57;
+      --blue: #2f5f8f;
+      --gold: #a97825;
+      --red: #a34b38;
+      --shadow: 0 18px 44px rgba(54,45,30,.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(37,107,87,.1), transparent 34%),
+        linear-gradient(315deg, rgba(163,75,56,.1), transparent 40%),
+        var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+    aside { position: sticky; top: 0; height: 100vh; padding: 24px 18px; border-right: 1px solid var(--line); background: rgba(255,253,248,.78); }
+    main { padding: 28px; max-width: 1360px; width: 100%; }
+    .brand { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; }
+    .mark { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; color: #fffdf8; background: var(--red); font-weight: 700; }
+    .brand span, small, .muted { color: var(--muted); }
+    .brand span { display: block; font-size: 12px; }
+    .nav { display: grid; gap: 8px; }
+    .nav button, .nav a { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
+    .nav button.active { color: var(--ink); background: var(--panel); border-color: var(--line); box-shadow: 0 8px 20px rgba(54,45,30,.08); }
+    .session { margin-top: 16px; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .hero, .panel, .card, .metric, .timeline-item, .role-card, .navigator-box {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .hero { display: grid; grid-template-columns: 1.12fr .88fr; gap: 18px; padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    h1, h2, h3, p, strong { margin: 0; }
+    h1 { font-size: clamp(34px, 5vw, 62px); line-height: 1; font-weight: 600; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 15px; }
+    .eyebrow { margin-bottom: 10px; color: var(--red); font-weight: 700; font-size: 13px; }
+    .lead { margin-top: 14px; color: var(--muted); line-height: 1.75; max-width: 850px; }
+    .hero-map {
+      min-height: 260px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(90deg, transparent 49%, rgba(47,95,143,.16) 50%, transparent 51%),
+        linear-gradient(0deg, transparent 49%, rgba(169,120,37,.18) 50%, transparent 51%),
+        rgba(255,253,248,.72);
+    }
+    .node {
+      position: absolute;
+      display: grid;
+      gap: 4px;
+      min-width: 118px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,253,248,.9);
+      box-shadow: 0 10px 22px rgba(54,45,30,.08);
+    }
+    .node small { line-height: 1.35; }
+    .n1 { left: 8%; top: 14%; }
+    .n2 { right: 8%; top: 20%; }
+    .n3 { left: 18%; bottom: 16%; }
+    .n4 { right: 18%; bottom: 12%; }
+    .n5 { left: 50%; top: 48%; transform: translate(-50%, -50%); border-color: rgba(37,107,87,.45); }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+    .panel { padding: 18px; display: grid; gap: 14px; }
+    .full { grid-column: 1 / -1; }
+    .wide { grid-column: span 8; }
+    .narrow { grid-column: span 4; }
+    .half { grid-column: span 6; }
+    .third { grid-column: span 4; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .metric { padding: 14px; min-height: 86px; }
+    .metric b { display: block; font-size: 30px; font-weight: 600; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mini-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card, .role-card { padding: 14px; display: grid; gap: 8px; align-content: start; min-height: 126px; }
+    .role-card { border-color: rgba(37,107,87,.28); background: linear-gradient(180deg, rgba(37,107,87,.08), var(--panel)); }
+    .timeline { display: grid; gap: 10px; }
+    .timeline-item { padding: 12px; display: grid; gap: 8px; }
+    .timeline-head, .section-head, .actions, .badge-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .timeline-head, .section-head { justify-content: space-between; }
+    .badge { display: inline-flex; align-items: center; width: max-content; border-radius: 999px; padding: 5px 9px; color: var(--blue); background: rgba(47,95,143,.12); font-size: 12px; white-space: nowrap; }
+    .badge.green { color: var(--green); background: rgba(37,107,87,.12); }
+    .badge.gold { color: var(--gold); background: rgba(169,120,37,.14); }
+    .badge.red { color: var(--red); background: rgba(163,75,56,.12); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,248,.78); color: var(--ink); padding: 10px 12px; }
+    textarea { min-height: 96px; resize: vertical; }
+    button, a.button { border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; background: var(--panel); color: var(--ink); cursor: pointer; text-decoration: none; }
+    .primary { border-color: transparent; color: #fffdf8; background: var(--green); }
+    .secondary { border-color: var(--line); background: var(--panel); }
+    .navigator-box { padding: 16px; display: grid; gap: 12px; border-color: rgba(47,95,143,.32); background: linear-gradient(180deg, rgba(47,95,143,.08), var(--panel)); line-height: 1.7; }
+    pre { margin: 0; max-height: 360px; overflow: auto; border-radius: 8px; padding: 14px; background: #22231f; color: #fffdf8; white-space: pre-wrap; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    @media (max-width: 1080px) {
+      .shell, .hero { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      main { padding: 20px; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid, .metrics, .mini-grid, .mini-grid.three { grid-template-columns: 1fr; }
+      .full, .wide, .narrow, .half, .third { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <span class="mark">PE</span>
+        <div>
+          <strong>Proofolio Encore</strong>
+          <span>Experience to next role</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="active" data-tab="home" type="button">Home</button>
+        <button data-tab="experience" type="button">Experience Graph</button>
+        <button data-tab="roles" type="button">Role Market</button>
+        <button data-tab="proof" type="button">Proof Board</button>
+        <button data-tab="seeds" type="button">Innovation Seeds</button>
+        <button data-tab="navigator" type="button">AI探究ナビゲーター</button>
+        <a href="../" target="_blank" rel="noopener">TANQ Graph</a>
+        <a href="../coach-admin/" target="_blank" rel="noopener">Navigator Studio</a>
+      </nav>
+      <div class="session">
+        <small>Encore ID</small>
+        <strong id="session-id">encore_guest</strong>
+        <small id="save-status">Local draft</small>
+      </div>
+    </aside>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Proofolio Encore</p>
+          <h1>経験を、次の役割と事業機会へ再編集する。</h1>
+          <p class="lead">45歳以降の実績、人脈、判断力、暗黙知を、証跡・信頼・顧問価値・地域実装・Innovation Seedへ変換するインターフェイスです。</p>
+          <div class="actions" style="margin-top:18px">
+            <button class="primary" data-tab-jump="experience" type="button">経験を入力する</button>
+            <button class="secondary" data-tab-jump="navigator" type="button">AI探究ナビゲーターに整理させる</button>
+            <button class="secondary" id="copy-payload" type="button">Graph JSONコピー</button>
+          </div>
+        </div>
+        <div class="hero-map" aria-label="Encore graph">
+          <div class="node n1"><strong>Experience</strong><small>実績・暗黙知</small></div>
+          <div class="node n2"><strong>Trust</strong><small>推薦・契約・評価</small></div>
+          <div class="node n3"><strong>Role</strong><small>顧問・PM・講師</small></div>
+          <div class="node n4"><strong>Seed</strong><small>事業・PPP・共創</small></div>
+          <div class="node n5"><strong>Encore Graph</strong><small>再編集された価値</small></div>
+        </div>
+      </section>
+
+      <section id="home" class="tab active">
+        <div class="grid">
+          <div class="panel full">
+            <h2>Encore Dashboard</h2>
+            <div class="metrics">
+              <div class="metric"><b id="metric-experience">0</b><small>経験資産</small></div>
+              <div class="metric"><b id="metric-proof">0</b><small>証跡・信頼</small></div>
+              <div class="metric"><b id="metric-roles">0</b><small>役割候補</small></div>
+              <div class="metric"><b id="metric-seeds">0</b><small>Innovation Seed</small></div>
+            </div>
+          </div>
+          <div class="panel wide">
+            <h2>Experience Graph</h2>
+            <div class="timeline" id="experience-list-home"></div>
+          </div>
+          <div class="panel narrow">
+            <h2>Next Role</h2>
+            <div class="timeline" id="role-list-home"></div>
+          </div>
+          <div class="panel full">
+            <h2>Encore変換モデル</h2>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge red">ReProof</span><strong>経験を再証明</strong><small>職務経歴ではなく、証跡と信頼で語れる価値に変換。</small></div>
+              <div class="card"><span class="badge gold">Role</span><strong>次の役割へ</strong><small>顧問、PM、地域プロデューサー、講師、メンターへ展開。</small></div>
+              <div class="card"><span class="badge green">Venture</span><strong>事業組成へ</strong><small>PPP、教育、地域、DAO、企業連携のInnovation Seedを抽出。</small></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="experience" class="tab">
+        <div class="grid">
+          <div class="panel third">
+            <h2>経験を追加</h2>
+            <label>経験タイトル<input id="exp-title" value="地域企業との新規事業立ち上げ"></label>
+            <label>役割<select id="exp-role">
+              <option>事業開発</option>
+              <option>PM / プロジェクト責任者</option>
+              <option>営業・顧客開発</option>
+              <option>人材育成・メンター</option>
+              <option>地域連携・PPP</option>
+              <option>技術・プロダクト</option>
+            </select></label>
+            <label>概要<textarea id="exp-summary">地域企業、行政、教育機関をつなぎ、実証プロジェクトの設計と関係者調整を行った。</textarea></label>
+            <label>得られた暗黙知<textarea id="exp-knowledge">利害が異なる関係者の合意形成では、最初に小さな成果物を作ることが重要。</textarea></label>
+            <div class="actions">
+              <button class="primary" id="add-experience" type="button">経験資産に追加</button>
+            </div>
+          </div>
+          <div class="panel" style="grid-column: span 9">
+            <h2>Experience Graph</h2>
+            <div class="timeline" id="experience-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="roles" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <div class="section-head">
+              <h2>Role Market</h2>
+              <button class="primary" id="generate-roles" type="button">役割候補を生成</button>
+            </div>
+            <div class="mini-grid three" id="role-market"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="proof" class="tab">
+        <div class="grid">
+          <div class="panel third">
+            <h2>証跡を追加</h2>
+            <label>対象経験<select id="proof-experience"></select></label>
+            <label>証跡タイトル<input id="proof-title" value="関係者レビュー"></label>
+            <label>信頼レベル<select id="proof-trust">
+              <option value="2">Level 2 自己確認</option>
+              <option value="3" selected>Level 3 同僚・上司・関係者レビュー</option>
+              <option value="4">Level 4 契約・提出済み</option>
+              <option value="5">Level 5 外部公開・認定</option>
+            </select></label>
+            <label>メモ<textarea id="proof-note">実証終了後、関係者から調整力とプロジェクト設計力について評価を受けた。</textarea></label>
+            <label>URL 任意<input id="proof-url" placeholder="https://..."></label>
+            <button class="primary" id="add-proof" type="button">Proof Boardへ追加</button>
+          </div>
+          <div class="panel" style="grid-column: span 9">
+            <h2>Proof Board</h2>
+            <div class="timeline" id="proof-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="seeds" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <div class="section-head">
+              <h2>Innovation Seeds</h2>
+              <button class="primary" id="generate-seeds" type="button">事業・社会実装候補を抽出</button>
+            </div>
+            <div class="mini-grid three" id="seed-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="navigator" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>AI探究ナビゲーター</h2>
+            <label>相談したいこと<textarea id="navigator-prompt">これまでの経験を、顧問・地域PPP・教育支援のどれに展開できるか整理したい。</textarea></label>
+            <button class="primary" id="ask-navigator" type="button">Encore Navigatorに整理させる</button>
+          </div>
+          <div class="panel half">
+            <h2>Navigator Output</h2>
+            <div class="navigator-box" id="navigator-output">経験を追加してから、AI探究ナビゲーターに整理させると、役割候補・証跡不足・Innovation Seed候補が表示されます。</div>
+          </div>
+          <div class="panel full">
+            <h2>TANQ Graph Payload</h2>
+            <pre id="graph-payload"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const storageKey = "proofolio-encore-state";
+    const $ = (selector) => document.querySelector(selector);
+    const seedState = {
+      experience: [
+        {
+          id: "exp_ppp_001",
+          title: "地方創生PPPの実証設計",
+          role: "地域連携・PPP",
+          summary: "行政、学校、地域企業をつなぎ、空き店舗を探究拠点へ転用する実証構想を設計。",
+          knowledge: "関係者の合意形成には、議論より先に小さな実証単位を置くことが効く。",
+          created_at: "2026-07-25T09:00:00+09:00"
+        },
+        {
+          id: "exp_mentor_001",
+          title: "若手・学生の探究伴走",
+          role: "人材育成・メンター",
+          summary: "問いの発見、仮説作成、発表準備、外部接続まで伴走。",
+          knowledge: "本人の言葉を奪わず、問いの粒度を上げる支援が成果につながる。",
+          created_at: "2026-07-25T09:10:00+09:00"
+        }
+      ],
+      proofs: [
+        {
+          id: "proof_review_001",
+          experience_id: "exp_ppp_001",
+          title: "地域関係者レビュー",
+          trust: 3,
+          note: "関係者調整と実証設計の経験を第三者コメントとして保存。",
+          url: "",
+          created_at: "2026-07-25T09:20:00+09:00"
+        }
+      ],
+      roles: [],
+      seeds: [],
+      navigatorNotes: []
+    };
+    let state = readState();
+
+    function readState() {
+      try {
+        return { ...seedState, ...(JSON.parse(localStorage.getItem(storageKey) || "{}") || {}) };
+      } catch {
+        return structuredClone(seedState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+      $("#save-status").textContent = `Saved ${new Date().toLocaleTimeString("ja-JP")}`;
+    }
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function id(prefix) {
+      return `${prefix}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function setActiveTab(tabId) {
+      document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabId));
+      document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+    }
+
+    function trustBadge(value) {
+      const trust = Number(value || 0);
+      const cls = trust >= 4 ? "green" : trust >= 3 ? "gold" : "";
+      return `<span class="badge ${cls}">Trust ${trust}</span>`;
+    }
+
+    function experienceItem(item) {
+      return `<article class="timeline-item">
+        <div class="timeline-head">
+          <div class="badge-row"><span class="badge red">Experience</span><span class="badge">${escapeHtml(item.role)}</span></div>
+          <small>${escapeHtml(item.created_at || "")}</small>
+        </div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.summary)}</small>
+        <small><b>暗黙知:</b> ${escapeHtml(item.knowledge)}</small>
+      </article>`;
+    }
+
+    function proofItem(item) {
+      const exp = state.experience.find((record) => record.id === item.experience_id);
+      return `<article class="timeline-item">
+        <div class="timeline-head">
+          <div class="badge-row"><span class="badge green">Proof</span>${trustBadge(item.trust)}</div>
+          <small>${escapeHtml(exp?.title || "未紐づけ")}</small>
+        </div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.note)}</small>
+        ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a>` : ""}
+      </article>`;
+    }
+
+    function roleCard(role) {
+      return `<article class="role-card">
+        <div class="badge-row"><span class="badge gold">${escapeHtml(role.market || "Role")}</span><span class="badge green">Fit ${escapeHtml(role.fit)}</span></div>
+        <strong>${escapeHtml(role.title)}</strong>
+        <small>${escapeHtml(role.reason)}</small>
+        <small><b>次の一歩:</b> ${escapeHtml(role.next)}</small>
+      </article>`;
+    }
+
+    function seedCard(seed) {
+      return `<article class="role-card">
+        <div class="badge-row"><span class="badge red">Innovation Seed</span><span class="badge">${escapeHtml(seed.domain)}</span></div>
+        <strong>${escapeHtml(seed.title)}</strong>
+        <small>${escapeHtml(seed.summary)}</small>
+        <small><b>組成候補:</b> ${escapeHtml(seed.partners)}</small>
+      </article>`;
+    }
+
+    function graphPayload() {
+      return {
+        graph_type: "proofolio_encore_bundle",
+        source: "Proofolio Encore",
+        owner_interface: "Proofolio Encore",
+        experience_assets: state.experience,
+        proof_assets: state.proofs,
+        role_candidates: state.roles,
+        innovation_seeds: state.seeds,
+        navigator_notes: state.navigatorNotes,
+        generated_at: new Date().toISOString()
+      };
+    }
+
+    function generateRoleCandidates() {
+      const hasPpp = state.experience.some((item) => item.role.includes("PPP") || item.summary.includes("行政") || item.summary.includes("地域"));
+      const hasMentor = state.experience.some((item) => item.role.includes("人材") || item.summary.includes("伴走") || item.summary.includes("学生"));
+      state.roles = [
+        {
+          title: hasPpp ? "地域PPPプロジェクト・アドバイザー" : "事業開発アドバイザー",
+          market: "Advisory",
+          fit: hasPpp ? "92" : "84",
+          reason: "関係者調整、実証設計、意思決定支援の経験を外部支援価値として提供できる。",
+          next: "3件の実績証跡と支援メニューを1ページに整理する"
+        },
+        {
+          title: hasMentor ? "探究・キャリア共創メンター" : "次世代人材育成メンター",
+          market: "Education",
+          fit: hasMentor ? "90" : "78",
+          reason: "問いを育てる伴走経験を、学校・企業研修・地域人材育成に転用できる。",
+          next: "対象年齢、支援範囲、成果物テンプレートを定義する"
+        },
+        {
+          title: "Innovation Seed組成プロデューサー",
+          market: "Venture",
+          fit: "86",
+          reason: "探究テーマ、事業仮説、関係者を接続し、小さな実証から事業化へ進める役割。",
+          next: "TANQ Innovation Engineへ送る候補テーマを選ぶ"
+        }
+      ];
+      saveState();
+      render();
+    }
+
+    function generateInnovationSeeds() {
+      state.seeds = [
+        {
+          title: "空き店舗を使った世代横断型TANQ拠点",
+          domain: "地方創生PPP",
+          summary: "学生の探究、社会人の経験、地域課題を同じ場所で接続する実証プロジェクト。",
+          partners: "自治体、商店街、学校、地域企業、Proofolio Encore人材"
+        },
+        {
+          title: "Encore人材による探究メンターDAO",
+          domain: "教育 / DAO",
+          summary: "45歳以降の経験者が、中高生や若手の探究プロジェクトにレビューと助言を提供する仕組み。",
+          partners: "TANQ Passport、DAO貢献評価、学校、企業研修部門"
+        },
+        {
+          title: "暗黙知を教材化するKnowledge Asset Studio",
+          domain: "人的資本",
+          summary: "現場経験、失敗事例、判断基準を教材・研修・顧問サービスへ変換する。",
+          partners: "Proofolio、牧山インテリジェンス、人的資本価値測定API"
+        }
+      ];
+      saveState();
+      render();
+    }
+
+    function navigatorResponse() {
+      if (!state.roles.length) generateRoleCandidates();
+      if (!state.seeds.length) generateInnovationSeeds();
+      const prompt = $("#navigator-prompt").value.trim();
+      const topRole = state.roles[0];
+      const topSeed = state.seeds[0];
+      const note = {
+        id: id("nav"),
+        prompt,
+        summary: `最も強い展開先は「${topRole.title}」。経験の証跡を3つに絞り、${topSeed.title} の小さな実証へ接続するとよい。`,
+        next_actions: [
+          "代表経験を3件に絞る",
+          "関係者レビューまたは契約・提出済み資料をProof Boardに追加する",
+          "Innovation SeedをTANQ Innovation Engineへ送る"
+        ],
+        created_at: new Date().toISOString()
+      };
+      state.navigatorNotes.unshift(note);
+      saveState();
+      $("#navigator-output").innerHTML = `
+        <span class="badge green">Encore Navigator</span>
+        <strong>${escapeHtml(note.summary)}</strong>
+        <small>次の一歩: ${note.next_actions.map(escapeHtml).join(" / ")}</small>
+      `;
+      render();
+    }
+
+    function renderSelects() {
+      const options = state.experience.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.title)}</option>`).join("");
+      $("#proof-experience").innerHTML = options;
+    }
+
+    function render() {
+      $("#metric-experience").textContent = state.experience.length;
+      $("#metric-proof").textContent = state.proofs.length;
+      $("#metric-roles").textContent = state.roles.length;
+      $("#metric-seeds").textContent = state.seeds.length;
+      $("#experience-list-home").innerHTML = state.experience.slice(0, 3).map(experienceItem).join("");
+      $("#experience-list").innerHTML = state.experience.map(experienceItem).join("");
+      $("#proof-list").innerHTML = state.proofs.map(proofItem).join("");
+      $("#role-list-home").innerHTML = state.roles.length ? state.roles.slice(0, 2).map(roleCard).join("") : `<div class="timeline-item"><span class="badge gold">Role</span><strong>役割候補はまだありません</strong><small>Role Marketで生成できます。</small></div>`;
+      $("#role-market").innerHTML = state.roles.length ? state.roles.map(roleCard).join("") : `<div class="card"><span class="badge gold">Role</span><strong>役割候補を生成してください</strong><small>経験資産から顧問・地域実装・教育支援などの候補を出します。</small></div>`;
+      $("#seed-list").innerHTML = state.seeds.length ? state.seeds.map(seedCard).join("") : `<div class="card"><span class="badge red">Seed</span><strong>Innovation Seedを抽出してください</strong><small>経験を事業・PPP・教育・DAOの候補へ変換します。</small></div>`;
+      $("#graph-payload").textContent = JSON.stringify(graphPayload(), null, 2);
+      renderSelects();
+    }
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => setActiveTab(button.dataset.tab));
+    });
+    document.querySelectorAll("[data-tab-jump]").forEach((button) => {
+      button.addEventListener("click", () => setActiveTab(button.dataset.tabJump));
+    });
+    $("#add-experience").addEventListener("click", () => {
+      state.experience.unshift({
+        id: id("exp"),
+        title: $("#exp-title").value.trim(),
+        role: $("#exp-role").value,
+        summary: $("#exp-summary").value.trim(),
+        knowledge: $("#exp-knowledge").value.trim(),
+        created_at: new Date().toISOString()
+      });
+      saveState();
+      render();
+    });
+    $("#add-proof").addEventListener("click", () => {
+      state.proofs.unshift({
+        id: id("proof"),
+        experience_id: $("#proof-experience").value,
+        title: $("#proof-title").value.trim(),
+        trust: Number($("#proof-trust").value),
+        note: $("#proof-note").value.trim(),
+        url: $("#proof-url").value.trim(),
+        created_at: new Date().toISOString()
+      });
+      saveState();
+      render();
+    });
+    $("#generate-roles").addEventListener("click", generateRoleCandidates);
+    $("#generate-seeds").addEventListener("click", generateInnovationSeeds);
+    $("#ask-navigator").addEventListener("click", navigatorResponse);
+    $("#copy-payload").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(JSON.stringify(graphPayload(), null, 2));
+      $("#copy-payload").textContent = "コピーしました";
+      setTimeout(() => $("#copy-payload").textContent = "Graph JSONコピー", 1200);
+    });
+    if (!state.roles.length) generateRoleCandidates();
+    if (!state.seeds.length) generateInnovationSeeds();
+    saveState();
+    render();
+  </script>
+</body>
+</html>

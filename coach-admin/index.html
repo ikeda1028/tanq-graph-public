@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TANQ AI Coach Studio</title>
+  <title>TANQ AI Navigator Studio</title>
   <style>
     :root {
       --bg: #f4f0e7;
@@ -148,7 +148,7 @@
         <div class="brand">
           <span class="mark">AI</span>
           <div>
-            <strong>TANQ AI Coach Studio</strong>
+            <strong>TANQ AI Navigator Studio</strong>
             <small>Kids / Passport / Proofolio / Encore</small>
           </div>
         </div>
@@ -158,15 +158,15 @@
         </div>
       </div>
       <div>
-        <p class="badge green">Coach Orchestration</p>
-        <h1>探究者に合わせて、AIコーチを作る</h1>
+        <p class="badge green">Navigator Orchestration</p>
+        <h1>探究者に合わせて、AI探究ナビゲーターを作る</h1>
       </div>
-      <p class="lead">TANQのAIは一人の万能キャラクターではなく、年齢、経験、探究段階、社会実装の深さに合わせて役割を変えます。ここで各インターフェイスのコーチ人格、問いの型、安全境界、API接続先を管理します。</p>
+      <p class="lead">TANQのAIは一人の万能キャラクターではなく、年齢、経験、探究段階、社会実装の深さに合わせて役割を変えます。ここで各インターフェイスのAI探究ナビゲーター人格、問いの型、安全境界、API接続先を管理します。</p>
     </header>
 
     <div class="layout">
       <section>
-        <h2>Coach Lineup</h2>
+        <h2>Navigator Lineup</h2>
         <div class="coach-list" id="coach-list"></div>
       </section>
 
@@ -175,9 +175,9 @@
           <span class="badge green" id="target-label">TANQ Pass Kids</span>
           <span class="badge" id="coach-id-label">kids</span>
         </div>
-        <h2 id="editor-title">Coach Editor</h2>
+        <h2 id="editor-title">Navigator Editor</h2>
         <div class="grid-2">
-          <label>コーチ名<input id="coach-name"></label>
+          <label>ナビゲーター名<input id="coach-name"></label>
           <label>対象<select id="coach-audience"></select></label>
         </div>
         <label>役割<textarea id="coach-role" class="big"></textarea></label>
@@ -233,8 +233,8 @@
     };
     const defaultCoaches = {
       kids: {
-        name: "Mite Coach",
-        role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるコーチ",
+        name: "Mite Navigator",
+        role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるAI探究ナビゲーター",
         tone: "やさしい、短い、安心できる、断定しすぎない",
         structural: "色、形、数、場所、比較、原因、証拠を問いにする",
         generative: "遊び、想像、改善、作品、誰かに見せる行動へ広げる",
@@ -243,8 +243,8 @@
         model: "gpt-4.1-mini"
       },
       passport: {
-        name: "Quest Mentor",
-        role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ育てるコーチ",
+        name: "Quest Navigator",
+        role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ案内するAI探究ナビゲーター",
         tone: "伴走型、少し挑戦的、根拠を求める",
         structural: "問い、背景、先行事例、仮説、検証方法、評価指標を整理する",
         generative: "社会課題、進路、研究、プロトタイプ、発表へ広げる",
@@ -253,8 +253,8 @@
         model: "gpt-4.1-mini"
       },
       proofolio: {
-        name: "Value Architect",
-        role: "社会人の経験、成果、人的資本、事業価値を構造化するコーチ",
+        name: "Value Navigator",
+        role: "社会人の経験、成果、人的資本、事業価値を構造化するAI探究ナビゲーター",
         tone: "実務的、客観的、価値仮説を明確にする",
         structural: "成果、役割、証跡、関係者、再現性、事業インパクトを整理する",
         generative: "新規事業、顧客価値、提携、収益モデル、キャリア資産へ広げる",
@@ -264,7 +264,7 @@
       },
       encore: {
         name: "Encore Navigator",
-        role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するコーチ",
+        role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するAI探究ナビゲーター",
         tone: "敬意ある、落ち着いた、経験の価値を見える化する",
         structural: "経験、暗黙知、人脈、信頼、譲渡可能なスキルを整理する",
         generative: "顧問、地域PPP、教育支援、起業、次世代支援へ広げる",

@@ -76,8 +76,8 @@ function buildPrompt(input) {
   const learner = input.learner || {};
   const coach = input.coach || {};
   return [
-    `あなたはTANQのAIコーチ「${coach.name || "Mite Coach"}」です。`,
-    `コーチの役割: ${coach.role || "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるコーチ"}`,
+    `あなたはTANQのAI探究ナビゲーター「${coach.name || "Mite Navigator"}」です。`,
+    `ナビゲーターの役割: ${coach.role || "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるAI探究ナビゲーター"}`,
     `口調: ${coach.tone || "やさしい、短い、安心できる、断定しすぎない"}`,
     `構造的問いの方針: ${coach.structural || "色、形、数、場所、比較、原因、証拠を問いにする"}`,
     `生成的問いの方針: ${coach.generative || "遊び、想像、改善、作品、誰かに見せる行動へ広げる"}`,
@@ -89,7 +89,7 @@ function buildPrompt(input) {
     "必ず次のJSONだけを返してください。Markdownは使わないでください。",
     JSON.stringify({
       title: "短い見出し",
-      coach_name: "使ったコーチ名",
+      coach_name: "使ったナビゲーター名",
       object_guess: "写真に写っていそうなもの。不確実なら「...かもしれません」",
       learner_level: "乳幼児/幼児/小学生低学年/小学生高学年など",
       observation: "写真や入力から観察できること",

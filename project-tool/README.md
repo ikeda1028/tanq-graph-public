@@ -15,9 +15,9 @@ TANQ Graphは証跡・ポートフォリオ・認証基盤として使い、こ�
 
 KidsはProject Tool内のタブではなく、独立した`kids-tool/`で開きます。ログインプロフィールで12歳以下の年齢が登録された場合は、TANQ Pass Kids Toolへ自動的に振り分けます。
 
-Kids ToolにはAIコーチを置きます。APIキーはHTMLに入れず、必要に応じてサーバー側の`/api/kids-coach`のようなAI APIエンドポイントを登録します。エンドポイント未設定時は、写真名、問い、場所、次の一手から内蔵AIコーチが問いかけを生成します。
+Kids ToolにはAI探究ナビゲーターを置きます。APIキーはHTMLに入れず、必要に応じてサーバー側の`/api/kids-coach`のようなAI APIエンドポイントを登録します。エンドポイント未設定時は、写真名、問い、場所、次の一手から内蔵AI探究ナビゲーターが問いかけを生成します。
 
-AIコーチは`coach-admin/`で管理します。Kids向けのMite Coach、中高生向けのQuest Mentor、社会人向けのValue Architect、Proofolio Encore向けのEncore Navigatorを分け、キャラクター、構造的問い、生成的問い、安全境界、API接続先を調整します。
+AI探究ナビゲーターは`coach-admin/`で管理します。Kids向けのMite Navigator、中高生向けのQuest Navigator、社会人向けのValue Navigator、Proofolio Encore向けのEncore Navigatorを分け、キャラクター、構造的問い、生成的問い、安全境界、API接続先を調整します。
 
 ProcessはProject Tool内のタブではなく、独立したコンテンツとして`process-tool/`で開きます。同じ保存領域を読むため、Project Toolで作ったプロジェクトを引き継いだまま工程だけを扱えます。
 

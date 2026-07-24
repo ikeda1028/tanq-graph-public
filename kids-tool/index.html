@@ -306,7 +306,7 @@
 
       <section class="panel full">
         <div class="badge-row">
-          <span class="badge green">AI Coach</span>
+          <span class="badge green">AI探究ナビ</span>
           <span class="badge gold">Safety first</span>
         </div>
         <h2>AIにきいてみる</h2>
@@ -321,11 +321,11 @@
             <div class="actions">
               <button class="primary" id="ask-ai" type="button">AIにきく</button>
               <button class="secondary" id="save-ai-endpoint" type="button">接続先を保存</button>
-              <small class="ai-status" id="ai-status">未設定でも内蔵AIコーチで動きます。</small>
+              <small class="ai-status" id="ai-status">未設定でも内蔵AI探究ナビゲーターで動きます。</small>
             </div>
           </div>
           <div class="ai-output" id="ai-coach-output">
-            <strong>AIコーチ</strong>
+            <strong>AI探究ナビゲーター</strong>
             <small>ふしぎや写真を入れてから「AIにきく」を押してください。</small>
           </div>
         </div>
@@ -412,24 +412,24 @@
 
     const defaultCoachConfigs = {
       kids: {
-        name: "Mite Coach",
-        role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるコーチ",
+        name: "Mite Navigator",
+        role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるAI探究ナビゲーター",
         tone: "やさしい、短い、安心できる、断定しすぎない",
         structural: "色、形、数、場所、比較、原因、証拠を問いにする",
         generative: "遊び、想像、改善、作品、誰かに見せる行動へ広げる",
         safety: "危険な場所、知らない人、個人情報、医療判断は大人と確認する"
       },
       passport: {
-        name: "Quest Mentor",
-        role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ育てるコーチ",
+        name: "Quest Navigator",
+        role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ案内するAI探究ナビゲーター",
         tone: "伴走型、少し挑戦的、根拠を求める",
         structural: "問い、背景、先行事例、仮説、検証方法、評価指標を整理する",
         generative: "社会課題、進路、研究、プロトタイプ、発表へ広げる",
         safety: "出典、著作権、個人情報、学校提出前の確認を促す"
       },
       proofolio: {
-        name: "Value Architect",
-        role: "社会人の経験、成果、人的資本、事業価値を構造化するコーチ",
+        name: "Value Navigator",
+        role: "社会人の経験、成果、人的資本、事業価値を構造化するAI探究ナビゲーター",
         tone: "実務的、客観的、価値仮説を明確にする",
         structural: "成果、役割、証跡、関係者、再現性、事業インパクトを整理する",
         generative: "新規事業、顧客価値、提携、収益モデル、キャリア資産へ広げる",
@@ -437,7 +437,7 @@
       },
       encore: {
         name: "Encore Navigator",
-        role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するコーチ",
+        role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するAI探究ナビゲーター",
         tone: "敬意ある、落ち着いた、経験の価値を見える化する",
         structural: "経験、暗黙知、人脈、信頼、譲渡可能なスキルを整理する",
         generative: "顧問、地域PPP、教育支援、起業、次世代支援へ広げる",
@@ -741,7 +741,7 @@
     function renderAiCoach(result) {
       $("#ai-coach-output").innerHTML = `<strong>${escapeHtml(result.title)}</strong>
         <div class="ai-meta">
-          ${badge(result.coach_name || "AI Coach")}
+          ${badge(result.coach_name || "AI探究ナビゲーター")}
           ${badge(result.object_guess || "写真のみたて", "green")}
           ${badge(result.learner_level || "Kids", "gold")}
         </div>
@@ -780,7 +780,7 @@
 
     async function askAiCoach() {
       const endpoint = $("#ai-endpoint").value.trim();
-      $("#ai-status").textContent = endpoint ? "AIに聞いています..." : "内蔵AIコーチで考えています...";
+      $("#ai-status").textContent = endpoint ? "AIに聞いています..." : "内蔵AI探究ナビゲーターで考えています...";
       let result = null;
       if (endpoint) {
         try {
@@ -809,18 +809,18 @@
         }
       } else {
         result = localAiCoach();
-        $("#ai-status").textContent = "内蔵AIコーチで表示しました。";
+        $("#ai-status").textContent = "内蔵AI探究ナビゲーターで表示しました。";
       }
       renderAiCoach(result);
       state.materials.unshift({
         id: "mat_kids_ai_" + Date.now(),
         title: result.title,
-        kind: "Kids AI Coach",
+        kind: "Kids AI Navigator",
         url: endpoint || "",
         text: [
           result.observation,
           result.encouragement,
-          `コーチ: ${result.coach_name || ""}`,
+          `ナビゲーター: ${result.coach_name || ""}`,
           `写真のみたて: ${result.object_guess || ""}`,
           `発達レベル: ${result.learner_level || ""}`,
           "構造的問い:",

@@ -131,7 +131,7 @@
         <button data-tab="keeper-inbox" type="button">Keeper Inbox</button>
         <button data-tab="quest" type="button">Quest Board</button>
         <button data-tab="evidence" type="button">Evidence</button>
-        <button data-tab="coach" type="button">AI Coach</button>
+        <button data-tab="coach" type="button">AI探究ナビ</button>
         <button data-tab="story" type="button">Story</button>
         <button data-tab="sync" type="button">Graph Sync</button>
         <a href="../project-tool/" target="_blank" rel="noopener">Project Tool</a>
@@ -152,7 +152,7 @@
           <p class="lead">中高生向けのTANQ Passportは、日常の問いをクエスト化し、証跡、協働、振り返り、提出物、Innovation Seedまで育てるインターフェイスです。</p>
           <div class="actions" style="margin-top:18px">
             <button class="primary" data-tab-jump="quest" type="button">探究クエストを始める</button>
-            <button class="secondary" data-tab-jump="coach" type="button">AIコーチに相談</button>
+            <button class="secondary" data-tab-jump="coach" type="button">AI探究ナビゲーターに相談</button>
             <button class="secondary" id="open-project-tool" type="button">Project Toolへ接続</button>
           </div>
         </div>
@@ -258,16 +258,16 @@
       <section id="coach" class="tab">
         <div class="grid">
           <div class="panel half">
-            <h2>Quest Mentor</h2>
+            <h2>Quest Navigator</h2>
             <label>相談したいクエスト<select id="coach-quest"></select></label>
             <label>相談内容<textarea id="coach-prompt" placeholder="問いを深めたい、仮説にしたい、発表用に整理したい、など"></textarea></label>
             <div class="actions">
-              <button class="primary" id="ask-coach" type="button">AIコーチ案を作る</button>
+              <button class="primary" id="ask-coach" type="button">AI探究ナビ案を作る</button>
               <button class="secondary" id="save-coach-log" type="button">相談ログとして保存</button>
             </div>
           </div>
           <div class="panel half">
-            <h2>Coach Output</h2>
+            <h2>Navigator Output</h2>
             <div class="coach-output" id="coach-output">クエストを選んで相談すると、構造的問い、生成的問い、次の証跡、Innovation Seed候補を返します。</div>
           </div>
         </div>
@@ -594,7 +594,7 @@
           domain: log.source_tool || "TANQ Keeper",
           stage: "相談ログ",
           created_at: log.created_at,
-          target: "AI Coach",
+          target: "AI探究ナビゲーター",
           raw: log
         }))
       ].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
@@ -716,7 +716,7 @@
       return {
         id: "coach_" + Date.now(),
         quest_id: quest.id,
-        title: `Quest Mentor: ${quest.question}`,
+        title: `Quest Navigator: ${quest.question}`,
         prompt,
         structural: [
           `この問いの対象は誰で、どこで起きている問題ですか？`,
@@ -776,7 +776,7 @@
         question_seeds: state.quests.map((quest) => ({ ...quest, ...owner, graph_type: "question_seed", owner: "TANQ Passport" })),
         activity_logs: [
           ...state.quests.map((quest) => ({ id: "log_" + quest.id, ...owner, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
-          ...state.coachLogs.map((log) => ({ id: "log_" + log.id, ...owner, graph_type: "activity_log", source: "Quest Mentor", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
+          ...state.coachLogs.map((log) => ({ id: "log_" + log.id, ...owner, graph_type: "activity_log", source: "Quest Navigator", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
         ],
         ai_consultations: state.coachLogs.map((log) => ({
           ...log,

@@ -9,17 +9,18 @@ TANQ Graphは、探究プロジェクト、資格・証明、プロジェクト�
 - Proofolio: 社会人向け
 - Proofolio Encore: 45歳以降の役割・価値の再設計向け
 
-AIコーチも同じ4区分で分けます。
+AI探究ナビゲーターも同じ4区分で分けます。
 
-- Mite Coach: Kids向け。写真、音声、場所から発見と問いを育てる。
-- Quest Mentor: TANQ Passport向け。問いを探究プロジェクト、仮説、進路証跡へ育てる。
-- Value Architect: Proofolio向け。経験、成果、人的資本、事業価値を構造化する。
+- Mite Navigator: Kids向け。写真、音声、場所から発見と問いを育てる。
+- Quest Navigator: TANQ Passport向け。問いを探究プロジェクト、仮説、進路証跡へ案内する。
+- Value Navigator: Proofolio向け。経験、成果、人的資本、事業価値を構造化する。
 - Encore Navigator: Proofolio Encore向け。経験を次の役割、顧問価値、地域実装へ再編集する。
 
 ## 試せること
 
 - `project-tool/`で、TANQ Project ToolのKids向け写真・問い・音声入力・Googleマップ記録のプロトタイプを試せます。
 - `passport-tool/`で、中高生向けTANQ Passportのクエスト、証跡、AI相談、進路ストーリー、Innovation Seed化を試せます。
+- `encore-tool/`で、Proofolio Encoreの経験資産、証跡、役割候補、Innovation Seed化を試せます。
 - `passport-tool/`の`Keeper Inbox`で、TANQ Keeper / ChatGPT Actionsから保存した問い・AI相談ログを一覧できます。
 - TANQ Keeper / ChatGPT Actionsから保存したデータは、共通の`tanqUserId`を`owner_person_id`として保存すると`passport-tool/`へ取り込めます。
 - 探究GO、PPM、牧山インテリジェンス、人的資本価値測定、DAO貢献評価、Google Drive、資格ツールなどの接続候補を選択できます。
@@ -31,7 +32,7 @@ AIコーチも同じ4区分で分けます。
 - デモ用のProject API Bundleを生成できます。
 - デモ用APIキーと登録団体ログインコードを発行できます。
 - `db-admin/`でFirestoreに蓄積されたコレクションを確認できます。
-- `coach-admin/`で、Kids / Passport / Proofolio / EncoreそれぞれのAIコーチ人格、問いの型、安全境界、API接続先を管理できます。
+- `coach-admin/`で、Kids / Passport / Proofolio / EncoreそれぞれのAI探究ナビゲーター人格、問いの型、安全境界、API接続先を管理できます。
 
 ## 公開デモとしての安全性
 
@@ -78,7 +79,7 @@ Firestoreには次のコレクションを使います。
 - `tanq_api_keys`: APIキーの名前、用途、スコープ、マスク値。キー全文はFirestoreに保存しません。
 - `tanq_question_seeds`: プロジェクト化する前の純粋な問い、背景、分野、ステージ。
 - `tanq_innovation_seeds`: 探究ログやAI相談から生成された事業化・社会実装候補。
-- `tanq_ai_consultations`: AIコーチとの相談ログ、構造的問い、生成的問い、次の証跡。
+- `tanq_ai_consultations`: AI探究ナビゲーターとの相談ログ、構造的問い、生成的問い、次の証跡。
 - `tanq_conversation_notes`: ChatGPTの通常会話を、タイトル、要約、洞察、次アクションとして保存したログ。
 - `tanq_identity_links`: TANQ GraphとTANQ Keeperを一時リンクで接続するための短命トークン。
 
@@ -168,8 +169,9 @@ service cloud.firestore {
 
 - TANQ Graph: `https://ikeda1028.github.io/tanq-graph-public/`
 - TANQ Project Tool: `https://ikeda1028.github.io/tanq-graph-public/project-tool/`
+- Proofolio Encore Tool: `https://ikeda1028.github.io/tanq-graph-public/encore-tool/`
 - TANQ Firestore Admin: `https://ikeda1028.github.io/tanq-graph-public/db-admin/`
-- TANQ AI Coach Studio: `https://ikeda1028.github.io/tanq-graph-public/coach-admin/`
+- TANQ AI Navigator Studio: `https://ikeda1028.github.io/tanq-graph-public/coach-admin/`
 
 Google Maps PlatformのAPIキーを使う場合は、API制限を`Maps Embed API`、ウェブサイト制限を`https://ikeda1028.github.io/*`に設定してください。
 
@@ -177,7 +179,7 @@ Google Maps PlatformのAPIキーを使う場合は、API制限を`Maps Embed API
 
 `index.html`をブラウザで直接開くか、任意の静的ファイルサーバーでこのフォルダを配信してください。
 
-ChatGPT / OpenAI APIを使ってKids AI Coachを試す場合は、APIキーをHTMLへ入れず、ローカルサーバーの環境変数に入れます。
+ChatGPT / OpenAI APIを使ってKids AI探究ナビゲーターを試す場合は、APIキーをHTMLへ入れず、ローカルサーバーの環境変数に入れます。
 
 ```bash
 cd outputs/tanq-graph-public
@@ -188,6 +190,6 @@ OPENAI_API_KEY="sk-..." node kids-ai-server.mjs
 
 - Kids Tool: `http://127.0.0.1:4180/kids-tool/`
 - Kids AI endpoint: `http://127.0.0.1:4180/api/kids-coach`
-- Coach Studio: `http://127.0.0.1:4180/coach-admin/`
+- Navigator Studio: `http://127.0.0.1:4180/coach-admin/`
 
-公開GitHub Pages上ではサーバー処理は動かないため、本番ではFirebase Functions、Cloud Run、Vercelなどに`/api/kids-coach`相当のHTTPSエンドポイントを置き、Coach StudioまたはKids ToolにそのURLを設定してください。
+公開GitHub Pages上ではサーバー処理は動かないため、本番ではFirebase Functions、Cloud Run、Vercelなどに`/api/kids-coach`相当のHTTPSエンドポイントを置き、Navigator StudioまたはKids ToolにそのURLを設定してください。
