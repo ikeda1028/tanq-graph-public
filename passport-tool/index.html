@@ -100,6 +100,12 @@
     .code { margin: 0; max-height: 420px; overflow: auto; background: #24231f; color: #f5efe2; border-radius: 8px; padding: 14px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .coach-output { border: 1px solid rgba(37,107,87,.28); background: linear-gradient(180deg, rgba(37,107,87,.08), var(--panel)); border-radius: 8px; padding: 14px; line-height: 1.7; display: grid; gap: 10px; }
     .timeline { display: grid; gap: 10px; }
+    .inbox-list { display: grid; gap: 12px; }
+    .inbox-item { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,247,.72); padding: 14px; display: grid; gap: 10px; }
+    .inbox-item.keeper { border-color: rgba(37,107,87,.34); background: linear-gradient(180deg, rgba(37,107,87,.08), var(--panel)); }
+    .inbox-item.ai { border-color: rgba(47,95,143,.28); }
+    .inbox-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+    .inbox-meta { display: flex; flex-wrap: wrap; gap: 8px; }
     @media (max-width: 1080px) {
       .shell, .hero { grid-template-columns: 1fr; }
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -122,6 +128,7 @@
       </div>
       <nav class="nav">
         <button class="active" data-tab="home" type="button">Home</button>
+        <button data-tab="keeper-inbox" type="button">Keeper Inbox</button>
         <button data-tab="quest" type="button">Quest Board</button>
         <button data-tab="evidence" type="button">Evidence</button>
         <button data-tab="coach" type="button">AI Coach</button>
@@ -170,6 +177,33 @@
           <div class="panel narrow">
             <h2>成長バッジ</h2>
             <div class="mini-grid" id="badge-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="keeper-inbox" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <h2>Keeper Inbox</h2>
+            <p class="lead">ChatGPTのTANQ Keeperから保存した問い・AI相談・会話メモを、Passportへ取り込んで整理する入口です。</p>
+            <div class="mini-grid">
+              <label>TANQ ID / owner_person_id<input id="inbox-tanq-user-id" placeholder="例: person_12345"></label>
+              <label>Keeper API Bundle URL<input id="inbox-keeper-api-url" value="https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle"></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="inbox-save-tanq-id" type="button">IDを保存</button>
+              <button class="secondary" id="inbox-import-firestore" type="button">Firestoreから読み込む</button>
+              <button class="secondary" id="inbox-import-api" type="button">Keeper APIから読み込む</button>
+              <button class="secondary" data-tab-jump="quest" type="button">Quest Boardへ整理</button>
+            </div>
+            <small id="keeper-inbox-status">未連携</small>
+          </div>
+          <div class="panel full">
+            <div class="inbox-head">
+              <h2>ChatGPT保存一覧</h2>
+              <span class="badge green" id="keeper-inbox-count">0件</span>
+            </div>
+            <div class="inbox-list" id="keeper-inbox-list"></div>
           </div>
         </div>
       </section>
@@ -345,6 +379,13 @@
       localStorage.setItem("tanq-passport-state", JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
     }
 
+    function setKeeperStatus(message) {
+      ["#keeper-link-status", "#keeper-inbox-status"].forEach((selector) => {
+        const target = $(selector);
+        if (target) target.textContent = message;
+      });
+    }
+
     function cleanForFirestore(value) {
       if (Array.isArray(value)) return value.map(cleanForFirestore).filter((item) => item !== undefined);
       if (value && typeof value === "object") {
@@ -518,6 +559,49 @@
       }).join("") : `<div class="artifact"><small>証跡はまだありません。</small></div>`;
     }
 
+    function renderKeeperInbox() {
+      const keeperQuests = state.quests.filter((quest) => quest.source_tool === "TANQ Keeper" || quest.owner_person_id || quest.tanq_user_id);
+      const keeperLogs = state.coachLogs.filter((log) => log.source_tool === "TANQ Keeper" || log.owner_person_id || log.tanq_user_id);
+      const rows = [
+        ...keeperQuests.map((quest) => ({
+          kind: "Question Seed",
+          tone: "green",
+          title: quest.question,
+          body: quest.trigger || "背景未登録",
+          domain: quest.domain || "AI相談",
+          stage: questStageName(quest.stage),
+          created_at: quest.created_at,
+          target: "Quest Board"
+        })),
+        ...keeperLogs.map((log) => ({
+          kind: "AI Consultation",
+          tone: "blue",
+          title: log.title,
+          body: log.prompt || log.structural?.[0] || "相談内容未登録",
+          domain: log.source_tool || "TANQ Keeper",
+          stage: "相談ログ",
+          created_at: log.created_at,
+          target: "AI Coach"
+        }))
+      ].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      $("#keeper-inbox-count").textContent = `${rows.length}件`;
+      $("#keeper-inbox-list").innerHTML = rows.length ? rows.map((item) => `
+        <div class="inbox-item ${item.kind === "Question Seed" ? "keeper" : "ai"}">
+          <div class="inbox-head">
+            <strong>${escapeHtml(item.title)}</strong>
+            <span class="badge ${item.tone === "green" ? "green" : ""}">${escapeHtml(item.kind)}</span>
+          </div>
+          <small>${escapeHtml(item.body)}</small>
+          <div class="inbox-meta">
+            <span class="badge">${escapeHtml(item.domain)}</span>
+            <span class="badge gold">${escapeHtml(item.stage)}</span>
+            <span class="badge">${escapeHtml(item.target)}</span>
+            <span class="badge red">${escapeHtml(item.created_at ? item.created_at.slice(0, 10) : "日付未設定")}</span>
+          </div>
+        </div>
+      `).join("") : `<div class="inbox-item"><strong>まだChatGPT保存データはありません。</strong><small>TANQ Keeperで保存するときに同じTANQ IDを付け、FirestoreまたはKeeper APIから読み込んでください。</small></div>`;
+    }
+
     function renderBadges() {
       $("#badge-list").innerHTML = state.badges.map((badge, index) => {
         const colors = ["green", "gold", "", "red"];
@@ -647,6 +731,7 @@
       renderStageBoard("#quest-board");
       renderSelectors();
       renderEvidence();
+      renderKeeperInbox();
       renderBadges();
       $("#metric-quests").textContent = state.quests.length;
       $("#metric-evidence").textContent = state.evidence.length;
@@ -655,8 +740,10 @@
       $("#story-output").textContent = buildStory();
       $("#tanq-user-id").value = state.linkage.tanqUserId || "";
       $("#keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
+      $("#inbox-tanq-user-id").value = state.linkage.tanqUserId || "";
+      $("#inbox-keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
       $("#session-label").textContent = state.linkage.tanqUserId ? `${state.linkage.tanqUserId} / TANQ Passport` : "TANQ Passport / Local draft";
-      $("#keeper-link-status").textContent = state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携";
+      setKeeperStatus(state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携");
       renderCoachOutput();
       renderPayload();
     }
@@ -755,29 +842,34 @@
       $("#sync-status").textContent = "JSONをコピーしました。";
     });
 
-    $("#save-tanq-id").addEventListener("click", () => {
-      state.linkage.tanqUserId = $("#tanq-user-id").value.trim();
-      state.linkage.keeperApiUrl = $("#keeper-api-url").value.trim() || state.linkage.keeperApiUrl;
+    function syncLinkageFromFields(source = "sync") {
+      const userSelector = source === "inbox" ? "#inbox-tanq-user-id" : "#tanq-user-id";
+      const apiSelector = source === "inbox" ? "#inbox-keeper-api-url" : "#keeper-api-url";
+      state.linkage.tanqUserId = $(userSelector).value.trim() || state.linkage.tanqUserId;
+      state.linkage.keeperApiUrl = $(apiSelector).value.trim() || state.linkage.keeperApiUrl;
+    }
+
+    function saveTanqId(source = "sync") {
+      syncLinkageFromFields(source);
       saveState();
       render();
-      $("#keeper-link-status").textContent = state.linkage.tanqUserId
+      setKeeperStatus(state.linkage.tanqUserId
         ? `TANQ IDを保存しました: ${state.linkage.tanqUserId}`
-        : "TANQ IDが未入力です。";
-    });
+        : "TANQ IDが未入力です。");
+    }
 
-    $("#import-keeper-firestore").addEventListener("click", async () => {
-      const tanqUserId = $("#tanq-user-id").value.trim() || state.linkage.tanqUserId;
+    async function importKeeperFromFirestore(source = "sync") {
+      syncLinkageFromFields(source);
+      const tanqUserId = state.linkage.tanqUserId;
       if (!tanqUserId) {
-        $("#keeper-link-status").textContent = "TANQ IDを入力してください。";
+        setKeeperStatus("TANQ IDを入力してください。");
         return;
       }
       if (!firebaseDb || !firebaseApi) {
-        $("#keeper-link-status").textContent = "Firestore接続後に取り込めます。";
+        setKeeperStatus("Firestore接続後に取り込めます。");
         return;
       }
-      state.linkage.tanqUserId = tanqUserId;
-      state.linkage.keeperApiUrl = $("#keeper-api-url").value.trim() || state.linkage.keeperApiUrl;
-      $("#keeper-link-status").textContent = "FirestoreからKeeperデータを読み込み中...";
+      setKeeperStatus("FirestoreからKeeperデータを読み込み中...");
       try {
         const [question_seeds, ai_consultations, conversation_notes] = await Promise.all([
           loadFirebaseCollectionByOwner("tanq_question_seeds", tanqUserId),
@@ -785,22 +877,21 @@
           loadFirebaseCollectionByOwner("tanq_conversation_notes", tanqUserId)
         ]);
         const result = importKeeperBundle({ question_seeds, ai_consultations, conversation_notes });
-        $("#keeper-link-status").textContent = `Firestoreから取り込みました。問い ${result.questions}件 / AI相談 ${result.consultations}件`;
+        setKeeperStatus(`Firestoreから取り込みました。問い ${result.questions}件 / AI相談 ${result.consultations}件`);
       } catch (error) {
-        $("#keeper-link-status").textContent = `取り込みに失敗: ${error.message}`;
+        setKeeperStatus(`取り込みに失敗: ${error.message}`);
       }
-    });
+    }
 
-    $("#import-keeper-api").addEventListener("click", async () => {
-      const tanqUserId = $("#tanq-user-id").value.trim() || state.linkage.tanqUserId;
-      const apiUrl = $("#keeper-api-url").value.trim() || state.linkage.keeperApiUrl;
+    async function importKeeperFromApi(source = "sync") {
+      syncLinkageFromFields(source);
+      const tanqUserId = state.linkage.tanqUserId;
+      const apiUrl = state.linkage.keeperApiUrl;
       if (!tanqUserId) {
-        $("#keeper-link-status").textContent = "TANQ IDを入力してください。";
+        setKeeperStatus("TANQ IDを入力してください。");
         return;
       }
-      state.linkage.tanqUserId = tanqUserId;
-      state.linkage.keeperApiUrl = apiUrl;
-      $("#keeper-link-status").textContent = "Keeper APIから読み込み中...";
+      setKeeperStatus("Keeper APIから読み込み中...");
       try {
         const url = new URL(apiUrl);
         url.searchParams.set("tanqUserId", tanqUserId);
@@ -808,11 +899,18 @@
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const json = await response.json();
         const result = importKeeperBundle(json.data || json);
-        $("#keeper-link-status").textContent = `Keeper APIから取り込みました。問い ${result.questions}件 / AI相談 ${result.consultations}件`;
+        setKeeperStatus(`Keeper APIから取り込みました。問い ${result.questions}件 / AI相談 ${result.consultations}件`);
       } catch (error) {
-        $("#keeper-link-status").textContent = `API取り込みに失敗: ${error.message}`;
+        setKeeperStatus(`API取り込みに失敗: ${error.message}`);
       }
-    });
+    }
+
+    $("#save-tanq-id").addEventListener("click", () => saveTanqId("sync"));
+    $("#inbox-save-tanq-id").addEventListener("click", () => saveTanqId("inbox"));
+    $("#import-keeper-firestore").addEventListener("click", () => importKeeperFromFirestore("sync"));
+    $("#inbox-import-firestore").addEventListener("click", () => importKeeperFromFirestore("inbox"));
+    $("#import-keeper-api").addEventListener("click", () => importKeeperFromApi("sync"));
+    $("#inbox-import-api").addEventListener("click", () => importKeeperFromApi("inbox"));
 
     $("#sync-graph").addEventListener("click", async () => {
       const payload = graphPayload();
