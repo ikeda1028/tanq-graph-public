@@ -194,9 +194,18 @@
               <button class="primary" id="inbox-save-tanq-id" type="button">IDを保存</button>
               <button class="secondary" id="inbox-import-firestore" type="button">Firestoreから読み込む</button>
               <button class="secondary" id="inbox-import-api" type="button">Keeper APIから読み込む</button>
+              <button class="primary" id="organize-keeper-inbox" type="button">AIでInbox整理</button>
               <button class="secondary" data-tab-jump="quest" type="button">Quest Boardへ整理</button>
             </div>
             <small id="keeper-inbox-status">未連携</small>
+          </div>
+          <div class="panel full">
+            <div class="inbox-head">
+              <h2>AI整理結果</h2>
+              <span class="badge gold" id="keeper-ai-status">未整理</span>
+            </div>
+            <div class="mini-grid three" id="keeper-ai-summary"></div>
+            <div class="coach-output" id="keeper-ai-output">ChatGPT保存一覧を読み込んだあと、AIでInbox整理を押すと、問い・仮説・プロジェクト候補・Innovation Seed候補に分類します。</div>
           </div>
           <div class="panel full">
             <div class="inbox-head">
@@ -349,6 +358,7 @@
         keeperApiUrl: "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle",
         imported_at: null
       },
+      keeperAI: null,
       lastCoach: null
     };
 
@@ -559,31 +569,39 @@
       }).join("") : `<div class="artifact"><small>証跡はまだありません。</small></div>`;
     }
 
-    function renderKeeperInbox() {
+    function keeperInboxRows() {
       const keeperQuests = state.quests.filter((quest) => quest.source_tool === "TANQ Keeper" || quest.owner_person_id || quest.tanq_user_id);
       const keeperLogs = state.coachLogs.filter((log) => log.source_tool === "TANQ Keeper" || log.owner_person_id || log.tanq_user_id);
-      const rows = [
+      return [
         ...keeperQuests.map((quest) => ({
           kind: "Question Seed",
           tone: "green",
+          id: quest.id,
           title: quest.question,
           body: quest.trigger || "背景未登録",
           domain: quest.domain || "AI相談",
           stage: questStageName(quest.stage),
           created_at: quest.created_at,
-          target: "Quest Board"
+          target: "Quest Board",
+          raw: quest
         })),
         ...keeperLogs.map((log) => ({
           kind: "AI Consultation",
           tone: "blue",
+          id: log.id,
           title: log.title,
           body: log.prompt || log.structural?.[0] || "相談内容未登録",
           domain: log.source_tool || "TANQ Keeper",
           stage: "相談ログ",
           created_at: log.created_at,
-          target: "AI Coach"
+          target: "AI Coach",
+          raw: log
         }))
       ].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function renderKeeperInbox() {
+      const rows = keeperInboxRows();
       $("#keeper-inbox-count").textContent = `${rows.length}件`;
       $("#keeper-inbox-list").innerHTML = rows.length ? rows.map((item) => `
         <div class="inbox-item ${item.kind === "Question Seed" ? "keeper" : "ai"}">
@@ -600,6 +618,70 @@
           </div>
         </div>
       `).join("") : `<div class="inbox-item"><strong>まだChatGPT保存データはありません。</strong><small>TANQ Keeperで保存するときに同じTANQ IDを付け、FirestoreまたはKeeper APIから読み込んでください。</small></div>`;
+    }
+
+    function classifyKeeperItem(item) {
+      const text = `${item.title} ${item.body} ${item.domain}`.toLowerCase();
+      const score = {
+        question: /なぜ|どうして|何|どのよう|why|how|\?/.test(text) ? 2 : 1,
+        hypothesis: /仮説|原因|関係|検証|調査|もし|because/.test(text) ? 2 : 0,
+        project: /作る|実装|計画|プロジェクト|チーム|mvp|実証|提出/.test(text) ? 2 : 0,
+        seed: /事業|市場|顧客|収益|社会課題|innovation|seed|起業/.test(text) ? 2 : 0
+      };
+      if (score.seed >= 2) return "innovationSeeds";
+      if (score.project >= 2) return "projectCandidates";
+      if (score.hypothesis >= 2) return "hypothesisCandidates";
+      return "questionSeeds";
+    }
+
+    function organizeKeeperInbox() {
+      const rows = keeperInboxRows();
+      const result = {
+        created_at: new Date().toISOString(),
+        questionSeeds: [],
+        hypothesisCandidates: [],
+        projectCandidates: [],
+        innovationSeeds: [],
+        nextActions: []
+      };
+      rows.forEach((item) => {
+        result[classifyKeeperItem(item)].push(item);
+      });
+      if (result.questionSeeds.length) result.nextActions.push("問いはQuest Boardでステージを選び、背景と分野を補う");
+      if (result.hypothesisCandidates.length) result.nextActions.push("仮説候補は証跡を2件以上つけて検証可能にする");
+      if (result.projectCandidates.length) result.nextActions.push("プロジェクト候補はマスタープラン化し、関係者と役割を決める");
+      if (result.innovationSeeds.length) result.nextActions.push("Innovation Seed候補は社会価値・実現性・収益性で評価する");
+      state.keeperAI = result;
+      if (!state.badges.includes("Keeper Organizer")) state.badges.push("Keeper Organizer");
+      saveState();
+      render();
+      setKeeperStatus(`AI整理が完了しました。${rows.length}件を分類しました。`);
+    }
+
+    function renderKeeperAI() {
+      const result = state.keeperAI;
+      const buckets = [
+        ["問い", "questionSeeds", "green"],
+        ["仮説候補", "hypothesisCandidates", "gold"],
+        ["プロジェクト候補", "projectCandidates", ""],
+        ["Innovation Seed", "innovationSeeds", "red"]
+      ];
+      if (!result) {
+        $("#keeper-ai-status").textContent = "未整理";
+        $("#keeper-ai-summary").innerHTML = buckets.map(([label, , tone]) => `<div class="card"><span class="badge ${tone}">${label}</span><strong>0件</strong><small>AI整理後に表示されます。</small></div>`).join("");
+        $("#keeper-ai-output").textContent = "ChatGPT保存一覧を読み込んだあと、AIでInbox整理を押すと、問い・仮説・プロジェクト候補・Innovation Seed候補に分類します。";
+        return;
+      }
+      $("#keeper-ai-status").textContent = `整理済み ${result.created_at.slice(0, 16)}`;
+      $("#keeper-ai-summary").innerHTML = buckets.map(([label, key, tone]) => `<div class="card"><span class="badge ${tone}">${label}</span><strong>${result[key].length}件</strong><small>${label}として扱う保存ログ。</small></div>`).join("");
+      $("#keeper-ai-output").innerHTML = `
+        ${buckets.map(([label, key, tone]) => `
+          <div><span class="badge ${tone}">${label}: ${result[key].length}件</span></div>
+          <ul>${result[key].slice(0, 5).map((item) => `<li>${escapeHtml(item.title)}</li>`).join("") || "<li>該当なし</li>"}</ul>
+        `).join("")}
+        <div><span class="badge green">次の一手</span></div>
+        <ul>${result.nextActions.map((item) => `<li>${escapeHtml(item)}</li>`).join("") || "<li>まずKeeperからデータを読み込んでください。</li>"}</ul>
+      `;
     }
 
     function renderBadges() {
@@ -732,6 +814,7 @@
       renderSelectors();
       renderEvidence();
       renderKeeperInbox();
+      renderKeeperAI();
       renderBadges();
       $("#metric-quests").textContent = state.quests.length;
       $("#metric-evidence").textContent = state.evidence.length;
@@ -911,6 +994,7 @@
     $("#inbox-import-firestore").addEventListener("click", () => importKeeperFromFirestore("inbox"));
     $("#import-keeper-api").addEventListener("click", () => importKeeperFromApi("sync"));
     $("#inbox-import-api").addEventListener("click", () => importKeeperFromApi("inbox"));
+    $("#organize-keeper-inbox").addEventListener("click", organizeKeeperInbox);
 
     $("#sync-graph").addEventListener("click", async () => {
       const payload = graphPayload();
