@@ -271,6 +271,8 @@
       </nav>
       <div class="session-box">
         <small id="entry-session-label">未選択</small>
+        <small id="entry-person-id-label">TANQ ID: 未発行</small>
+        <button class="secondary" id="copy-entry-person-id">TANQ IDをコピー</button>
         <button class="secondary" id="switch-entry">入口を切り替え</button>
       </div>
     </aside>
@@ -1348,21 +1350,25 @@
       localStorage.removeItem("tanq-graph-entry-session");
       document.body.classList.add("login-pending");
       $("#entry-session-label").textContent = "未選択";
+      $("#entry-person-id-label").textContent = "TANQ ID: 未発行";
     }
 
     function applyEntrySession() {
       if (!entrySession) {
         document.body.classList.add("login-pending");
         $("#entry-session-label").textContent = "未選択";
+        $("#entry-person-id-label").textContent = "TANQ ID: 未発行";
         return;
       }
       document.body.classList.remove("login-pending");
       if (entrySession.role === "organization") {
         orgSessionId = entrySession.orgId || orgSessionId;
         $("#entry-session-label").textContent = `登録団体: ${entrySession.name || "団体"} / DB接続`;
+        $("#entry-person-id-label").textContent = `団体ID: ${entrySession.orgId || "未設定"}`;
         setActiveTab("org-login");
       } else {
         $("#entry-session-label").textContent = `利用者: ${entrySession.name || "ポートフォリオ"} / DB接続`;
+        $("#entry-person-id-label").textContent = `TANQ ID: ${entrySession.personId || "未設定"}`;
         setActiveTab("dashboard");
       }
     }
@@ -2569,6 +2575,23 @@
     });
 
     $("#save-profile").addEventListener("click", saveProfile);
+    $("#copy-entry-person-id").addEventListener("click", async () => {
+      const id = entrySession?.role === "organization" ? entrySession.orgId : entrySession?.personId;
+      if (!id) {
+        setStatus("TANQ ID is not available");
+        $("#database-status").textContent = "ログインまたは新規登録するとTANQ IDが発行されます。";
+        return;
+      }
+      const text = `私のTANQユーザーIDは ${id} です。TANQ Keeperで保存するときは tanqUserId としてこのIDを付けて保存してください。`;
+      try {
+        await navigator.clipboard.writeText(text);
+        $("#database-status").textContent = `TANQ Keeper用のID文をコピーしました: ${id}`;
+        setStatus("tanq id copied");
+      } catch (error) {
+        $("#database-status").textContent = `TANQ ID: ${id}`;
+        setStatus("tanq id shown");
+      }
+    });
     $("#switch-entry").addEventListener("click", clearEntrySession);
     $("#profile-age").addEventListener("input", () => {
       updateProfileDraftUI();
