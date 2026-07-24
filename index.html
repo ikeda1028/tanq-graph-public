@@ -273,6 +273,7 @@
         <small id="entry-session-label">未選択</small>
         <small id="entry-person-id-label">TANQ ID: 未発行</small>
         <button class="secondary" id="copy-entry-person-id">TANQ IDをコピー</button>
+        <button class="secondary" id="issue-keeper-link">Keeper連携リンク</button>
         <button class="secondary" id="switch-entry">入口を切り替え</button>
       </div>
     </aside>
@@ -890,6 +891,17 @@
 
     function generateLoginCode(prefix = "tg") {
       return `${prefix}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+    }
+
+    function generateKeeperLinkToken() {
+      const bytes = new Uint8Array(18);
+      crypto.getRandomValues(bytes);
+      return "keeper_" + [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+
+    function graphPublicBaseUrl() {
+      if (location.protocol === "file:") return "https://ikeda1028.github.io/tanq-graph-public/";
+      return new URL("./", location.href).toString();
     }
 
     function normalizeEmail(email = "") {
@@ -2591,6 +2603,41 @@
         $("#database-status").textContent = `TANQ ID: ${id}`;
         setStatus("tanq id shown");
       }
+    });
+    $("#issue-keeper-link").addEventListener("click", async () => {
+      if (!entrySession?.personId) {
+        setStatus("Keeper link needs person login");
+        $("#database-status").textContent = "ポートフォリオ利用者としてログインまたは新規登録すると、Keeper連携リンクを発行できます。";
+        return;
+      }
+      const token = generateKeeperLinkToken();
+      const createdAt = new Date();
+      const expiresAt = new Date(createdAt.getTime() + 30 * 60 * 1000);
+      const linkUrl = `${graphPublicBaseUrl()}?keeperLink=${encodeURIComponent(token)}`;
+      const record = {
+        id: token,
+        token,
+        purpose: "chatgpt_keeper_link",
+        status: "active",
+        tanq_user_id: entrySession.personId,
+        owner_person_id: entrySession.personId,
+        display_name: entrySession.name || "",
+        owner_interface: entrySession.interfaceMode || currentInterfaceMode(),
+        db: entrySession.db || activeDbLabel(),
+        link_url: linkUrl,
+        created_at: createdAt.toISOString(),
+        expires_at: expiresAt.toISOString()
+      };
+      localStorage.setItem("tanq-keeper-link-session", JSON.stringify(record));
+      await saveFirebaseRecord("tanq_identity_links", record);
+      const text = `TANQ Keeper連携リンクです。\n${linkUrl}\n\nTANQ KeeperはこのリンクをGraph Coreで検証し、tanq_user_id=${entrySession.personId} として保存してください。`;
+      try {
+        await navigator.clipboard.writeText(text);
+        $("#database-status").textContent = `Keeper連携リンクをコピーしました。30分以内にTANQ Keeperへ貼ってください。`;
+      } catch (error) {
+        $("#database-status").textContent = `Keeper連携リンク: ${linkUrl}`;
+      }
+      setStatus("keeper link issued");
     });
     $("#switch-entry").addEventListener("click", clearEntrySession);
     $("#profile-age").addEventListener("input", () => {

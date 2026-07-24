@@ -64,6 +64,8 @@ Firestoreには次のコレクションを使います。
 - `tanq_question_seeds`
 - `tanq_innovation_seeds`
 - `tanq_ai_consultations`
+- `tanq_conversation_notes`
+- `tanq_identity_links`
 
 蓄積方針:
 
@@ -77,10 +79,14 @@ Firestoreには次のコレクションを使います。
 - `tanq_question_seeds`: プロジェクト化する前の純粋な問い、背景、分野、ステージ。
 - `tanq_innovation_seeds`: 探究ログやAI相談から生成された事業化・社会実装候補。
 - `tanq_ai_consultations`: AIコーチとの相談ログ、構造的問い、生成的問い、次の証跡。
+- `tanq_conversation_notes`: ChatGPTの通常会話を、タイトル、要約、洞察、次アクションとして保存したログ。
+- `tanq_identity_links`: TANQ GraphとTANQ Keeperを一時リンクで接続するための短命トークン。
 
 TANQ Keeper連携:
 
-- TANQ Graphの利用者ID（例: `person_...`）をTANQ KeeperのActions入力で`tanqUserId`として渡します。
+- TANQ Graphにログイン後、`Keeper連携リンク`を押すと30分だけ有効なリンクを発行します。
+- TANQ Keeperへそのリンクを貼ると、Actions APIの`/api/identity-links/verify`がFirestoreの`tanq_identity_links`を確認し、`tanqUserId`を返します。
+- TANQ Keeperは以後の保存で、その`tanqUserId`または同じ`linkToken`を渡します。
 - Keeper APIは`owner_person_id`付きで`tanq_question_seeds`、`tanq_ai_consultations`、`tanq_conversation_notes`へ保存します。
 - TANQ Passportの`Graph Sync`画面で同じIDを入力し、FirestoreまたはKeeper APIから取り込みます。
 
@@ -132,6 +138,14 @@ service cloud.firestore {
     }
 
     match /tanq_ai_consultations/{docId} {
+      allow read, write: if true;
+    }
+
+    match /tanq_conversation_notes/{docId} {
+      allow read, write: if true;
+    }
+
+    match /tanq_identity_links/{docId} {
       allow read, write: if true;
     }
   }
