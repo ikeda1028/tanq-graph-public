@@ -19,6 +19,7 @@ AIコーチも同じ4区分で分けます。
 ## 試せること
 
 - `project-tool/`で、TANQ Project ToolのKids向け写真・問い・音声入力・Googleマップ記録のプロトタイプを試せます。
+- `passport-tool/`で、中高生向けTANQ Passportのクエスト、証跡、AI相談、進路ストーリー、Innovation Seed化を試せます。
 - 探究GO、PPM、牧山インテリジェンス、人的資本価値測定、DAO貢献評価、Google Drive、資格ツールなどの接続候補を選択できます。
 - 探究プロジェクトの作成・アーカイブができます。
 - ツールデータ、ローカルファイル、外部リンク、貼り付け本文からプロジェクト資料を追加できます。
@@ -58,6 +59,9 @@ Firestoreには次のコレクションを使います。
 - `tanq_feedback`
 - `tanq_credentials`
 - `tanq_api_keys`
+- `tanq_question_seeds`
+- `tanq_innovation_seeds`
+- `tanq_ai_consultations`
 
 蓄積方針:
 
@@ -68,6 +72,9 @@ Firestoreには次のコレクションを使います。
 - `tanq_feedback`: 先生、上司、同僚、外部レビューなどの評価・査読ログ。
 - `tanq_credentials`: 資格、単位、Open Badge、VC/Web3証明などの証明データ。
 - `tanq_api_keys`: APIキーの名前、用途、スコープ、マスク値。キー全文はFirestoreに保存しません。
+- `tanq_question_seeds`: プロジェクト化する前の純粋な問い、背景、分野、ステージ。
+- `tanq_innovation_seeds`: 探究ログやAI相談から生成された事業化・社会実装候補。
+- `tanq_ai_consultations`: AIコーチとの相談ログ、構造的問い、生成的問い、次の証跡。
 
 デモ用Firestore Rules:
 
@@ -105,6 +112,18 @@ service cloud.firestore {
     }
 
     match /tanq_api_keys/{docId} {
+      allow read, write: if true;
+    }
+
+    match /tanq_question_seeds/{docId} {
+      allow read, write: if true;
+    }
+
+    match /tanq_innovation_seeds/{docId} {
+      allow read, write: if true;
+    }
+
+    match /tanq_ai_consultations/{docId} {
       allow read, write: if true;
     }
   }

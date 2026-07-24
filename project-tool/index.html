@@ -566,6 +566,7 @@
       </div>
       <nav class="nav">
         <button id="open-kids-tool" type="button">Kids Tool</button>
+        <button id="open-passport-tool" type="button">Passport Tool</button>
         <button class="active" data-tab="questions">Questions</button>
         <button data-tab="workspace">Project</button>
         <button id="open-process-tool" type="button">Process Tool</button>
@@ -2391,6 +2392,16 @@
       window.open(kidsToolUrl(), "_blank", "noopener");
     }
 
+    function passportToolUrl() {
+      const path = window.location.pathname;
+      if (path.includes("/tanq-graph-public/project-tool/")) return "../passport-tool/";
+      return "../tanq-passport-tool/index.html";
+    }
+
+    function openPassportTool() {
+      window.open(passportToolUrl(), "_blank", "noopener");
+    }
+
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
@@ -2398,6 +2409,7 @@
       });
     });
     $("#open-kids-tool").addEventListener("click", openKidsTool);
+    $("#open-passport-tool").addEventListener("click", openPassportTool);
     $("#open-process-tool").addEventListener("click", openProcessTool);
     $("#open-process-from-project").addEventListener("click", openProcessTool);
 

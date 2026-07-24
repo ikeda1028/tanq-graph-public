@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ Passport Tool</title>
+  <script src="../firebase-config.js?v=tanqgraph-20260719"></script>
+  <style>
+    :root {
+      --bg: #f7f4ec;
+      --panel: #fffdf7;
+      --ink: #22231f;
+      --muted: #686257;
+      --line: #d9d1c1;
+      --green: #256b57;
+      --blue: #2f5f8f;
+      --gold: #a97825;
+      --red: #a34b38;
+      --shadow: 0 18px 44px rgba(54, 45, 30, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    button, input, select, textarea { font: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 248px 1fr; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 24px 18px; border-right: 1px solid var(--line); background: rgba(255,253,247,.74); }
+    main { padding: 28px; max-width: 1320px; width: 100%; }
+    .brand { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; }
+    .mark { width: 42px; height: 42px; border-radius: 10px; background: var(--green); color: #fffdf7; display: grid; place-items: center; font-weight: 700; }
+    .brand strong, h1, h2, h3, .card strong, .quest strong { font-weight: 600; }
+    .brand span, small, .muted { color: var(--muted); }
+    .brand span { display: block; font-size: 12px; }
+    .nav { display: grid; gap: 8px; }
+    .nav button, .nav a { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
+    .nav button.active { background: var(--panel); border-color: var(--line); color: var(--ink); box-shadow: 0 8px 20px rgba(54,45,30,.08); }
+    .session { margin-top: 16px; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .hero, .panel, .card, .quest, .stage, .artifact, .metric { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .hero { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; padding: 24px; margin-bottom: 16px; box-shadow: var(--shadow); }
+    h1 { margin: 0; font-size: clamp(32px, 4.8vw, 58px); line-height: 1; letter-spacing: 0; }
+    h2, h3 { margin: 0; }
+    h2 { font-size: 18px; }
+    h3 { font-size: 15px; }
+    .eyebrow { margin: 0 0 10px; color: var(--green); font-weight: 600; font-size: 13px; }
+    .lead { margin: 14px 0 0; color: var(--muted); line-height: 1.7; max-width: 820px; }
+    .hero-map { min-height: 230px; display: grid; place-items: center; background:
+      linear-gradient(90deg, transparent 48%, rgba(47,95,143,.16) 49%, transparent 51%),
+      linear-gradient(0deg, transparent 48%, rgba(169,120,37,.18) 49%, transparent 51%),
+      radial-gradient(circle at 72% 28%, rgba(37,107,87,.16), transparent 22%),
+      rgba(255,253,247,.7);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-map::before, .hero-map::after { content: ""; position: absolute; border-radius: 999px; background: var(--green); box-shadow: 120px 72px 0 var(--gold), -96px 58px 0 var(--blue), 44px -70px 0 var(--red); width: 14px; height: 14px; }
+    .hero-map::after { width: 96px; height: 96px; background: transparent; border: 2px solid rgba(37,107,87,.4); box-shadow: none; }
+    .hero-map strong { z-index: 1; background: rgba(255,253,247,.86); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+    .tab { display: none; }
+    .tab.active { display: block; }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 14px; margin-bottom: 14px; }
+    .panel { padding: 18px; display: grid; gap: 14px; }
+    .full { grid-column: 1 / -1; }
+    .wide { grid-column: span 8; }
+    .narrow { grid-column: span 4; }
+    .half { grid-column: span 6; }
+    .third { grid-column: span 4; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric { padding: 14px; min-height: 88px; }
+    .metric b { display: block; font-size: 28px; }
+    .stage-board { display: grid; grid-template-columns: repeat(6, minmax(190px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+    .stage { min-height: 280px; padding: 14px; display: grid; align-content: start; gap: 10px; }
+    .stage-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--green); }
+    .dot.gold { background: var(--gold); }
+    .dot.blue { background: var(--blue); }
+    .dot.red { background: var(--red); }
+    .quest { padding: 11px; display: grid; gap: 6px; border-color: rgba(37,107,87,.28); background: rgba(255,253,247,.76); }
+    .quest small { line-height: 1.5; }
+    .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .mini-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { padding: 14px; min-height: 128px; display: grid; gap: 8px; align-content: start; }
+    .artifact { padding: 12px; display: grid; gap: 7px; }
+    .badge-row, .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 5px 9px; background: rgba(47,95,143,.12); color: var(--blue); font-size: 12px; white-space: nowrap; }
+    .badge.green { background: rgba(37,107,87,.12); color: var(--green); }
+    .badge.gold { background: rgba(169,120,37,.14); color: var(--gold); }
+    .badge.red { background: rgba(163,75,56,.12); color: var(--red); }
+    label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    input, select, textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,247,.72); color: var(--ink); padding: 10px 12px; }
+    textarea { min-height: 94px; resize: vertical; }
+    .primary, .secondary, .icon-button { border: 1px solid transparent; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+    .primary { background: var(--green); color: #fffdf7; }
+    .secondary { background: var(--panel); border-color: var(--line); color: var(--ink); }
+    .icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; background: var(--panel); border-color: var(--line); color: var(--ink); padding: 0; }
+    .code { margin: 0; max-height: 420px; overflow: auto; background: #24231f; color: #f5efe2; border-radius: 8px; padding: 14px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .coach-output { border: 1px solid rgba(37,107,87,.28); background: linear-gradient(180deg, rgba(37,107,87,.08), var(--panel)); border-radius: 8px; padding: 14px; line-height: 1.7; display: grid; gap: 10px; }
+    .timeline { display: grid; gap: 10px; }
+    @media (max-width: 1080px) {
+      .shell, .hero { grid-template-columns: 1fr; }
+      aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      main { padding: 20px; }
+      .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid, .metrics, .mini-grid, .mini-grid.three { grid-template-columns: 1fr; }
+      .full, .wide, .narrow, .half, .third { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">
+        <span class="mark">TP</span>
+        <div>
+          <strong>TANQ Passport</strong>
+          <span>Inquiry portfolio for teens</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="active" data-tab="home" type="button">Home</button>
+        <button data-tab="quest" type="button">Quest Board</button>
+        <button data-tab="evidence" type="button">Evidence</button>
+        <button data-tab="coach" type="button">AI Coach</button>
+        <button data-tab="story" type="button">Story</button>
+        <button data-tab="sync" type="button">Graph Sync</button>
+        <a href="../project-tool/" target="_blank" rel="noopener">Project Tool</a>
+        <a href="../" target="_blank" rel="noopener">TANQ Graph</a>
+      </nav>
+      <div class="session">
+        <small>接続状態</small>
+        <strong id="db-status">Firestoreへ接続中</strong>
+        <small id="session-label">TANQ Passport / Local draft</small>
+      </div>
+    </aside>
+
+    <main>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">TANQ Passport</p>
+          <h1>問いを、進路と社会実装につながる探究資産へ。</h1>
+          <p class="lead">中高生向けのTANQ Passportは、日常の問いをクエスト化し、証跡、協働、振り返り、提出物、Innovation Seedまで育てるインターフェイスです。</p>
+          <div class="actions" style="margin-top:18px">
+            <button class="primary" data-tab-jump="quest" type="button">探究クエストを始める</button>
+            <button class="secondary" data-tab-jump="coach" type="button">AIコーチに相談</button>
+            <button class="secondary" id="open-project-tool" type="button">Project Toolへ接続</button>
+          </div>
+        </div>
+        <div class="hero-map"><strong>Question → Evidence → Story → Innovation Seed</strong></div>
+      </section>
+
+      <section id="home" class="tab active">
+        <div class="grid">
+          <div class="panel full">
+            <h2>Passport Dashboard</h2>
+            <div class="metrics">
+              <div class="metric"><b id="metric-quests">0</b><small>クエスト</small></div>
+              <div class="metric"><b id="metric-evidence">0</b><small>証跡</small></div>
+              <div class="metric"><b id="metric-badges">0</b><small>バッジ</small></div>
+              <div class="metric"><b id="metric-readiness">0%</b><small>提出準備</small></div>
+            </div>
+          </div>
+          <div class="panel wide">
+            <h2>今の探究ステージ</h2>
+            <div class="stage-board" id="stage-board"></div>
+          </div>
+          <div class="panel narrow">
+            <h2>成長バッジ</h2>
+            <div class="mini-grid" id="badge-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="quest" class="tab">
+        <div class="grid">
+          <div class="panel third">
+            <h2>問いを追加</h2>
+            <label>問い<textarea id="quest-question" placeholder="例: なぜ地域の空き家は増えるのか"></textarea></label>
+            <label>背景・きっかけ<textarea id="quest-trigger" placeholder="見たこと、聞いたこと、違和感"></textarea></label>
+            <label>分野<select id="quest-domain"><option>地域・コミュニティ</option><option>環境</option><option>教育</option><option>テクノロジー</option><option>医療・福祉</option><option>文化・表現</option><option>ビジネス</option></select></label>
+            <label>最初のステージ<select id="quest-stage"><option value="question">問い</option><option value="ideation">アイデア出し</option><option value="hypothesis">仮説</option><option value="master_plan">マスタープラン</option><option value="execution">実行段階</option><option value="submission">提出・事業化</option></select></label>
+            <div class="actions">
+              <button class="primary" id="add-quest" type="button">追加</button>
+              <button class="icon-button" id="voice-question" type="button" title="音声入力">Mic</button>
+            </div>
+          </div>
+          <div class="panel" style="grid-column: span 9">
+            <h2>Quest Board</h2>
+            <div class="stage-board" id="quest-board"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="evidence" class="tab">
+        <div class="grid">
+          <div class="panel third">
+            <h2>証跡を追加</h2>
+            <label>対象クエスト<select id="evidence-quest"></select></label>
+            <label>資料タイトル<input id="evidence-title" placeholder="インタビュー記録、写真、Google Docsなど"></label>
+            <label>URL<input id="evidence-url" placeholder="https://docs.google.com/..."></label>
+            <label>メモ<textarea id="evidence-note" placeholder="何が根拠になるか"></textarea></label>
+            <label>信頼レベル<select id="evidence-trust"><option value="1">1 下書き</option><option value="2">2 自分で確認</option><option value="3">3 先生・仲間レビュー</option><option value="4">4 外部レビュー</option><option value="5">5 提出・認定</option></select></label>
+            <button class="primary" id="add-evidence" type="button">証跡として保存</button>
+          </div>
+          <div class="panel" style="grid-column: span 9">
+            <h2>Evidence List</h2>
+            <div class="timeline" id="evidence-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="coach" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>Quest Mentor</h2>
+            <label>相談したいクエスト<select id="coach-quest"></select></label>
+            <label>相談内容<textarea id="coach-prompt" placeholder="問いを深めたい、仮説にしたい、発表用に整理したい、など"></textarea></label>
+            <div class="actions">
+              <button class="primary" id="ask-coach" type="button">AIコーチ案を作る</button>
+              <button class="secondary" id="save-coach-log" type="button">相談ログとして保存</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>Coach Output</h2>
+            <div class="coach-output" id="coach-output">クエストを選んで相談すると、構造的問い、生成的問い、次の証跡、Innovation Seed候補を返します。</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="story" class="tab">
+        <div class="grid">
+          <div class="panel wide">
+            <h2>進路ストーリー</h2>
+            <div class="coach-output" id="story-output"></div>
+          </div>
+          <div class="panel narrow">
+            <h2>提出先</h2>
+            <div class="mini-grid">
+              <div class="card"><span class="badge green">学校</span><strong>探究レポート</strong><small>問い、方法、結果、考察、次の課題。</small></div>
+              <div class="card"><span class="badge gold">進路</span><strong>面談・志望理由</strong><small>経験、価値観、学びの変化。</small></div>
+              <div class="card"><span class="badge">外部</span><strong>コンテスト</strong><small>社会課題、独自性、実装可能性。</small></div>
+              <div class="card"><span class="badge red">事業化</span><strong>Innovation Seed</strong><small>顧客、課題、MVP、仲間募集。</small></div>
+            </div>
+            <button class="primary" id="generate-story" type="button">ストーリー生成</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="sync" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>TANQ Graphへ同期</h2>
+            <p class="lead">Passportの問い、証跡、AI相談ログ、バッジ、Innovation Seed候補をGraph形式に変換します。</p>
+            <div class="actions">
+              <button class="primary" id="sync-graph" type="button">Firestoreへ同期</button>
+              <button class="secondary" id="copy-payload" type="button">JSONをコピー</button>
+            </div>
+            <small id="sync-status">未同期</small>
+          </div>
+          <div class="panel half">
+            <h2>Project API Bundle</h2>
+            <pre class="code" id="payload-view"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+    const firebaseSdkVersion = "10.12.5";
+    let firebaseDb = null;
+    let firebaseApi = null;
+
+    const stages = [
+      ["question", "問い", "green"],
+      ["ideation", "アイデア出し", "gold"],
+      ["hypothesis", "仮説", "blue"],
+      ["master_plan", "マスタープラン", "green"],
+      ["execution", "実行段階", "blue"],
+      ["submission", "提出・事業化", "red"]
+    ];
+
+    const seedState = {
+      learner: { name: "TANQ Learner", age: 16, interfaceMode: "passport" },
+      quests: [
+        { id: "quest_local_001", question: "なぜ地域の空き家は増えるのか", trigger: "通学路で空き家が増えていることに気づいた。", domain: "地域・コミュニティ", stage: "question", created_at: "2026-07-24T09:00:00+09:00" },
+        { id: "quest_ai_001", question: "AIで地域課題の調査をどう効率化できるか", trigger: "調べる時間より整理する時間が長い。", domain: "テクノロジー", stage: "ideation", created_at: "2026-07-24T09:08:00+09:00" },
+        { id: "quest_ppp_001", question: "空き店舗を探究拠点にできるか", trigger: "学校外の学び場が地域にあると面白い。", domain: "ビジネス", stage: "hypothesis", created_at: "2026-07-24T09:18:00+09:00" }
+      ],
+      evidence: [
+        { id: "ev_001", quest_id: "quest_local_001", title: "商店街観察メモ", url: "", note: "空き店舗の場所と周辺の人通りを記録。", trust: 2, created_at: "2026-07-24T09:20:00+09:00" }
+      ],
+      coachLogs: [],
+      badges: ["Question Owner", "Field Observer", "Evidence Builder"],
+      lastCoach: null
+    };
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+    }
+
+    function readState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem("tanq-passport-state") || "null");
+        return saved ? { ...structuredClone(seedState), ...saved } : structuredClone(seedState);
+      } catch (error) {
+        return structuredClone(seedState);
+      }
+    }
+
+    let state = readState();
+
+    function saveState() {
+      localStorage.setItem("tanq-passport-state", JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+    }
+
+    function cleanForFirestore(value) {
+      if (Array.isArray(value)) return value.map(cleanForFirestore).filter((item) => item !== undefined);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined).map(([key, item]) => [key, cleanForFirestore(item)]));
+      }
+      return value;
+    }
+
+    async function connectFirebase() {
+      const config = window.TANQ_FIREBASE_CONFIG;
+      if (!config?.apiKey || !config?.projectId || !config?.appId) {
+        $("#db-status").textContent = "Firestore未設定";
+        return;
+      }
+      try {
+        const appModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-app.js`);
+        const firestoreModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-firestore.js`);
+        const app = appModule.getApps().length ? appModule.getApp() : appModule.initializeApp(config);
+        firebaseDb = firestoreModule.getFirestore(app);
+        firebaseApi = firestoreModule;
+        $("#db-status").textContent = `Firestore: ${config.projectId}`;
+      } catch (error) {
+        $("#db-status").textContent = `Firestore未接続: ${error.message}`;
+      }
+    }
+
+    async function saveFirebaseRecord(collectionName, record) {
+      if (!firebaseDb || !firebaseApi || !record?.id) return null;
+      const { doc, setDoc, serverTimestamp } = firebaseApi;
+      await setDoc(doc(firebaseDb, collectionName, record.id), {
+        ...cleanForFirestore({ ...record, updated_at: new Date().toISOString() }),
+        synced_at: serverTimestamp()
+      }, { merge: true });
+      return record;
+    }
+
+    function selectedQuest(id) {
+      return state.quests.find((quest) => quest.id === id) || state.quests[0] || null;
+    }
+
+    function questStageName(stage) {
+      return stages.find(([id]) => id === stage)?.[1] || "問い";
+    }
+
+    function badgeForQuest(quest) {
+      if (quest.stage === "submission") return "Innovation Seed";
+      if (quest.stage === "execution") return "Action Builder";
+      if (quest.stage === "master_plan") return "Plan Designer";
+      if (quest.stage === "hypothesis") return "Hypothesis Maker";
+      if (quest.stage === "ideation") return "Idea Diver";
+      return "Question Owner";
+    }
+
+    function renderStageBoard(targetId) {
+      const board = $(targetId);
+      board.innerHTML = stages.map(([id, label, tone]) => {
+        const quests = state.quests.filter((quest) => quest.stage === id);
+        return `<div class="stage">
+          <div class="stage-head"><h3>${label}</h3><span class="dot ${tone}"></span></div>
+          ${quests.length ? quests.map((quest) => `<div class="quest" data-quest="${escapeHtml(quest.id)}">
+            <span class="badge ${tone === "green" ? "green" : tone}">${escapeHtml(quest.domain)}</span>
+            <strong>${escapeHtml(quest.question)}</strong>
+            <small>${escapeHtml(quest.trigger || "背景未登録")}</small>
+            <select data-stage-select="${escapeHtml(quest.id)}">
+              ${stages.map(([stageId, stageLabel]) => `<option value="${stageId}" ${stageId === quest.stage ? "selected" : ""}>${stageLabel}</option>`).join("")}
+            </select>
+          </div>`).join("") : `<small>まだクエストはありません。</small>`}
+        </div>`;
+      }).join("");
+      document.querySelectorAll("[data-stage-select]").forEach((select) => {
+        select.addEventListener("change", () => {
+          state.quests = state.quests.map((quest) => quest.id === select.dataset.stageSelect ? { ...quest, stage: select.value, updated_at: new Date().toISOString() } : quest);
+          const badge = badgeForQuest(selectedQuest(select.dataset.stageSelect));
+          if (!state.badges.includes(badge)) state.badges.push(badge);
+          saveState();
+          render();
+        });
+      });
+    }
+
+    function renderSelectors() {
+      const options = state.quests.map((quest) => `<option value="${escapeHtml(quest.id)}">${escapeHtml(quest.question.slice(0, 48))}</option>`).join("");
+      ["#evidence-quest", "#coach-quest"].forEach((selector) => {
+        const current = $(selector).value;
+        $(selector).innerHTML = options;
+        if (current) $(selector).value = current;
+      });
+    }
+
+    function renderEvidence() {
+      $("#evidence-list").innerHTML = state.evidence.length ? state.evidence.map((item) => {
+        const quest = selectedQuest(item.quest_id);
+        return `<div class="artifact">
+          <div class="badge-row"><span class="badge green">Trust ${escapeHtml(item.trust)}</span><span class="badge">${escapeHtml(quest?.domain || "Quest")}</span></div>
+          <strong>${escapeHtml(item.title)}</strong>
+          <small>${escapeHtml(quest?.question || "クエスト未接続")}</small>
+          ${item.url ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a>` : ""}
+          <small>${escapeHtml(item.note || "")}</small>
+        </div>`;
+      }).join("") : `<div class="artifact"><small>証跡はまだありません。</small></div>`;
+    }
+
+    function renderBadges() {
+      $("#badge-list").innerHTML = state.badges.map((badge, index) => {
+        const colors = ["green", "gold", "", "red"];
+        return `<div class="card"><span class="badge ${colors[index % colors.length]}">${escapeHtml(badge)}</span><strong>${escapeHtml(badge)}</strong><small>探究ログと証跡から成長として記録。</small></div>`;
+      }).join("");
+    }
+
+    function readiness() {
+      const questScore = Math.min(state.quests.length * 12, 36);
+      const evidenceScore = Math.min(state.evidence.length * 12, 36);
+      const stageScore = state.quests.some((quest) => ["master_plan", "execution", "submission"].includes(quest.stage)) ? 18 : 0;
+      const coachScore = state.coachLogs.length ? 10 : 0;
+      return Math.min(100, questScore + evidenceScore + stageScore + coachScore);
+    }
+
+    function buildStory() {
+      const mainQuest = state.quests[0];
+      if (!mainQuest) return "まだ問いがありません。まずは一つ、気になることを登録しましょう。";
+      const domains = [...new Set(state.quests.map((quest) => quest.domain))].join("、");
+      const stageLabel = questStageName(mainQuest.stage);
+      const evidenceCount = state.evidence.length;
+      return `私は「${mainQuest.question}」という問いから探究を始めました。きっかけは、${mainQuest.trigger || "日常の違和感"}です。現在は${stageLabel}の段階で、${domains}に関わる複数の視点から考えています。これまでに${evidenceCount}件の証跡を集め、問いを単なる感想ではなく、根拠を持つ探究テーマとして育てています。次は、仮説を検証し、学校での発表、外部コンテスト、地域や企業との実証につなげたいです。`;
+    }
+
+    function coachResponse() {
+      const quest = selectedQuest($("#coach-quest").value);
+      const prompt = $("#coach-prompt").value.trim();
+      if (!quest) return null;
+      const evidence = state.evidence.filter((item) => item.quest_id === quest.id);
+      return {
+        id: "coach_" + Date.now(),
+        quest_id: quest.id,
+        title: `Quest Mentor: ${quest.question}`,
+        prompt,
+        structural: [
+          `この問いの対象は誰で、どこで起きている問題ですか？`,
+          `今ある証跡${evidence.length}件だけで、どこまで言えますか？`,
+          `反対意見や別の原因を一つ置くと、仮説はどう変わりますか？`
+        ],
+        generative: [
+          `この問いを地域・学校・企業の3者で解くなら、どんなチームになりますか？`,
+          `小さく試せるMVPを1週間で作るなら何をしますか？`,
+          `将来の進路ストーリーにすると、どんな強みとして語れますか？`
+        ],
+        nextEvidence: ["現地観察", "関係者インタビュー", "先行事例URL", "数字で分かる資料"],
+        innovationSeed: {
+          title: `${quest.domain}の探究から生まれる実証アイデア`,
+          social_value: 4,
+          feasibility: evidence.length >= 2 ? 4 : 3,
+          learning_value: 5
+        },
+        created_at: new Date().toISOString()
+      };
+    }
+
+    function renderCoachOutput(log = state.lastCoach) {
+      if (!log) return;
+      $("#coach-output").innerHTML = `
+        <strong>${escapeHtml(log.title)}</strong>
+        <div><span class="badge green">構造的問い</span></div>
+        <ul>${log.structural.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        <div><span class="badge gold">生成的問い</span></div>
+        <ul>${log.generative.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+        <div class="badge-row">${log.nextEvidence.map((item) => `<span class="badge">${escapeHtml(item)}</span>`).join("")}</div>
+        <small>Innovation Seed候補: ${escapeHtml(log.innovationSeed.title)}</small>
+      `;
+    }
+
+    function graphPayload() {
+      const now = new Date().toISOString();
+      const projectId = "passport_project_" + (state.learner.name || "learner").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 18);
+      return {
+        source: "TANQ Passport",
+        synced_at: now,
+        learner: { ...state.learner, interfaceMode: "passport" },
+        project: {
+          id: projectId,
+          name: "TANQ Passport Portfolio",
+          owner: "TANQ Passport",
+          question: state.quests[0]?.question || "未設定",
+          stage: "portfolio",
+          trust_stage: readiness() >= 70 ? "review_ready" : "draft",
+          created_at: state.quests[0]?.created_at || now
+        },
+        question_seeds: state.quests.map((quest) => ({ ...quest, graph_type: "question_seed", owner: "TANQ Passport" })),
+        activity_logs: [
+          ...state.quests.map((quest) => ({ id: "log_" + quest.id, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
+          ...state.coachLogs.map((log) => ({ id: "log_" + log.id, graph_type: "activity_log", source: "Quest Mentor", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
+        ],
+        ai_consultations: state.coachLogs.map((log) => ({
+          ...log,
+          graph_type: "ai_consultation",
+          source_tool: "TANQ Passport",
+          trust: 1
+        })),
+        materials: state.evidence.map((item) => ({ ...item, graph_type: "material", source_tool: "TANQ Passport", trust: Number(item.trust || 1) })),
+        innovation_seeds: state.coachLogs.map((log) => ({
+          id: "seed_" + log.id,
+          source_consultation_id: log.id,
+          title: log.innovationSeed.title,
+          social_value: log.innovationSeed.social_value,
+          feasibility: log.innovationSeed.feasibility,
+          learning_value: log.innovationSeed.learning_value,
+          created_at: log.created_at
+        })),
+        badges: state.badges
+      };
+    }
+
+    function renderPayload() {
+      $("#payload-view").textContent = JSON.stringify(graphPayload(), null, 2);
+    }
+
+    function render() {
+      renderStageBoard("#stage-board");
+      renderStageBoard("#quest-board");
+      renderSelectors();
+      renderEvidence();
+      renderBadges();
+      $("#metric-quests").textContent = state.quests.length;
+      $("#metric-evidence").textContent = state.evidence.length;
+      $("#metric-badges").textContent = state.badges.length;
+      $("#metric-readiness").textContent = `${readiness()}%`;
+      $("#story-output").textContent = buildStory();
+      renderCoachOutput();
+      renderPayload();
+    }
+
+    document.querySelectorAll("[data-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
+        document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+      });
+    });
+
+    document.querySelectorAll("[data-tab-jump]").forEach((button) => {
+      button.addEventListener("click", () => $(`[data-tab="${button.dataset.tabJump}"]`).click());
+    });
+
+    $("#open-project-tool").addEventListener("click", () => window.open("../project-tool/", "_blank", "noopener"));
+
+    $("#add-quest").addEventListener("click", () => {
+      const question = $("#quest-question").value.trim();
+      if (!question) return;
+      const quest = {
+        id: "quest_" + Date.now(),
+        question,
+        trigger: $("#quest-trigger").value.trim(),
+        domain: $("#quest-domain").value,
+        stage: $("#quest-stage").value,
+        created_at: new Date().toISOString()
+      };
+      state.quests.unshift(quest);
+      const badge = badgeForQuest(quest);
+      if (!state.badges.includes(badge)) state.badges.push(badge);
+      $("#quest-question").value = "";
+      $("#quest-trigger").value = "";
+      saveState();
+      render();
+    });
+
+    $("#voice-question").addEventListener("click", () => {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        $("#quest-question").placeholder = "このブラウザでは音声入力が使えません。";
+        return;
+      }
+      const recognition = new SpeechRecognition();
+      recognition.lang = "ja-JP";
+      recognition.onresult = (event) => {
+        $("#quest-question").value = event.results[0][0].transcript;
+      };
+      recognition.start();
+    });
+
+    $("#add-evidence").addEventListener("click", () => {
+      const title = $("#evidence-title").value.trim();
+      if (!title) return;
+      state.evidence.unshift({
+        id: "ev_" + Date.now(),
+        quest_id: $("#evidence-quest").value,
+        title,
+        url: $("#evidence-url").value.trim(),
+        note: $("#evidence-note").value.trim(),
+        trust: Number($("#evidence-trust").value),
+        created_at: new Date().toISOString()
+      });
+      if (!state.badges.includes("Evidence Builder")) state.badges.push("Evidence Builder");
+      $("#evidence-title").value = "";
+      $("#evidence-url").value = "";
+      $("#evidence-note").value = "";
+      saveState();
+      render();
+    });
+
+    $("#ask-coach").addEventListener("click", () => {
+      const log = coachResponse();
+      if (!log) return;
+      state.lastCoach = log;
+      renderCoachOutput(log);
+      renderPayload();
+    });
+
+    $("#save-coach-log").addEventListener("click", () => {
+      if (!state.lastCoach) state.lastCoach = coachResponse();
+      if (!state.lastCoach) return;
+      state.coachLogs.unshift(state.lastCoach);
+      if (!state.badges.includes("AI Dialogue Builder")) state.badges.push("AI Dialogue Builder");
+      state.lastCoach = null;
+      saveState();
+      render();
+    });
+
+    $("#generate-story").addEventListener("click", () => {
+      $("#story-output").textContent = buildStory();
+    });
+
+    $("#copy-payload").addEventListener("click", async () => {
+      await navigator.clipboard.writeText(JSON.stringify(graphPayload(), null, 2));
+      $("#sync-status").textContent = "JSONをコピーしました。";
+    });
+
+    $("#sync-graph").addEventListener("click", async () => {
+      const payload = graphPayload();
+      $("#sync-status").textContent = "同期中...";
+      try {
+        await saveFirebaseRecord("tanq_projects", payload.project);
+        for (const item of payload.question_seeds) await saveFirebaseRecord("tanq_question_seeds", item);
+        for (const item of payload.activity_logs) await saveFirebaseRecord("tanq_activity_logs", item);
+        for (const item of payload.ai_consultations) await saveFirebaseRecord("tanq_ai_consultations", item);
+        for (const item of payload.materials) await saveFirebaseRecord("tanq_materials", item);
+        for (const item of payload.innovation_seeds) await saveFirebaseRecord("tanq_innovation_seeds", item);
+        $("#sync-status").textContent = firebaseDb ? "Firestoreへ同期しました。" : "Firestore未接続のためJSON生成のみ完了。";
+      } catch (error) {
+        $("#sync-status").textContent = `同期に失敗: ${error.message}`;
+      }
+    });
+
+    connectFirebase();
+    render();
+  </script>
+</body>
+</html>
