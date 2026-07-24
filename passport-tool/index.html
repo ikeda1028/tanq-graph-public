@@ -251,6 +251,20 @@
 
       <section id="sync" class="tab">
         <div class="grid">
+          <div class="panel full">
+            <h2>TANQ Keeper ID Link</h2>
+            <p class="lead">TANQ Keeperから保存するときに同じTANQ IDを渡すと、その問い・AI相談ログがこのPassportに表示されます。</p>
+            <div class="mini-grid">
+              <label>TANQ ID / owner_person_id<input id="tanq-user-id" placeholder="例: person_12345"></label>
+              <label>Keeper API Bundle URL<input id="keeper-api-url" value="https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle"></label>
+            </div>
+            <div class="actions">
+              <button class="primary" id="save-tanq-id" type="button">IDを保存</button>
+              <button class="secondary" id="import-keeper-firestore" type="button">FirestoreからKeeperデータを取り込む</button>
+              <button class="secondary" id="import-keeper-api" type="button">Keeper APIから取り込む</button>
+            </div>
+            <small id="keeper-link-status">未連携</small>
+          </div>
           <div class="panel half">
             <h2>TANQ Graphへ同期</h2>
             <p class="lead">Passportの問い、証跡、AI相談ログ、バッジ、Innovation Seed候補をGraph形式に変換します。</p>
@@ -296,6 +310,11 @@
       ],
       coachLogs: [],
       badges: ["Question Owner", "Field Observer", "Evidence Builder"],
+      linkage: {
+        tanqUserId: "",
+        keeperApiUrl: "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle",
+        imported_at: null
+      },
       lastCoach: null
     };
 
@@ -313,6 +332,14 @@
     }
 
     let state = readState();
+
+    function readGraphEntrySession() {
+      try {
+        return JSON.parse(localStorage.getItem("tanq-graph-entry-session") || "null");
+      } catch (error) {
+        return null;
+      }
+    }
 
     function saveState() {
       localStorage.setItem("tanq-passport-state", JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
@@ -352,6 +379,77 @@
         synced_at: serverTimestamp()
       }, { merge: true });
       return record;
+    }
+
+    async function loadFirebaseCollectionByOwner(collectionName, ownerPersonId, maxItems = 50) {
+      if (!firebaseDb || !firebaseApi || !ownerPersonId) return [];
+      const { collection, getDocs, query, where, limit } = firebaseApi;
+      const snapshot = await getDocs(query(collection(firebaseDb, collectionName), where("owner_person_id", "==", ownerPersonId), limit(maxItems)));
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function mergeById(existing = [], incoming = []) {
+      const map = new Map(existing.map((item) => [item.id, item]));
+      incoming.forEach((item) => map.set(item.id, { ...(map.get(item.id) || {}), ...item }));
+      return [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function questFromKeeperQuestion(item) {
+      return {
+        id: item.id,
+        question: item.question || item.title || "ChatGPTから保存した問い",
+        trigger: item.trigger || item.reason || item.summary || "",
+        domain: item.domain || "AI相談",
+        stage: item.promoted ? "hypothesis" : "question",
+        owner_person_id: item.owner_person_id || item.tanq_user_id || state.linkage.tanqUserId || null,
+        source_tool: item.source || "TANQ Keeper",
+        created_at: item.created_at || new Date().toISOString()
+      };
+    }
+
+    function coachLogFromKeeperConsultation(item) {
+      const nextEvidence = [item.next_question || item.nextQuestion || "次の問いを整理", "関連資料を追加", "仮説を検証"].filter(Boolean);
+      return {
+        id: item.id,
+        quest_id: item.question_id || null,
+        title: `TANQ Keeper: ${item.question || item.title || "AI相談ログ"}`,
+        prompt: item.ai_answer || item.aiAnswer || item.summary || "",
+        structural: [item.insight || "この相談で分かったことは何ですか？", "根拠として残せる証跡は何ですか？", "まだ不確かな点は何ですか？"],
+        generative: [item.next_question || item.nextQuestion || "次にどんな問いへ進めますか？", "誰と組むと実装に近づきますか？", "進路ストーリーではどんな強みになりますか？"],
+        nextEvidence,
+        innovationSeed: {
+          title: `${item.question || item.title || "AI相談"}から生まれるInnovation Seed`,
+          social_value: 3,
+          feasibility: 3,
+          learning_value: 5
+        },
+        owner_person_id: item.owner_person_id || item.tanq_user_id || state.linkage.tanqUserId || null,
+        source_tool: item.source || item.source_tool || "TANQ Keeper",
+        created_at: item.created_at || new Date().toISOString()
+      };
+    }
+
+    function importKeeperBundle(bundle = {}) {
+      const questions = (bundle.question_seeds || []).map(questFromKeeperQuestion);
+      const consultations = [
+        ...(bundle.ai_consultations || []),
+        ...(bundle.conversation_notes || []).map((note) => ({
+          ...note,
+          question: note.related_question || note.title,
+          ai_answer: note.summary,
+          insight: Array.isArray(note.key_insights) ? note.key_insights.join(" / ") : "",
+          next_question: Array.isArray(note.next_actions) ? note.next_actions.join(" / ") : ""
+        }))
+      ].map(coachLogFromKeeperConsultation);
+      state.quests = mergeById(state.quests, questions);
+      state.coachLogs = mergeById(state.coachLogs, consultations);
+      if (questions.length && !state.badges.includes("Keeper Linked")) state.badges.push("Keeper Linked");
+      state.linkage.imported_at = new Date().toISOString();
+      saveState();
+      render();
+      return { questions: questions.length, consultations: consultations.length };
     }
 
     function selectedQuest(id) {
@@ -491,10 +589,14 @@
     function graphPayload() {
       const now = new Date().toISOString();
       const projectId = "passport_project_" + (state.learner.name || "learner").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 18);
+      const ownerPersonId = state.linkage?.tanqUserId || null;
+      const owner = ownerPersonId
+        ? { owner_person_id: ownerPersonId, tanq_user_id: ownerPersonId, owner_interface: "passport" }
+        : { owner_interface: "passport" };
       return {
         source: "TANQ Passport",
         synced_at: now,
-        learner: { ...state.learner, interfaceMode: "passport" },
+        learner: { ...state.learner, ...owner, interfaceMode: "passport" },
         project: {
           id: projectId,
           name: "TANQ Passport Portfolio",
@@ -502,22 +604,25 @@
           question: state.quests[0]?.question || "未設定",
           stage: "portfolio",
           trust_stage: readiness() >= 70 ? "review_ready" : "draft",
+          ...owner,
           created_at: state.quests[0]?.created_at || now
         },
-        question_seeds: state.quests.map((quest) => ({ ...quest, graph_type: "question_seed", owner: "TANQ Passport" })),
+        question_seeds: state.quests.map((quest) => ({ ...quest, ...owner, graph_type: "question_seed", owner: "TANQ Passport" })),
         activity_logs: [
-          ...state.quests.map((quest) => ({ id: "log_" + quest.id, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
-          ...state.coachLogs.map((log) => ({ id: "log_" + log.id, graph_type: "activity_log", source: "Quest Mentor", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
+          ...state.quests.map((quest) => ({ id: "log_" + quest.id, ...owner, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
+          ...state.coachLogs.map((log) => ({ id: "log_" + log.id, ...owner, graph_type: "activity_log", source: "Quest Mentor", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
         ],
         ai_consultations: state.coachLogs.map((log) => ({
           ...log,
+          ...owner,
           graph_type: "ai_consultation",
           source_tool: "TANQ Passport",
           trust: 1
         })),
-        materials: state.evidence.map((item) => ({ ...item, graph_type: "material", source_tool: "TANQ Passport", trust: Number(item.trust || 1) })),
+        materials: state.evidence.map((item) => ({ ...item, ...owner, graph_type: "material", source_tool: "TANQ Passport", trust: Number(item.trust || 1) })),
         innovation_seeds: state.coachLogs.map((log) => ({
           id: "seed_" + log.id,
+          ...owner,
           source_consultation_id: log.id,
           title: log.innovationSeed.title,
           social_value: log.innovationSeed.social_value,
@@ -534,6 +639,10 @@
     }
 
     function render() {
+      const entrySession = readGraphEntrySession();
+      if (!state.linkage.tanqUserId && entrySession?.personId) {
+        state.linkage.tanqUserId = entrySession.personId;
+      }
       renderStageBoard("#stage-board");
       renderStageBoard("#quest-board");
       renderSelectors();
@@ -544,6 +653,10 @@
       $("#metric-badges").textContent = state.badges.length;
       $("#metric-readiness").textContent = `${readiness()}%`;
       $("#story-output").textContent = buildStory();
+      $("#tanq-user-id").value = state.linkage.tanqUserId || "";
+      $("#keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
+      $("#session-label").textContent = state.linkage.tanqUserId ? `${state.linkage.tanqUserId} / TANQ Passport` : "TANQ Passport / Local draft";
+      $("#keeper-link-status").textContent = state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携";
       renderCoachOutput();
       renderPayload();
     }
@@ -640,6 +753,65 @@
     $("#copy-payload").addEventListener("click", async () => {
       await navigator.clipboard.writeText(JSON.stringify(graphPayload(), null, 2));
       $("#sync-status").textContent = "JSONをコピーしました。";
+    });
+
+    $("#save-tanq-id").addEventListener("click", () => {
+      state.linkage.tanqUserId = $("#tanq-user-id").value.trim();
+      state.linkage.keeperApiUrl = $("#keeper-api-url").value.trim() || state.linkage.keeperApiUrl;
+      saveState();
+      render();
+      $("#keeper-link-status").textContent = state.linkage.tanqUserId
+        ? `TANQ IDを保存しました: ${state.linkage.tanqUserId}`
+        : "TANQ IDが未入力です。";
+    });
+
+    $("#import-keeper-firestore").addEventListener("click", async () => {
+      const tanqUserId = $("#tanq-user-id").value.trim() || state.linkage.tanqUserId;
+      if (!tanqUserId) {
+        $("#keeper-link-status").textContent = "TANQ IDを入力してください。";
+        return;
+      }
+      if (!firebaseDb || !firebaseApi) {
+        $("#keeper-link-status").textContent = "Firestore接続後に取り込めます。";
+        return;
+      }
+      state.linkage.tanqUserId = tanqUserId;
+      state.linkage.keeperApiUrl = $("#keeper-api-url").value.trim() || state.linkage.keeperApiUrl;
+      $("#keeper-link-status").textContent = "FirestoreからKeeperデータを読み込み中...";
+      try {
+        const [question_seeds, ai_consultations, conversation_notes] = await Promise.all([
+          loadFirebaseCollectionByOwner("tanq_question_seeds", tanqUserId),
+          loadFirebaseCollectionByOwner("tanq_ai_consultations", tanqUserId),
+          loadFirebaseCollectionByOwner("tanq_conversation_notes", tanqUserId)
+        ]);
+        const result = importKeeperBundle({ question_seeds, ai_consultations, conversation_notes });
+        $("#keeper-link-status").textContent = `Firestoreから取り込みました。問い ${result.questions}件 / AI相談 ${result.consultations}件`;
+      } catch (error) {
+        $("#keeper-link-status").textContent = `取り込みに失敗: ${error.message}`;
+      }
+    });
+
+    $("#import-keeper-api").addEventListener("click", async () => {
+      const tanqUserId = $("#tanq-user-id").value.trim() || state.linkage.tanqUserId;
+      const apiUrl = $("#keeper-api-url").value.trim() || state.linkage.keeperApiUrl;
+      if (!tanqUserId) {
+        $("#keeper-link-status").textContent = "TANQ IDを入力してください。";
+        return;
+      }
+      state.linkage.tanqUserId = tanqUserId;
+      state.linkage.keeperApiUrl = apiUrl;
+      $("#keeper-link-status").textContent = "Keeper APIから読み込み中...";
+      try {
+        const url = new URL(apiUrl);
+        url.searchParams.set("tanqUserId", tanqUserId);
+        const response = await fetch(url.toString());
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const json = await response.json();
+        const result = importKeeperBundle(json.data || json);
+        $("#keeper-link-status").textContent = `Keeper APIから取り込みました。問い ${result.questions}件 / AI相談 ${result.consultations}件`;
+      } catch (error) {
+        $("#keeper-link-status").textContent = `API取り込みに失敗: ${error.message}`;
+      }
     });
 
     $("#sync-graph").addEventListener("click", async () => {

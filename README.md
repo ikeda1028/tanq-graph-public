@@ -20,6 +20,7 @@ AIコーチも同じ4区分で分けます。
 
 - `project-tool/`で、TANQ Project ToolのKids向け写真・問い・音声入力・Googleマップ記録のプロトタイプを試せます。
 - `passport-tool/`で、中高生向けTANQ Passportのクエスト、証跡、AI相談、進路ストーリー、Innovation Seed化を試せます。
+- TANQ Keeper / ChatGPT Actionsから保存したデータは、共通の`tanqUserId`を`owner_person_id`として保存すると`passport-tool/`へ取り込めます。
 - 探究GO、PPM、牧山インテリジェンス、人的資本価値測定、DAO貢献評価、Google Drive、資格ツールなどの接続候補を選択できます。
 - 探究プロジェクトの作成・アーカイブができます。
 - ツールデータ、ローカルファイル、外部リンク、貼り付け本文からプロジェクト資料を追加できます。
@@ -75,6 +76,12 @@ Firestoreには次のコレクションを使います。
 - `tanq_question_seeds`: プロジェクト化する前の純粋な問い、背景、分野、ステージ。
 - `tanq_innovation_seeds`: 探究ログやAI相談から生成された事業化・社会実装候補。
 - `tanq_ai_consultations`: AIコーチとの相談ログ、構造的問い、生成的問い、次の証跡。
+
+TANQ Keeper連携:
+
+- TANQ Graphの利用者ID（例: `person_...`）をTANQ KeeperのActions入力で`tanqUserId`として渡します。
+- Keeper APIは`owner_person_id`付きで`tanq_question_seeds`、`tanq_ai_consultations`、`tanq_conversation_notes`へ保存します。
+- TANQ Passportの`Graph Sync`画面で同じIDを入力し、FirestoreまたはKeeper APIから取り込みます。
 
 デモ用Firestore Rules:
 
