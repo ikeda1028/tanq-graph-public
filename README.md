@@ -20,7 +20,7 @@ AI探究ナビゲーターも同じ4区分で分けます。
 
 - `project-tool/`で、TANQ Project ToolのKids向け写真・問い・音声入力・Googleマップ記録のプロトタイプを試せます。
 - `passport-tool/`で、中高生向けTANQ Passportのクエスト、証跡、AI相談、進路ストーリー、Innovation Seed化を試せます。
-- `encore-tool/`で、Proofolio Encoreの経験資産、証跡、役割候補、Innovation Seed化、ハイスペックエージェント向け応募JSON生成を試せます。
+- `encore-tool/`で、Proofolio Encoreの経験資産、LinkedIn経歴インポート、Facebook人脈インポート、証跡、役割候補、Innovation Seed化、ハイスペックエージェント向け応募JSON生成を試せます。
 - `passport-tool/`の`Keeper Inbox`で、TANQ Keeper / ChatGPT Actionsから保存した問い・AI相談ログを一覧できます。
 - TANQ Keeper / ChatGPT Actionsから保存したデータは、共通の`tanqUserId`を`owner_person_id`として保存すると`passport-tool/`へ取り込めます。
 - 探究GO、PPM、牧山インテリジェンス、人的資本価値測定、DAO貢献評価、Google Drive、資格ツールなどの接続候補を選択できます。
@@ -82,6 +82,13 @@ Firestoreには次のコレクションを使います。
 - `tanq_ai_consultations`: AI探究ナビゲーターとの相談ログ、構造的問い、生成的問い、次の証跡。
 - `tanq_conversation_notes`: ChatGPTの通常会話を、タイトル、要約、洞察、次アクションとして保存したログ。
 - `tanq_identity_links`: TANQ GraphとTANQ Keeperを一時リンクで接続するための短命トークン。
+
+LinkedIn / Facebook連携:
+
+- まずは本人が取得したCSV/TXT、またはプロフィール・友達情報の貼り付けから取り込みます。
+- LinkedIn経歴は`imported_career`として保存し、同時にExperience Graphへ反映します。
+- Facebookの友達・知人は`network_people`として保存し、紹介候補、チーム形成、事業組成の人脈資産として使います。
+- 本番API連携では、LinkedIn / MetaのOAuth、アプリ審査、利用目的、取得範囲、ユーザー同意、削除導線を追加します。
 
 TANQ Keeper連携:
 

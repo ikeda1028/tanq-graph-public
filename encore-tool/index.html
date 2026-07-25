@@ -90,7 +90,7 @@
     .narrow { grid-column: span 4; }
     .half { grid-column: span 6; }
     .third { grid-column: span 4; }
-    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
     .metric { padding: 14px; min-height: 86px; }
     .metric b { display: block; font-size: 30px; font-weight: 600; }
     .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -136,6 +136,7 @@
       <nav class="nav">
         <button class="active" data-tab="home" type="button">Home</button>
         <button data-tab="experience" type="button">Experience Graph</button>
+        <button data-tab="social" type="button">Social Import</button>
         <button data-tab="roles" type="button">Role Market</button>
         <button data-tab="proof" type="button">Proof Board</button>
         <button data-tab="seeds" type="button">Innovation Seeds</button>
@@ -178,6 +179,7 @@
             <div class="metrics">
               <div class="metric"><b id="metric-experience">0</b><small>経験資産</small></div>
               <div class="metric"><b id="metric-proof">0</b><small>証跡・信頼</small></div>
+              <div class="metric"><b id="metric-network">0</b><small>人脈資産</small></div>
               <div class="metric"><b id="metric-roles">0</b><small>役割候補</small></div>
               <div class="metric"><b id="metric-seeds">0</b><small>Innovation Seed</small></div>
             </div>
@@ -223,6 +225,49 @@
           <div class="panel" style="grid-column: span 9">
             <h2>Experience Graph</h2>
             <div class="timeline" id="experience-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="social" class="tab">
+        <div class="grid">
+          <div class="panel half">
+            <h2>LinkedIn Career Import</h2>
+            <small>職務経歴、スキル、プロフィール文を貼り付けるか、LinkedInのデータエクスポートCSV/TXTを読み込みます。</small>
+            <label>LinkedIn公開プロフィールURL 任意<input id="linkedin-source-url" placeholder="https://www.linkedin.com/in/..."></label>
+            <label>LinkedInから貼り付け<textarea id="linkedin-import-text" placeholder="職務経歴、スキル、自己紹介、CSV行などを貼り付け"></textarea></label>
+            <label>CSV / TXTファイル<input id="linkedin-file" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain"></label>
+            <div class="actions">
+              <button class="primary" id="import-linkedin" type="button">キャリアとして取り込む</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>Facebook Network Import</h2>
+            <small>Facebookの友達・知人リストを、人脈資産として取り込みます。氏名、関係、メモを1行ずつ入れられます。</small>
+            <label>関係カテゴリ<select id="facebook-relationship-kind">
+              <option>友人</option>
+              <option>仕事つながり</option>
+              <option>地域つながり</option>
+              <option>教育・同窓</option>
+              <option>紹介候補</option>
+            </select></label>
+            <label>Facebookから貼り付け<textarea id="facebook-import-text" placeholder="山田太郎, 地域活動で接点&#10;佐藤花子, 教育関係"></textarea></label>
+            <label>CSV / TXTファイル<input id="facebook-file" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain"></label>
+            <div class="actions">
+              <button class="primary" id="import-facebook" type="button">人脈として取り込む</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>Imported Career</h2>
+            <div class="timeline" id="imported-career-list"></div>
+          </div>
+          <div class="panel half">
+            <h2>Network Graph</h2>
+            <div class="timeline" id="network-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>Career / Network Payload</h2>
+            <pre id="network-payload"></pre>
           </div>
         </div>
       </section>
@@ -369,6 +414,8 @@
         }
       ],
       entryProfile: null,
+      importedCareer: [],
+      networkPeople: [],
       seeds: [],
       navigatorNotes: []
     };
@@ -454,6 +501,29 @@
       </article>`;
     }
 
+    function importedCareerItem(item) {
+      return `<article class="timeline-item">
+        <div class="timeline-head">
+          <div class="badge-row"><span class="badge red">LinkedIn</span><span class="badge">${escapeHtml(item.type || "career_import")}</span></div>
+          <small>${escapeHtml(item.created_at || "")}</small>
+        </div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.summary)}</small>
+        ${item.source_url ? `<a href="${escapeHtml(item.source_url)}" target="_blank" rel="noopener">${escapeHtml(item.source_url)}</a>` : ""}
+      </article>`;
+    }
+
+    function networkPersonItem(person) {
+      return `<article class="timeline-item">
+        <div class="timeline-head">
+          <div class="badge-row"><span class="badge green">Facebook</span><span class="badge">${escapeHtml(person.relationship_kind || "人脈")}</span></div>
+          <small>${escapeHtml(person.created_at || "")}</small>
+        </div>
+        <strong>${escapeHtml(person.name)}</strong>
+        <small>${escapeHtml(person.note || "メモなし")}</small>
+      </article>`;
+    }
+
     function seedCard(seed) {
       return `<article class="role-card">
         <div class="badge-row"><span class="badge red">Innovation Seed</span><span class="badge">${escapeHtml(seed.domain)}</span></div>
@@ -470,6 +540,8 @@
         owner_interface: "Proofolio Encore",
         experience_assets: state.experience,
         proof_assets: state.proofs,
+        imported_career: state.importedCareer || [],
+        network_people: state.networkPeople || [],
         role_candidates: state.roles,
         agent_endpoints: state.agentEndpoints || [],
         entry_profile: state.entryProfile,
@@ -477,6 +549,59 @@
         navigator_notes: state.navigatorNotes,
         generated_at: new Date().toISOString()
       };
+    }
+
+    function splitImportLines(text) {
+      return String(text || "")
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+    }
+
+    function parseLooseRow(line) {
+      return line
+        .split(/\t|,/)
+        .map((cell) => cell.trim().replace(/^"|"$/g, ""))
+        .filter(Boolean);
+    }
+
+    async function readFileText(input) {
+      const file = input.files && input.files[0];
+      return file ? file.text() : "";
+    }
+
+    function parseLinkedInImport(text, sourceUrl) {
+      return splitImportLines(text).map((line) => {
+        const cells = parseLooseRow(line);
+        const title = cells[0] || line.slice(0, 80);
+        const summary = cells.length > 1 ? cells.slice(1).join(" / ") : line;
+        return {
+          id: id("li"),
+          source: "LinkedIn",
+          type: "career_import",
+          title,
+          summary,
+          source_url: sourceUrl,
+          trust: 1,
+          created_at: new Date().toISOString()
+        };
+      });
+    }
+
+    function parseFacebookImport(text, relationshipKind) {
+      return splitImportLines(text).map((line) => {
+        const cells = parseLooseRow(line);
+        return {
+          id: id("fb"),
+          source: "Facebook",
+          graph_type: "network_person",
+          name: cells[0] || line.slice(0, 60),
+          relationship_kind: relationshipKind,
+          note: cells.slice(1).join(" / "),
+          trust: 1,
+          created_at: new Date().toISOString()
+        };
+      });
     }
 
     function generateRoleCandidates() {
@@ -617,6 +742,7 @@
     function render() {
       $("#metric-experience").textContent = state.experience.length;
       $("#metric-proof").textContent = state.proofs.length;
+      $("#metric-network").textContent = (state.networkPeople || []).length;
       $("#metric-roles").textContent = state.roles.length;
       $("#metric-seeds").textContent = state.seeds.length;
       $("#experience-list-home").innerHTML = state.experience.slice(0, 3).map(experienceItem).join("");
@@ -626,6 +752,12 @@
       $("#role-market").innerHTML = state.roles.length ? state.roles.map(roleCard).join("") : `<div class="card"><span class="badge gold">Role</span><strong>役割候補を生成してください</strong><small>経験資産から顧問・地域実装・教育支援などの候補を出します。</small></div>`;
       $("#agent-list").innerHTML = (state.agentEndpoints || []).length ? state.agentEndpoints.map(agentItem).join("") : `<div class="timeline-item"><span class="badge gold">Agent API</span><strong>連携先はまだありません</strong><small>ハイクラス転職、顧問、PPP案件などのエージェントURLを登録できます。</small></div>`;
       $("#entry-profile-payload").textContent = JSON.stringify(state.entryProfile || buildEntryProfilePreview(), null, 2);
+      $("#imported-career-list").innerHTML = (state.importedCareer || []).length ? state.importedCareer.map(importedCareerItem).join("") : `<div class="timeline-item"><span class="badge red">LinkedIn</span><strong>取り込みはまだありません</strong><small>LinkedInの経歴を貼り付けるとExperience Graphにも反映されます。</small></div>`;
+      $("#network-list").innerHTML = (state.networkPeople || []).length ? state.networkPeople.map(networkPersonItem).join("") : `<div class="timeline-item"><span class="badge green">Facebook</span><strong>人脈はまだありません</strong><small>友達・知人リストを取り込むと、紹介候補やチーム形成に使えます。</small></div>`;
+      $("#network-payload").textContent = JSON.stringify({
+        imported_career: state.importedCareer || [],
+        network_people: state.networkPeople || []
+      }, null, 2);
       $("#seed-list").innerHTML = state.seeds.length ? state.seeds.map(seedCard).join("") : `<div class="card"><span class="badge red">Seed</span><strong>Innovation Seedを抽出してください</strong><small>経験を事業・PPP・教育・DAOの候補へ変換します。</small></div>`;
       $("#graph-payload").textContent = JSON.stringify(graphPayload(), null, 2);
       renderSelects();
@@ -659,6 +791,38 @@
         url: $("#proof-url").value.trim(),
         created_at: new Date().toISOString()
       });
+      saveState();
+      render();
+    });
+    $("#import-linkedin").addEventListener("click", async () => {
+      const pasted = $("#linkedin-import-text").value;
+      const fileText = await readFileText($("#linkedin-file"));
+      const sourceUrl = $("#linkedin-source-url").value.trim();
+      const records = parseLinkedInImport(`${pasted}\n${fileText}`, sourceUrl);
+      if (!records.length) return;
+      state.importedCareer = [...records, ...(state.importedCareer || [])];
+      const experiences = records.map((record) => ({
+        id: id("exp"),
+        title: record.title,
+        role: "LinkedIn Import",
+        summary: record.summary,
+        knowledge: "LinkedInから取り込んだ職務経歴。Proof Boardで証跡や推薦を追加してください。",
+        source_record_id: record.id,
+        created_at: record.created_at
+      }));
+      state.experience = [...experiences, ...state.experience];
+      state.entryProfile = null;
+      $("#linkedin-import-text").value = "";
+      saveState();
+      render();
+    });
+    $("#import-facebook").addEventListener("click", async () => {
+      const pasted = $("#facebook-import-text").value;
+      const fileText = await readFileText($("#facebook-file"));
+      const records = parseFacebookImport(`${pasted}\n${fileText}`, $("#facebook-relationship-kind").value);
+      if (!records.length) return;
+      state.networkPeople = [...records, ...(state.networkPeople || [])];
+      $("#facebook-import-text").value = "";
       saveState();
       render();
     });
