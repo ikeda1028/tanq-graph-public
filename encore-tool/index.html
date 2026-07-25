@@ -232,9 +232,39 @@
           <div class="panel full">
             <div class="section-head">
               <h2>Role Market</h2>
-              <button class="primary" id="generate-roles" type="button">役割候補を生成</button>
+              <div class="actions">
+                <button class="primary" id="generate-roles" type="button">役割候補を生成</button>
+                <button class="secondary" id="build-entry-profile" type="button">応募データを生成</button>
+              </div>
             </div>
             <div class="mini-grid three" id="role-market"></div>
+          </div>
+          <div class="panel half">
+            <h2>ハイスペックエージェント連携</h2>
+            <div class="mini-grid">
+              <label>エージェント名<input id="agent-name" value="Executive / Professional Agent"></label>
+              <label>種別<select id="agent-kind">
+                <option>ハイクラス転職</option>
+                <option>顧問・プロ人材</option>
+                <option>副業・業務委託</option>
+                <option>地方創生・PPP</option>
+                <option>教育・探究メンター</option>
+              </select></label>
+            </div>
+            <label>ホームページ / API URL<input id="agent-url" placeholder="https://agent.example.com/api/jobs または https://agent.example.com/"></label>
+            <label>狙いたいポジション<input id="agent-position" value="事業開発責任者 / 地域共創プロデューサー / 顧問"></label>
+            <div class="actions">
+              <button class="primary" id="add-agent" type="button">連携先に追加</button>
+              <button class="secondary" id="copy-agent-payload" type="button">応募JSONコピー</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>Agent API Registry</h2>
+            <div class="timeline" id="agent-list"></div>
+          </div>
+          <div class="panel full">
+            <h2>Entry Profile Payload</h2>
+            <pre id="entry-profile-payload"></pre>
           </div>
         </div>
       </section>
@@ -328,6 +358,17 @@
         }
       ],
       roles: [],
+      agentEndpoints: [
+        {
+          id: "agent_highclass_001",
+          name: "Executive / Professional Agent",
+          kind: "ハイクラス転職",
+          url: "",
+          target_position: "事業開発責任者 / 地域共創プロデューサー / 顧問",
+          created_at: "2026-07-25T09:30:00+09:00"
+        }
+      ],
+      entryProfile: null,
       seeds: [],
       navigatorNotes: []
     };
@@ -394,8 +435,22 @@
       return `<article class="role-card">
         <div class="badge-row"><span class="badge gold">${escapeHtml(role.market || "Role")}</span><span class="badge green">Fit ${escapeHtml(role.fit)}</span></div>
         <strong>${escapeHtml(role.title)}</strong>
+        <small><b>応募先想定:</b> ${escapeHtml(role.target_position || "")}</small>
+        <small><b>見出し:</b> ${escapeHtml(role.entry_headline || "")}</small>
         <small>${escapeHtml(role.reason)}</small>
         <small><b>次の一歩:</b> ${escapeHtml(role.next)}</small>
+      </article>`;
+    }
+
+    function agentItem(agent) {
+      return `<article class="timeline-item">
+        <div class="timeline-head">
+          <div class="badge-row"><span class="badge gold">Agent API</span><span class="badge">${escapeHtml(agent.kind)}</span></div>
+          <small>${escapeHtml(agent.created_at || "")}</small>
+        </div>
+        <strong>${escapeHtml(agent.name)}</strong>
+        <small><b>対象:</b> ${escapeHtml(agent.target_position || "")}</small>
+        <small>${agent.url ? escapeHtml(agent.url) : "URL未設定。ホームページ/API URLを登録してください。"}</small>
       </article>`;
     }
 
@@ -416,6 +471,8 @@
         experience_assets: state.experience,
         proof_assets: state.proofs,
         role_candidates: state.roles,
+        agent_endpoints: state.agentEndpoints || [],
+        entry_profile: state.entryProfile,
         innovation_seeds: state.seeds,
         navigator_notes: state.navigatorNotes,
         generated_at: new Date().toISOString()
@@ -430,6 +487,8 @@
           title: hasPpp ? "地域PPPプロジェクト・アドバイザー" : "事業開発アドバイザー",
           market: "Advisory",
           fit: hasPpp ? "92" : "84",
+          target_position: "事業開発責任者 / PPP推進アドバイザー / 地域共創プロデューサー",
+          entry_headline: "多様なステイクホルダーを束ね、構想を小さな実証へ落とし込める事業開発人材",
           reason: "関係者調整、実証設計、意思決定支援の経験を外部支援価値として提供できる。",
           next: "3件の実績証跡と支援メニューを1ページに整理する"
         },
@@ -437,6 +496,8 @@
           title: hasMentor ? "探究・キャリア共創メンター" : "次世代人材育成メンター",
           market: "Education",
           fit: hasMentor ? "90" : "78",
+          target_position: "人材開発責任者 / 教育事業プロデューサー / 探究メンター",
+          entry_headline: "問いを成果物と進路証跡へ育てる、教育・人材開発型の伴走人材",
           reason: "問いを育てる伴走経験を、学校・企業研修・地域人材育成に転用できる。",
           next: "対象年齢、支援範囲、成果物テンプレートを定義する"
         },
@@ -444,12 +505,56 @@
           title: "Innovation Seed組成プロデューサー",
           market: "Venture",
           fit: "86",
+          target_position: "新規事業開発 / オープンイノベーション / スタートアップ支援",
+          entry_headline: "探究テーマ、事業仮説、関係者を束ね、実証から事業組成へ進める人材",
           reason: "探究テーマ、事業仮説、関係者を接続し、小さな実証から事業化へ進める役割。",
           next: "TANQ Innovation Engineへ送る候補テーマを選ぶ"
         }
       ];
       saveState();
       render();
+    }
+
+    function buildEntryProfilePreview() {
+      const role = state.roles[0] || {};
+      return {
+        graph_type: "high_spec_entry_profile",
+        status: "preview",
+        headline: role.entry_headline || "役割候補を生成すると応募見出しが入ります",
+        target_positions: state.roles.map((item) => item.target_position).filter(Boolean),
+        api_targets: state.agentEndpoints || [],
+        privacy_note: "応募JSON生成後、ここにエージェントへ渡せる構造データが表示されます。"
+      };
+    }
+
+    function buildEntryProfile() {
+      if (!state.roles.length) generateRoleCandidates();
+      const leadRole = state.roles[0];
+      const proofTitles = state.proofs.slice(0, 4).map((proof) => proof.title);
+      const experienceTitles = state.experience.slice(0, 4).map((experience) => experience.title);
+      state.entryProfile = {
+        id: id("entry"),
+        graph_type: "high_spec_entry_profile",
+        source: "Proofolio Encore",
+        headline: leadRole.entry_headline,
+        target_positions: state.roles.map((role) => role.target_position),
+        role_recommendations: state.roles,
+        representative_experience: experienceTitles,
+        proof_highlights: proofTitles,
+        strengths: [
+          "多様なステイクホルダーとの合意形成",
+          "構想を実証プロジェクトへ落とし込む力",
+          "若手・学生・地域人材への探究伴走",
+          "事業仮説と社会実装の接続"
+        ],
+        entry_pitch: `${leadRole.title}として、経験・暗黙知・関係者調整力を活かし、事業開発、地域共創、教育支援の高度案件に貢献できます。`,
+        api_targets: state.agentEndpoints || [],
+        privacy_note: "実送信前に、守秘義務・所属組織ルール・個人情報を確認してください。",
+        created_at: new Date().toISOString()
+      };
+      saveState();
+      render();
+      return state.entryProfile;
     }
 
     function generateInnovationSeeds() {
@@ -519,6 +624,8 @@
       $("#proof-list").innerHTML = state.proofs.map(proofItem).join("");
       $("#role-list-home").innerHTML = state.roles.length ? state.roles.slice(0, 2).map(roleCard).join("") : `<div class="timeline-item"><span class="badge gold">Role</span><strong>役割候補はまだありません</strong><small>Role Marketで生成できます。</small></div>`;
       $("#role-market").innerHTML = state.roles.length ? state.roles.map(roleCard).join("") : `<div class="card"><span class="badge gold">Role</span><strong>役割候補を生成してください</strong><small>経験資産から顧問・地域実装・教育支援などの候補を出します。</small></div>`;
+      $("#agent-list").innerHTML = (state.agentEndpoints || []).length ? state.agentEndpoints.map(agentItem).join("") : `<div class="timeline-item"><span class="badge gold">Agent API</span><strong>連携先はまだありません</strong><small>ハイクラス転職、顧問、PPP案件などのエージェントURLを登録できます。</small></div>`;
+      $("#entry-profile-payload").textContent = JSON.stringify(state.entryProfile || buildEntryProfilePreview(), null, 2);
       $("#seed-list").innerHTML = state.seeds.length ? state.seeds.map(seedCard).join("") : `<div class="card"><span class="badge red">Seed</span><strong>Innovation Seedを抽出してください</strong><small>経験を事業・PPP・教育・DAOの候補へ変換します。</small></div>`;
       $("#graph-payload").textContent = JSON.stringify(graphPayload(), null, 2);
       renderSelects();
@@ -556,6 +663,27 @@
       render();
     });
     $("#generate-roles").addEventListener("click", generateRoleCandidates);
+    $("#build-entry-profile").addEventListener("click", buildEntryProfile);
+    $("#add-agent").addEventListener("click", () => {
+      state.agentEndpoints = state.agentEndpoints || [];
+      state.agentEndpoints.unshift({
+        id: id("agent"),
+        name: $("#agent-name").value.trim(),
+        kind: $("#agent-kind").value,
+        url: $("#agent-url").value.trim(),
+        target_position: $("#agent-position").value.trim(),
+        created_at: new Date().toISOString()
+      });
+      state.entryProfile = null;
+      saveState();
+      render();
+    });
+    $("#copy-agent-payload").addEventListener("click", async () => {
+      const profile = state.entryProfile || buildEntryProfile();
+      await navigator.clipboard.writeText(JSON.stringify(profile, null, 2));
+      $("#copy-agent-payload").textContent = "コピーしました";
+      setTimeout(() => $("#copy-agent-payload").textContent = "応募JSONコピー", 1200);
+    });
     $("#generate-seeds").addEventListener("click", generateInnovationSeeds);
     $("#ask-navigator").addEventListener("click", navigatorResponse);
     $("#copy-payload").addEventListener("click", async () => {
