@@ -199,4 +199,18 @@ OPENAI_API_KEY="sk-..." node kids-ai-server.mjs
 - Kids AI endpoint: `http://127.0.0.1:4180/api/kids-coach`
 - Navigator Studio: `http://127.0.0.1:4180/coach-admin/`
 
-公開GitHub Pages上ではサーバー処理は動かないため、本番ではFirebase Functions、Cloud Run、Vercelなどに`/api/kids-coach`相当のHTTPSエンドポイントを置き、Navigator StudioまたはKids ToolにそのURLを設定してください。
+Proofolio EncoreでOpenAI APIを使う場合も、APIキーをHTMLへ入れず、ローカルサーバーの環境変数に入れます。
+
+```bash
+cd outputs/tanq-graph-public
+OPENAI_API_KEY="sk-..." node encore-ai-server.mjs
+```
+
+起動後:
+
+- Proofolio Encore Tool: `http://127.0.0.1:4191/encore-tool/`
+- Encore AI endpoint: `http://127.0.0.1:4191/api/encore-coach`
+
+`file://`で`encore-tool/index.html`を直接開いた場合は、OpenAI APIには接続せず、画面内のローカルコーチ応答にフォールバックします。本物のAI応答を試す場合は、上記のローカルサーバーURLから開いてください。
+
+公開GitHub Pages上ではサーバー処理は動かないため、本番ではFirebase Functions、Cloud Run、Vercelなどに`/api/kids-coach`や`/api/encore-coach`相当のHTTPSエンドポイントを置き、各ToolからそのURLへ接続してください。

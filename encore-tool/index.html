@@ -409,6 +409,7 @@
   <script>
     const storageKey = "proofolio-encore-state";
     const $ = (selector) => document.querySelector(selector);
+    const defaultEncoreAiEndpoint = location.protocol.startsWith("http") ? `${location.origin}/api/encore-coach` : "";
     const seedState = {
       experience: [
         {
@@ -693,6 +694,50 @@
       }[intent] || "次に深掘りしたい観点はどこですか？";
     }
 
+    function fallbackNextAction(intent) {
+      return {
+        career: "経験資産に急がず、まずその経験に表れている判断軸をもう少し言葉にする",
+        network: "人脈リストにする前に、その関係性から見える信頼の形を深める",
+        proof: "証跡化する前に、その出来事が自分にとって何を証明しているのかを整理する",
+        entry: "応募先を選ぶ前に、どんな役割なら自然に価値を出せるかを深める",
+        knowledge: "Personal Knowledgeとして、価値観・問い・違和感・関心の流れをもう少し育てる",
+        navigator: "相談ログとして残すか、経歴・証跡・人脈へ変換するかを次の対話で見極める"
+      }[intent] || "次の対話で、もう一段だけ背景を深める";
+    }
+
+    function normalizeMaturity(value, fallback) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return fallback;
+      return Math.max(1, Math.min(4, number));
+    }
+
+    async function requestEncoreAi(text, intent, previous, maturity, combinedSummary) {
+      if (!defaultEncoreAiEndpoint) return null;
+      try {
+        const response = await fetch(defaultEncoreAiEndpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: "encore_knowledge_coach",
+            text,
+            detected_intent: intent,
+            pending_draft: previous || null,
+            maturity,
+            combined_summary: combinedSummary,
+            personal_knowledge_notes: state.personalKnowledgeNotes || [],
+            recent_commands: (state.commandHistory || []).slice(0, 6)
+          })
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        if (!data.ok && data.error) throw new Error(data.error);
+        return data;
+      } catch (error) {
+        console.warn("Encore AI endpoint failed. Falling back to local coach.", error);
+        return null;
+      }
+    }
+
     function coachToneByMaturity(maturity) {
       if (maturity >= 3) return "だいぶ輪郭が見えてきました。必要になったら、この整理をナレッジとして記録できます。もう少し話しても大丈夫です。";
       if (maturity >= 2) return "少しずつ軸が見えてきました。急いで結論にしなくて大丈夫です。次は、なぜそれが自分にとって大事なのかを一緒に見ていきましょう。";
@@ -719,41 +764,49 @@
       setActiveTab(tabId);
     }
 
-    function runEncoreCommand() {
+    async function runEncoreCommand() {
       const text = $("#encore-command").value.trim();
       if (!text) return;
       const intent = commandIntent(text);
       const now = new Date().toISOString();
       const previous = state.pendingCommandDraft;
-      const maturity = previous ? Number(previous.maturity || 1) + 1 : 1;
+      const maturity = normalizeMaturity(previous ? Number(previous.maturity || 1) + 1 : 1, 1);
       const combinedSummary = previous ? `${previous.summary}\n\n追加の話: ${text}` : text;
-      state.pendingCommandDraft = {
-        id: previous?.id || id("draft"),
-        intent,
-        title: makeTitle(text, intent === "navigator" ? "AI相談メモ" : "整理メモ"),
-        summary: combinedSummary,
-        coach_view: coachPerspective(intent),
-        coach_question: coachQuestion(intent),
-        next_action: intent === "career" ? "経験資産として残し、必要なら証跡を追加する" :
-          intent === "network" ? "人脈資産として記録し、紹介・チーム形成候補に使う" :
-          intent === "proof" ? "証跡として記録し、代表経験に紐づける" :
-          intent === "entry" ? "応募・役割候補として記録し、Entry Profileを生成する" :
-          "相談ログとして残すか、経歴・証跡・人脈へ変換する",
-        maturity,
-        raw_text: text,
-        created_at: now
-      };
-      state.commandHistory = [{
-        id: id("cmdlog"),
-        intent,
-        text,
-        result: "drafted",
-        created_at: now
-      }, ...(state.commandHistory || [])].slice(0, 20);
-      $("#encore-command").value = "";
-      showCommandResult(state.pendingCommandDraft);
-      saveState();
-      render();
+      $("#run-command").disabled = true;
+      $("#command-result").innerHTML = `<div class="coach-message"><strong>少し考えています。</strong><small>今の言葉の奥にある関心や判断軸を見ています。</small></div>`;
+      $("#command-result").classList.add("active");
+      try {
+        const ai = await requestEncoreAi(text, intent, previous, maturity, combinedSummary);
+        const draftIntent = ai?.intent || intent;
+        state.pendingCommandDraft = {
+          id: previous?.id || id("draft"),
+          intent: draftIntent,
+          title: ai?.title || makeTitle(text, draftIntent === "navigator" ? "AI相談メモ" : "整理メモ"),
+          summary: ai?.summary ? `${previous?.summary ? `${previous.summary}\n\n` : ""}${ai.summary}` : combinedSummary,
+          coach_view: ai?.coach_view || coachPerspective(draftIntent),
+          coach_question: ai?.coach_question || coachQuestion(draftIntent),
+          next_action: ai?.next_action || fallbackNextAction(draftIntent),
+          maturity: normalizeMaturity(ai?.maturity, maturity),
+          knowledge_tags: Array.isArray(ai?.knowledge_tags) ? ai.knowledge_tags : [],
+          source: ai?.source || "local",
+          model: ai?.model || "",
+          raw_text: text,
+          created_at: now
+        };
+        state.commandHistory = [{
+          id: id("cmdlog"),
+          intent: draftIntent,
+          text,
+          result: "drafted",
+          created_at: now
+        }, ...(state.commandHistory || [])].slice(0, 20);
+        $("#encore-command").value = "";
+        showCommandResult(state.pendingCommandDraft);
+        saveState();
+        render();
+      } finally {
+        $("#run-command").disabled = false;
+      }
     }
 
     function commitCommandDraft() {
