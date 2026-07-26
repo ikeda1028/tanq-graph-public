@@ -41,7 +41,7 @@
     .nav button, .nav a { text-align: left; border: 1px solid transparent; background: transparent; color: var(--muted); padding: 10px 12px; border-radius: 8px; cursor: pointer; text-decoration: none; }
     .nav button.active { color: var(--ink); background: var(--panel); border-color: var(--line); box-shadow: 0 8px 20px rgba(54,45,30,.08); }
     .session { margin-top: 16px; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-    .hero, .panel, .card, .metric, .timeline-item, .role-card, .navigator-box {
+    .hero, .panel, .card, .metric, .timeline-item, .role-card, .navigator-box, .command-center {
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
@@ -53,6 +53,11 @@
     h3 { font-size: 15px; }
     .eyebrow { margin-bottom: 10px; color: var(--red); font-weight: 700; font-size: 13px; }
     .lead { margin-top: 14px; color: var(--muted); line-height: 1.75; max-width: 850px; }
+    .command-center { margin-top: 18px; padding: 14px; display: grid; gap: 12px; border-color: rgba(37,107,87,.32); background: linear-gradient(180deg, rgba(37,107,87,.08), rgba(255,253,248,.94)); }
+    .command-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+    .command-input textarea { min-height: 86px; border-color: rgba(37,107,87,.3); font-size: 16px; }
+    .command-result { display: none; padding: 12px; border: 1px solid rgba(37,107,87,.22); border-radius: 8px; background: rgba(255,253,248,.72); color: var(--muted); line-height: 1.55; }
+    .command-result.active { display: block; }
     .hero-map {
       min-height: 260px;
       border: 1px solid var(--line);
@@ -157,10 +162,23 @@
           <p class="eyebrow">Proofolio Encore</p>
           <h1>経験を、次の役割と事業機会へ再編集する。</h1>
           <p class="lead">45歳以降の実績、人脈、判断力、暗黙知を、証跡・信頼・顧問価値・地域実装・Innovation Seedへ変換するインターフェイスです。</p>
-          <div class="actions" style="margin-top:18px">
-            <button class="primary" data-tab-jump="experience" type="button">経験を入力する</button>
-            <button class="secondary" data-tab-jump="navigator" type="button">AI探究ナビゲーターに整理させる</button>
-            <button class="secondary" id="copy-payload" type="button">Graph JSONコピー</button>
+          <div class="command-center">
+            <div class="section-head">
+              <h2>Encore Command</h2>
+              <span class="badge green">Single Window</span>
+            </div>
+            <div class="command-input">
+              <label>入力<textarea id="encore-command" placeholder="例: LinkedIn経歴として、地域企業との新規事業立ち上げを担当。行政、学校、企業をつなぎ実証設計を行った。"></textarea></label>
+              <button class="primary" id="run-command" type="button">整理する</button>
+            </div>
+            <div class="actions">
+              <button class="secondary" data-command-template="career" type="button">経歴</button>
+              <button class="secondary" data-command-template="network" type="button">人脈</button>
+              <button class="secondary" data-command-template="proof" type="button">証跡</button>
+              <button class="secondary" data-command-template="entry" type="button">応募</button>
+              <button class="secondary" id="copy-payload" type="button">Graph JSONコピー</button>
+            </div>
+            <div class="command-result" id="command-result"></div>
           </div>
         </div>
         <div class="hero-map" aria-label="Encore graph">
@@ -416,6 +434,7 @@
       entryProfile: null,
       importedCareer: [],
       networkPeople: [],
+      commandHistory: [],
       seeds: [],
       navigatorNotes: []
     };
@@ -542,6 +561,7 @@
         proof_assets: state.proofs,
         imported_career: state.importedCareer || [],
         network_people: state.networkPeople || [],
+        command_history: state.commandHistory || [],
         role_candidates: state.roles,
         agent_endpoints: state.agentEndpoints || [],
         entry_profile: state.entryProfile,
@@ -602,6 +622,120 @@
           created_at: new Date().toISOString()
         };
       });
+    }
+
+    function commandIntent(text) {
+      if (/facebook|友達|友人|人脈|紹介|同僚|仲間/i.test(text)) return "network";
+      if (/証跡|推薦|評価|レビュー|契約|提出|認定/i.test(text)) return "proof";
+      if (/応募|転職|エージェント|求人|role|ポジション|LinkedIn|linkedin/i.test(text)) return "entry";
+      if (/経歴|職務|実績|経験|キャリア|担当|プロジェクト/i.test(text)) return "career";
+      return "navigator";
+    }
+
+    function makeTitle(text, fallback) {
+      const firstLine = splitImportLines(text)[0] || fallback;
+      return firstLine.replace(/^(LinkedIn|Facebook|経歴|人脈|証跡|応募)[:：\s]*/i, "").slice(0, 42) || fallback;
+    }
+
+    function runEncoreCommand() {
+      const text = $("#encore-command").value.trim();
+      if (!text) return;
+      const intent = commandIntent(text);
+      const now = new Date().toISOString();
+      let message = "";
+
+      if (intent === "network") {
+        const person = {
+          id: id("net"),
+          source: /facebook/i.test(text) ? "Facebook" : "Encore Command",
+          graph_type: "network_person",
+          name: makeTitle(text, "人脈メモ"),
+          relationship_kind: "紹介候補",
+          note: text,
+          trust: 1,
+          created_at: now
+        };
+        state.networkPeople = [person, ...(state.networkPeople || [])];
+        message = `人脈資産として保存しました。${person.name} を紹介候補・チーム形成候補に使えます。`;
+      } else if (intent === "proof") {
+        const target = state.experience[0];
+        const proof = {
+          id: id("proof"),
+          experience_id: target?.id || "",
+          title: makeTitle(text, "証跡メモ"),
+          trust: 3,
+          note: text,
+          url: "",
+          created_at: now
+        };
+        state.proofs = [proof, ...state.proofs];
+        message = `証跡として保存しました。${target ? `「${target.title}」に紐づけています。` : "経験資産を追加すると紐づけできます。"}`;
+      } else if (intent === "entry") {
+        const roleTitle = makeTitle(text, "応募・役割メモ");
+        state.agentEndpoints = state.agentEndpoints || [];
+        state.agentEndpoints.unshift({
+          id: id("agent"),
+          name: roleTitle,
+          kind: "ハイクラス転職",
+          url: "",
+          target_position: text,
+          created_at: now
+        });
+        state.entryProfile = null;
+        generateRoleCandidates();
+        buildEntryProfile();
+        message = "応募・役割候補として整理し、Entry Profile Payloadを更新しました。";
+      } else if (intent === "career") {
+        const career = {
+          id: id("cmd"),
+          source: "Encore Command",
+          type: "career_import",
+          title: makeTitle(text, "キャリアメモ"),
+          summary: text,
+          source_url: "",
+          trust: 1,
+          created_at: now
+        };
+        state.importedCareer = [career, ...(state.importedCareer || [])];
+        state.experience = [{
+          id: id("exp"),
+          title: career.title,
+          role: "Encore Command",
+          summary: text,
+          knowledge: "単一入力から抽出した経験資産。Proof Boardで証跡や推薦を追加してください。",
+          source_record_id: career.id,
+          created_at: now
+        }, ...state.experience];
+        state.entryProfile = null;
+        message = "経験資産として保存し、Experience Graphへ反映しました。";
+      } else {
+        const note = {
+          id: id("nav"),
+          prompt: text,
+          summary: "AI探究ナビゲーターの相談ログとして保存しました。次に経歴・証跡・応募・人脈のどれへ変換するか選べます。",
+          next_actions: ["経験資産化", "証跡追加", "役割候補生成"],
+          created_at: now
+        };
+        state.navigatorNotes.unshift(note);
+        message = note.summary;
+      }
+
+      state.commandHistory = [{
+        id: id("cmdlog"),
+        intent,
+        text,
+        result: message,
+        created_at: now
+      }, ...(state.commandHistory || [])].slice(0, 20);
+      if (intent !== "entry") {
+        generateRoleCandidates();
+        generateInnovationSeeds();
+      }
+      $("#encore-command").value = "";
+      $("#command-result").innerHTML = `<span class="badge green">${escapeHtml(intent)}</span><strong>${escapeHtml(message)}</strong>`;
+      $("#command-result").classList.add("active");
+      saveState();
+      render();
     }
 
     function generateRoleCandidates() {
@@ -825,6 +959,22 @@
       $("#facebook-import-text").value = "";
       saveState();
       render();
+    });
+    $("#run-command").addEventListener("click", runEncoreCommand);
+    $("#encore-command").addEventListener("keydown", (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === "Enter") runEncoreCommand();
+    });
+    document.querySelectorAll("[data-command-template]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const templates = {
+          career: "経歴: ",
+          network: "人脈: ",
+          proof: "証跡: ",
+          entry: "応募: "
+        };
+        $("#encore-command").value = templates[button.dataset.commandTemplate] || "";
+        $("#encore-command").focus();
+      });
     });
     $("#generate-roles").addEventListener("click", generateRoleCandidates);
     $("#build-entry-profile").addEventListener("click", buildEntryProfile);
