@@ -31,6 +31,17 @@
     }
     button, input, select, textarea { font: inherit; }
     .shell { min-height: 100vh; display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+    .shell.coach-mode { display: block; }
+    .shell.coach-mode aside,
+    .shell.coach-mode .hero-map,
+    .shell.coach-mode #home,
+    .shell.coach-mode .eyebrow,
+    .shell.coach-mode .lead {
+      display: none;
+    }
+    .shell.coach-mode main { max-width: 920px; min-height: 100vh; margin: 0 auto; padding: 8vh 22px 28px; }
+    .shell.coach-mode .hero { display: block; padding: 0; margin: 0; border: 0; background: transparent; box-shadow: none; }
+    .shell.coach-mode h1 { max-width: 760px; font-size: clamp(30px, 6vw, 54px); }
     aside { position: sticky; top: 0; height: 100vh; padding: 24px 18px; border-right: 1px solid var(--line); background: rgba(255,253,248,.78); }
     main { padding: 28px; max-width: 1360px; width: 100%; }
     .brand { display: flex; gap: 10px; align-items: center; margin-bottom: 22px; }
@@ -54,10 +65,21 @@
     .eyebrow { margin-bottom: 10px; color: var(--red); font-weight: 700; font-size: 13px; }
     .lead { margin-top: 14px; color: var(--muted); line-height: 1.75; max-width: 850px; }
     .command-center { margin-top: 18px; padding: 14px; display: grid; gap: 12px; border-color: rgba(37,107,87,.32); background: linear-gradient(180deg, rgba(37,107,87,.08), rgba(255,253,248,.94)); }
+    .shell.coach-mode .command-center { margin-top: 24px; padding: 0; border: 0; background: transparent; }
     .command-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
     .command-input textarea { min-height: 86px; border-color: rgba(37,107,87,.3); font-size: 16px; }
+    .shell.coach-mode .command-input { grid-template-columns: 1fr; }
+    .shell.coach-mode .command-input textarea { min-height: 142px; padding: 18px; font-size: 18px; border-color: rgba(34,35,31,.18); background: rgba(255,253,248,.92); box-shadow: 0 18px 44px rgba(54,45,30,.1); }
+    .shell.coach-mode .section-head { display: none; }
+    .shell.coach-mode .actions { justify-content: flex-end; }
+    .shell.coach-mode #commit-command { display: none; }
+    .shell.coach-mode.ready-to-record #commit-command { display: inline-flex; }
+    .shell.coach-mode #copy-payload { display: none; }
     .command-result { display: none; padding: 12px; border: 1px solid rgba(37,107,87,.22); border-radius: 8px; background: rgba(255,253,248,.72); color: var(--muted); line-height: 1.55; }
+    .shell.coach-mode .command-result { border: 0; padding: 0; background: transparent; }
     .command-result.active { display: block; }
+    .coach-message { display: grid; gap: 10px; margin-top: 18px; padding: 18px; border-radius: 8px; background: rgba(255,253,248,.86); box-shadow: 0 14px 32px rgba(54,45,30,.08); color: var(--ink); }
+    .coach-message small { font-size: 14px; line-height: 1.75; }
     .hero-map {
       min-height: 260px;
       border: 1px solid var(--line);
@@ -129,13 +151,13 @@
   </style>
 </head>
 <body>
-  <div class="shell">
+  <div class="shell coach-mode" id="encore-shell">
     <aside>
       <div class="brand">
         <span class="mark">PE</span>
         <div>
           <strong>Proofolio Encore</strong>
-          <span>Experience to next role</span>
+          <span>Thinking to knowledge</span>
         </div>
       </div>
       <nav class="nav">
@@ -160,22 +182,22 @@
       <section class="hero">
         <div>
           <p class="eyebrow">Proofolio Encore</p>
-          <h1>経験を、次の役割と事業機会へ再編集する。</h1>
-          <p class="lead">45歳以降の実績、人脈、判断力、暗黙知を、証跡・信頼・顧問価値・地域実装・Innovation Seedへ変換するインターフェイスです。</p>
+          <h1>あなたの思考を、使えるナレッジへ育てます。</h1>
+          <p class="lead">キャリアの前にある価値観、問い、判断軸、関心、違和感を対話で映し取り、あとから経験資産・証跡・役割候補へ育てるインターフェイスです。</p>
           <div class="command-center">
             <div class="section-head">
-              <h2>Encore Career Coach</h2>
+              <h2>Encore Knowledge Coach</h2>
               <span class="badge green">One Window</span>
             </div>
+            <div class="command-result" id="command-result"></div>
             <div class="command-input">
-              <label>相談・リサーチ・疑問<textarea id="encore-command" placeholder="例: これまで地域企業との新規事業立ち上げをしてきた。行政、学校、企業をつないだ経験を、次のキャリアや顧問案件にどう整理できるだろう。"></textarea></label>
-              <button class="primary" id="run-command" type="button">AIキャリアコーチに相談</button>
+              <label>思考・相談・リサーチ・疑問<textarea id="encore-command" placeholder="例: 最近、地域で人がつながる場を作ることに強い関心がある。なぜ自分はそこに惹かれるのか、どんな価値に変えられるのか一緒に整理したい。"></textarea></label>
+              <button class="primary" id="run-command" type="button">AIナレッジコーチに話す</button>
             </div>
             <div class="actions">
-              <button class="primary" id="commit-command" type="button">記録する</button>
+              <button class="secondary" id="commit-command" type="button">記録する</button>
               <button class="secondary" id="copy-payload" type="button">Graph JSONコピー</button>
             </div>
-            <div class="command-result" id="command-result"></div>
           </div>
         </div>
         <div class="hero-map" aria-label="Encore graph">
@@ -433,6 +455,7 @@
       networkPeople: [],
       pendingCommandDraft: null,
       commandHistory: [],
+      personalKnowledgeNotes: [],
       seeds: [],
       navigatorNotes: []
     };
@@ -561,6 +584,7 @@
         network_people: state.networkPeople || [],
         pending_command_draft: state.pendingCommandDraft || null,
         command_history: state.commandHistory || [],
+        personal_knowledge_notes: state.personalKnowledgeNotes || [],
         role_candidates: state.roles,
         agent_endpoints: state.agentEndpoints || [],
         entry_profile: state.entryProfile,
@@ -628,7 +652,7 @@
       if (/証跡|推薦|評価|レビュー|契約|提出|認定/i.test(text)) return "proof";
       if (/応募|転職|エージェント|求人|role|ポジション|LinkedIn|linkedin/i.test(text)) return "entry";
       if (/経歴|職務|実績|経験|キャリア|担当|プロジェクト/i.test(text)) return "career";
-      return "navigator";
+      return "knowledge";
     }
 
     function makeTitle(text, fallback) {
@@ -642,41 +666,57 @@
         network: "人脈資産候補",
         proof: "証跡候補",
         entry: "応募・役割候補",
+        knowledge: "Personal Knowledge",
         navigator: "AI相談メモ"
       }[intent] || "整理メモ";
     }
 
     function coachPerspective(intent) {
       return {
-        career: "これは単なる職務経歴ではなく、次の役割に転用できる経験資産です。成果だけでなく、どんな判断をしたか、誰を動かしたか、再現できる型は何かを残しましょう。",
-        network: "この人脈は、単なる連絡先ではなく、紹介・共創・検証先になり得ます。相手との信頼の根拠と、次に相談できるテーマを一緒に残すと価値が上がります。",
-        proof: "これは自己PRより強い証跡になります。誰が、どの立場で、何を評価したのかを補うと、信頼レベルを上げられます。",
-        entry: "これは応募先に合わせて翻訳できる材料です。肩書きではなく、相手企業が買いたい成果、任せたい役割、証明できる実績に分けて整えましょう。",
+        career: "今の話には、職務経歴より前にある判断軸が見えます。どんな場面で力が出るのか、どんな状況に違和感を持つのかを一緒にほどくと、あとで自然にキャリア資産になります。",
+        network: "人とのつながりの話ですね。ここでは名前のリストにする前に、あなたがどんな関係性を大事にしているのか、誰といる時に力が出るのかを見ていきたいです。",
+        proof: "証明できる出来事の話に近いですが、まだ評価に急がなくて大丈夫です。その出来事があなたにとって何を意味していたのかを言葉にしてみましょう。",
+        entry: "応募や次の役割につながる話ですが、先に『どんな働き方なら自分らしく価値を出せるか』を見ておくと、表面的な肩書きに引っ張られません。",
+        knowledge: "これはキャリアそのものというより、あなたの思考や人格の輪郭に触れている話です。焦って結論にせず、価値観、問い、判断の癖、関心の向きを一緒に言葉にしていきましょう。",
         navigator: "まだ記録に急がなくて大丈夫です。まず問いや違和感を言語化し、そこから経験・人脈・証跡・役割候補へ育てていきましょう。"
       }[intent] || "まだ素材の段階です。焦って整えず、価値の芽を見つけていきましょう。";
     }
 
     function coachQuestion(intent) {
       return {
-        career: "この経験で、あなたがいなければ進まなかったことは何ですか？",
-        network: "この人に、次にどんな相談や紹介をお願いできそうですか？",
-        proof: "この評価を第三者が見た時、何が信頼の根拠になりますか？",
-        entry: "この内容を、どんな職種・顧問案件・事業開発案件に接続したいですか？",
+        career: "その経験の中で、あなたが自然に引き受けてしまう役割は何でしたか？",
+        network: "その人たちとの関係で、あなたが大事にしている信頼の形は何ですか？",
+        proof: "その出来事を思い出すと、どんな価値観やこだわりが表れていたと思いますか？",
+        entry: "次の役割を選ぶ時、絶対に失いたくない感覚は何ですか？",
+        knowledge: "その関心や違和感は、いつ頃から自分の中にありましたか？",
         navigator: "このテーマは、経歴、人脈、証跡、応募、事業アイデアのどれに近づいていますか？"
       }[intent] || "次に深掘りしたい観点はどこですか？";
     }
 
-    function showCommandResult(draft, message = "キャリアコーチとして整理しました。まだ下書きなので、納得できたら記録してください。") {
+    function coachToneByMaturity(maturity) {
+      if (maturity >= 3) return "だいぶ輪郭が見えてきました。必要になったら、この整理をナレッジとして記録できます。もう少し話しても大丈夫です。";
+      if (maturity >= 2) return "少しずつ軸が見えてきました。急いで結論にしなくて大丈夫です。次は、なぜそれが自分にとって大事なのかを一緒に見ていきましょう。";
+      return "話してくれてありがとうございます。まだ素材の段階で大丈夫です。まずは、思考や違和感の奥にある価値の芽を一緒に見つけていきましょう。";
+    }
+
+    function showCommandResult(draft, message = "") {
+      const maturityMessage = message || coachToneByMaturity(Number(draft.maturity || 1));
       $("#command-result").innerHTML = `
-        <div class="badge-row"><span class="badge green">Career Coach</span><span class="badge">${escapeHtml(draftLabel(draft.intent))}</span></div>
-        <strong>${escapeHtml(draft.title)}</strong>
-        <small>${escapeHtml(draft.summary)}</small>
-        <small><b>見立て:</b> ${escapeHtml(draft.coach_view || coachPerspective(draft.intent))}</small>
-        <small><b>問い返し:</b> ${escapeHtml(draft.coach_question || coachQuestion(draft.intent))}</small>
-        <small><b>次の一歩:</b> ${escapeHtml(draft.next_action)}</small>
-        <small>${escapeHtml(message)}</small>
+        <div class="coach-message">
+          <strong>${escapeHtml(draft.title)}</strong>
+          <small>${escapeHtml(draft.summary)}</small>
+          <small>${escapeHtml(draft.coach_view || coachPerspective(draft.intent))}</small>
+          <small>ここでもう一つ聞かせてください。${escapeHtml(draft.coach_question || coachQuestion(draft.intent))}</small>
+          <small>${escapeHtml(maturityMessage)}</small>
+        </div>
       `;
       $("#command-result").classList.add("active");
+      $("#encore-shell").classList.toggle("ready-to-record", Number(draft.maturity || 1) >= 3);
+    }
+
+    function revealWorkspace(tabId = "home") {
+      $("#encore-shell").classList.remove("coach-mode");
+      setActiveTab(tabId);
     }
 
     function runEncoreCommand() {
@@ -684,18 +724,22 @@
       if (!text) return;
       const intent = commandIntent(text);
       const now = new Date().toISOString();
+      const previous = state.pendingCommandDraft;
+      const maturity = previous ? Number(previous.maturity || 1) + 1 : 1;
+      const combinedSummary = previous ? `${previous.summary}\n\n追加の話: ${text}` : text;
       state.pendingCommandDraft = {
-        id: id("draft"),
+        id: previous?.id || id("draft"),
         intent,
         title: makeTitle(text, intent === "navigator" ? "AI相談メモ" : "整理メモ"),
-        summary: text,
+        summary: combinedSummary,
         coach_view: coachPerspective(intent),
         coach_question: coachQuestion(intent),
-        next_action: intent === "career" ? "経験資産として記録し、必要なら証跡を追加する" :
+        next_action: intent === "career" ? "経験資産として残し、必要なら証跡を追加する" :
           intent === "network" ? "人脈資産として記録し、紹介・チーム形成候補に使う" :
           intent === "proof" ? "証跡として記録し、代表経験に紐づける" :
           intent === "entry" ? "応募・役割候補として記録し、Entry Profileを生成する" :
           "相談ログとして残すか、経歴・証跡・人脈へ変換する",
+        maturity,
         raw_text: text,
         created_at: now
       };
@@ -715,7 +759,7 @@
     function commitCommandDraft() {
       const draft = state.pendingCommandDraft;
       if (!draft) {
-        $("#command-result").innerHTML = "<strong>記録する前に、まず入力をAIと整理してください。</strong>";
+        $("#command-result").innerHTML = `<div class="coach-message"><strong>まず相談内容を送ってください。</strong><small>いきなり記録せず、最初に一緒に整理しましょう。</small></div>`;
         $("#command-result").classList.add("active");
         return;
       }
@@ -786,6 +830,19 @@
         }, ...state.experience];
         state.entryProfile = null;
         message = "経験資産として記録し、Experience Graphへ反映しました。";
+      } else if (draft.intent === "knowledge") {
+        const note = {
+          id: id("pkn"),
+          graph_type: "personal_knowledge_note",
+          title: draft.title,
+          summary: text,
+          values_hint: draft.coach_view || coachPerspective(draft.intent),
+          next_question: draft.coach_question || coachQuestion(draft.intent),
+          maturity: Number(draft.maturity || 1),
+          created_at: now
+        };
+        state.personalKnowledgeNotes = [note, ...(state.personalKnowledgeNotes || [])];
+        message = "Personal Knowledge Noteとして記録しました。まだキャリアに変換せず、思考・価値観・問いの素材として育てられます。";
       } else {
         const note = {
           id: id("nav"),
@@ -806,11 +863,19 @@
         created_at: now
       }, ...(state.commandHistory || [])].slice(0, 20);
       state.pendingCommandDraft = null;
+      $("#encore-shell").classList.remove("ready-to-record");
       if (draft.intent !== "entry") {
         generateRoleCandidates();
         generateInnovationSeeds();
       }
-      $("#command-result").innerHTML = `<span class="badge green">recorded</span><strong>${escapeHtml(message)}</strong>`;
+      $("#command-result").innerHTML = `
+        <div class="coach-message">
+          <strong>記録しました。</strong>
+          <small>${escapeHtml(message)}</small>
+          <small>必要になったら、詳細ワークスペースでExperience Graph、Proof Board、Role Marketを確認できます。</small>
+          <div class="actions"><button class="secondary" data-reveal-workspace="home" type="button">詳細ワークスペースを開く</button></div>
+        </div>
+      `;
       $("#command-result").classList.add("active");
       saveState();
       render();
@@ -983,6 +1048,10 @@
     });
     document.querySelectorAll("[data-tab-jump]").forEach((button) => {
       button.addEventListener("click", () => setActiveTab(button.dataset.tabJump));
+    });
+    document.addEventListener("click", (event) => {
+      const trigger = event.target.closest("[data-reveal-workspace]");
+      if (trigger) revealWorkspace(trigger.dataset.revealWorkspace || "home");
     });
     $("#add-experience").addEventListener("click", () => {
       state.experience.unshift({
