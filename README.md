@@ -219,7 +219,15 @@ OPENAI_API_KEY="sk-..." node encore-ai-server.mjs
 
 GitHub PagesのHTMLへOpenAI APIキーを入れてはいけません。公開版で動かす場合は、`encore-ai-server.mjs`をCloud RunなどのHTTPSバックエンドに置き、`OPENAI_API_KEY`をサーバー側の環境変数として設定します。
 
-Cloud Runで公開する場合の流れ:
+Cloud Runは、Google Cloud上で小さなWebサーバーを公開URL付きで動かすサービスです。TANQ Graphでは次の分担にします。
+
+- GitHub Pages: 画面を公開する場所。
+- Cloud Run: OpenAI APIキーを隠してAI応答を返す場所。
+- Firestore: ユーザー、探究ログ、Keeperログなどのデータを保存する場所。
+
+#### Cloud RunをCLIで公開する場合
+
+Google Cloud CLIが使える環境では、次の流れで公開できます。
 
 ```bash
 cd outputs/tanq-graph-public
@@ -229,6 +237,23 @@ gcloud run deploy tanq-encore-ai \
   --allow-unauthenticated \
   --set-env-vars OPENAI_API_KEY="sk-...",OPENAI_MODEL="gpt-4.1-mini"
 ```
+
+#### Cloud Runを画面から公開する場合
+
+1. Google Cloud Consoleで`Cloud Run`を開きます。
+2. `サービスを作成`を押します。
+3. デプロイ方法は、最初は`ソース リポジトリから継続的にデプロイ`よりも、手元から`gcloud run deploy --source .`の方が簡単です。
+4. サービス名を`tanq-encore-ai`にします。
+5. リージョンは日本向けなら`asia-northeast1`を選びます。
+6. 認証は、まず動作確認用に`未認証の呼び出しを許可`にします。
+7. 環境変数に次を設定します。
+
+```text
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+8. デプロイ後、Cloud RunのサービスURLをコピーします。
 
 デプロイ後に表示されるURLが例えば次の場合:
 
