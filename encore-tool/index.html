@@ -164,18 +164,14 @@
           <p class="lead">45歳以降の実績、人脈、判断力、暗黙知を、証跡・信頼・顧問価値・地域実装・Innovation Seedへ変換するインターフェイスです。</p>
           <div class="command-center">
             <div class="section-head">
-              <h2>Encore Command</h2>
-              <span class="badge green">Single Window</span>
+              <h2>Encore Career Coach</h2>
+              <span class="badge green">One Window</span>
             </div>
             <div class="command-input">
-              <label>入力<textarea id="encore-command" placeholder="例: LinkedIn経歴として、地域企業との新規事業立ち上げを担当。行政、学校、企業をつなぎ実証設計を行った。"></textarea></label>
-              <button class="primary" id="run-command" type="button">AIと整理する</button>
+              <label>相談・リサーチ・疑問<textarea id="encore-command" placeholder="例: これまで地域企業との新規事業立ち上げをしてきた。行政、学校、企業をつないだ経験を、次のキャリアや顧問案件にどう整理できるだろう。"></textarea></label>
+              <button class="primary" id="run-command" type="button">AIキャリアコーチに相談</button>
             </div>
             <div class="actions">
-              <button class="secondary" data-command-template="career" type="button">経歴</button>
-              <button class="secondary" data-command-template="network" type="button">人脈</button>
-              <button class="secondary" data-command-template="proof" type="button">証跡</button>
-              <button class="secondary" data-command-template="entry" type="button">応募</button>
               <button class="primary" id="commit-command" type="button">記録する</button>
               <button class="secondary" id="copy-payload" type="button">Graph JSONコピー</button>
             </div>
@@ -650,11 +646,33 @@
       }[intent] || "整理メモ";
     }
 
-    function showCommandResult(draft, message = "AI整理メモを作りました。内容を見て、よければ記録してください。") {
+    function coachPerspective(intent) {
+      return {
+        career: "これは単なる職務経歴ではなく、次の役割に転用できる経験資産です。成果だけでなく、どんな判断をしたか、誰を動かしたか、再現できる型は何かを残しましょう。",
+        network: "この人脈は、単なる連絡先ではなく、紹介・共創・検証先になり得ます。相手との信頼の根拠と、次に相談できるテーマを一緒に残すと価値が上がります。",
+        proof: "これは自己PRより強い証跡になります。誰が、どの立場で、何を評価したのかを補うと、信頼レベルを上げられます。",
+        entry: "これは応募先に合わせて翻訳できる材料です。肩書きではなく、相手企業が買いたい成果、任せたい役割、証明できる実績に分けて整えましょう。",
+        navigator: "まだ記録に急がなくて大丈夫です。まず問いや違和感を言語化し、そこから経験・人脈・証跡・役割候補へ育てていきましょう。"
+      }[intent] || "まだ素材の段階です。焦って整えず、価値の芽を見つけていきましょう。";
+    }
+
+    function coachQuestion(intent) {
+      return {
+        career: "この経験で、あなたがいなければ進まなかったことは何ですか？",
+        network: "この人に、次にどんな相談や紹介をお願いできそうですか？",
+        proof: "この評価を第三者が見た時、何が信頼の根拠になりますか？",
+        entry: "この内容を、どんな職種・顧問案件・事業開発案件に接続したいですか？",
+        navigator: "このテーマは、経歴、人脈、証跡、応募、事業アイデアのどれに近づいていますか？"
+      }[intent] || "次に深掘りしたい観点はどこですか？";
+    }
+
+    function showCommandResult(draft, message = "キャリアコーチとして整理しました。まだ下書きなので、納得できたら記録してください。") {
       $("#command-result").innerHTML = `
-        <div class="badge-row"><span class="badge green">${escapeHtml(draft.intent)}</span><span class="badge">${escapeHtml(draftLabel(draft.intent))}</span></div>
+        <div class="badge-row"><span class="badge green">Career Coach</span><span class="badge">${escapeHtml(draftLabel(draft.intent))}</span></div>
         <strong>${escapeHtml(draft.title)}</strong>
         <small>${escapeHtml(draft.summary)}</small>
+        <small><b>見立て:</b> ${escapeHtml(draft.coach_view || coachPerspective(draft.intent))}</small>
+        <small><b>問い返し:</b> ${escapeHtml(draft.coach_question || coachQuestion(draft.intent))}</small>
         <small><b>次の一歩:</b> ${escapeHtml(draft.next_action)}</small>
         <small>${escapeHtml(message)}</small>
       `;
@@ -671,6 +689,8 @@
         intent,
         title: makeTitle(text, intent === "navigator" ? "AI相談メモ" : "整理メモ"),
         summary: text,
+        coach_view: coachPerspective(intent),
+        coach_question: coachQuestion(intent),
         next_action: intent === "career" ? "経験資産として記録し、必要なら証跡を追加する" :
           intent === "network" ? "人脈資産として記録し、紹介・チーム形成候補に使う" :
           intent === "proof" ? "証跡として記録し、代表経験に紐づける" :
@@ -1025,18 +1045,6 @@
     $("#commit-command").addEventListener("click", commitCommandDraft);
     $("#encore-command").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") runEncoreCommand();
-    });
-    document.querySelectorAll("[data-command-template]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const templates = {
-          career: "経歴: ",
-          network: "人脈: ",
-          proof: "証跡: ",
-          entry: "応募: "
-        };
-        $("#encore-command").value = templates[button.dataset.commandTemplate] || "";
-        $("#encore-command").focus();
-      });
     });
     $("#generate-roles").addEventListener("click", generateRoleCandidates);
     $("#build-entry-profile").addEventListener("click", buildEntryProfile);
