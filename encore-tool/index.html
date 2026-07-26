@@ -169,13 +169,14 @@
             </div>
             <div class="command-input">
               <label>入力<textarea id="encore-command" placeholder="例: LinkedIn経歴として、地域企業との新規事業立ち上げを担当。行政、学校、企業をつなぎ実証設計を行った。"></textarea></label>
-              <button class="primary" id="run-command" type="button">整理する</button>
+              <button class="primary" id="run-command" type="button">AIと整理する</button>
             </div>
             <div class="actions">
               <button class="secondary" data-command-template="career" type="button">経歴</button>
               <button class="secondary" data-command-template="network" type="button">人脈</button>
               <button class="secondary" data-command-template="proof" type="button">証跡</button>
               <button class="secondary" data-command-template="entry" type="button">応募</button>
+              <button class="primary" id="commit-command" type="button">記録する</button>
               <button class="secondary" id="copy-payload" type="button">Graph JSONコピー</button>
             </div>
             <div class="command-result" id="command-result"></div>
@@ -434,6 +435,7 @@
       entryProfile: null,
       importedCareer: [],
       networkPeople: [],
+      pendingCommandDraft: null,
       commandHistory: [],
       seeds: [],
       navigatorNotes: []
@@ -561,6 +563,7 @@
         proof_assets: state.proofs,
         imported_career: state.importedCareer || [],
         network_people: state.networkPeople || [],
+        pending_command_draft: state.pendingCommandDraft || null,
         command_history: state.commandHistory || [],
         role_candidates: state.roles,
         agent_endpoints: state.agentEndpoints || [],
@@ -637,45 +640,100 @@
       return firstLine.replace(/^(LinkedIn|Facebook|経歴|人脈|証跡|応募)[:：\s]*/i, "").slice(0, 42) || fallback;
     }
 
+    function draftLabel(intent) {
+      return {
+        career: "経験資産候補",
+        network: "人脈資産候補",
+        proof: "証跡候補",
+        entry: "応募・役割候補",
+        navigator: "AI相談メモ"
+      }[intent] || "整理メモ";
+    }
+
+    function showCommandResult(draft, message = "AI整理メモを作りました。内容を見て、よければ記録してください。") {
+      $("#command-result").innerHTML = `
+        <div class="badge-row"><span class="badge green">${escapeHtml(draft.intent)}</span><span class="badge">${escapeHtml(draftLabel(draft.intent))}</span></div>
+        <strong>${escapeHtml(draft.title)}</strong>
+        <small>${escapeHtml(draft.summary)}</small>
+        <small><b>次の一歩:</b> ${escapeHtml(draft.next_action)}</small>
+        <small>${escapeHtml(message)}</small>
+      `;
+      $("#command-result").classList.add("active");
+    }
+
     function runEncoreCommand() {
       const text = $("#encore-command").value.trim();
       if (!text) return;
       const intent = commandIntent(text);
       const now = new Date().toISOString();
+      state.pendingCommandDraft = {
+        id: id("draft"),
+        intent,
+        title: makeTitle(text, intent === "navigator" ? "AI相談メモ" : "整理メモ"),
+        summary: text,
+        next_action: intent === "career" ? "経験資産として記録し、必要なら証跡を追加する" :
+          intent === "network" ? "人脈資産として記録し、紹介・チーム形成候補に使う" :
+          intent === "proof" ? "証跡として記録し、代表経験に紐づける" :
+          intent === "entry" ? "応募・役割候補として記録し、Entry Profileを生成する" :
+          "相談ログとして残すか、経歴・証跡・人脈へ変換する",
+        raw_text: text,
+        created_at: now
+      };
+      state.commandHistory = [{
+        id: id("cmdlog"),
+        intent,
+        text,
+        result: "drafted",
+        created_at: now
+      }, ...(state.commandHistory || [])].slice(0, 20);
+      $("#encore-command").value = "";
+      showCommandResult(state.pendingCommandDraft);
+      saveState();
+      render();
+    }
+
+    function commitCommandDraft() {
+      const draft = state.pendingCommandDraft;
+      if (!draft) {
+        $("#command-result").innerHTML = "<strong>記録する前に、まず入力をAIと整理してください。</strong>";
+        $("#command-result").classList.add("active");
+        return;
+      }
+      const text = draft.raw_text || draft.summary;
+      const now = new Date().toISOString();
       let message = "";
 
-      if (intent === "network") {
+      if (draft.intent === "network") {
         const person = {
           id: id("net"),
           source: /facebook/i.test(text) ? "Facebook" : "Encore Command",
           graph_type: "network_person",
-          name: makeTitle(text, "人脈メモ"),
+          name: draft.title,
           relationship_kind: "紹介候補",
           note: text,
           trust: 1,
           created_at: now
         };
         state.networkPeople = [person, ...(state.networkPeople || [])];
-        message = `人脈資産として保存しました。${person.name} を紹介候補・チーム形成候補に使えます。`;
-      } else if (intent === "proof") {
+        message = `人脈資産として記録しました。${person.name} を紹介候補・チーム形成候補に使えます。`;
+      } else if (draft.intent === "proof") {
         const target = state.experience[0];
         const proof = {
           id: id("proof"),
           experience_id: target?.id || "",
-          title: makeTitle(text, "証跡メモ"),
+          title: draft.title,
           trust: 3,
           note: text,
           url: "",
           created_at: now
         };
         state.proofs = [proof, ...state.proofs];
-        message = `証跡として保存しました。${target ? `「${target.title}」に紐づけています。` : "経験資産を追加すると紐づけできます。"}`;
-      } else if (intent === "entry") {
-        const roleTitle = makeTitle(text, "応募・役割メモ");
+        message = `証跡として記録しました。${target ? `「${target.title}」に紐づけています。` : "経験資産を追加すると紐づけできます。"}`;
+      } else if (draft.intent === "entry") {
         state.agentEndpoints = state.agentEndpoints || [];
         state.agentEndpoints.unshift({
           id: id("agent"),
-          name: roleTitle,
+          name: draft.title,
           kind: "ハイクラス転職",
           url: "",
           target_position: text,
@@ -684,13 +742,13 @@
         state.entryProfile = null;
         generateRoleCandidates();
         buildEntryProfile();
-        message = "応募・役割候補として整理し、Entry Profile Payloadを更新しました。";
-      } else if (intent === "career") {
+        message = "応募・役割候補として記録し、Entry Profile Payloadを更新しました。";
+      } else if (draft.intent === "career") {
         const career = {
           id: id("cmd"),
           source: "Encore Command",
           type: "career_import",
-          title: makeTitle(text, "キャリアメモ"),
+          title: draft.title,
           summary: text,
           source_url: "",
           trust: 1,
@@ -707,12 +765,12 @@
           created_at: now
         }, ...state.experience];
         state.entryProfile = null;
-        message = "経験資産として保存し、Experience Graphへ反映しました。";
+        message = "経験資産として記録し、Experience Graphへ反映しました。";
       } else {
         const note = {
           id: id("nav"),
           prompt: text,
-          summary: "AI探究ナビゲーターの相談ログとして保存しました。次に経歴・証跡・応募・人脈のどれへ変換するか選べます。",
+          summary: "AI探究ナビゲーターの相談ログとして記録しました。次に経歴・証跡・応募・人脈のどれへ変換するか選べます。",
           next_actions: ["経験資産化", "証跡追加", "役割候補生成"],
           created_at: now
         };
@@ -722,17 +780,17 @@
 
       state.commandHistory = [{
         id: id("cmdlog"),
-        intent,
+        intent: draft.intent,
         text,
         result: message,
         created_at: now
       }, ...(state.commandHistory || [])].slice(0, 20);
-      if (intent !== "entry") {
+      state.pendingCommandDraft = null;
+      if (draft.intent !== "entry") {
         generateRoleCandidates();
         generateInnovationSeeds();
       }
-      $("#encore-command").value = "";
-      $("#command-result").innerHTML = `<span class="badge green">${escapeHtml(intent)}</span><strong>${escapeHtml(message)}</strong>`;
+      $("#command-result").innerHTML = `<span class="badge green">recorded</span><strong>${escapeHtml(message)}</strong>`;
       $("#command-result").classList.add("active");
       saveState();
       render();
@@ -894,6 +952,9 @@
       }, null, 2);
       $("#seed-list").innerHTML = state.seeds.length ? state.seeds.map(seedCard).join("") : `<div class="card"><span class="badge red">Seed</span><strong>Innovation Seedを抽出してください</strong><small>経験を事業・PPP・教育・DAOの候補へ変換します。</small></div>`;
       $("#graph-payload").textContent = JSON.stringify(graphPayload(), null, 2);
+      if (state.pendingCommandDraft) {
+        showCommandResult(state.pendingCommandDraft, "前回のAI整理メモが残っています。内容を見て、よければ記録してください。");
+      }
       renderSelects();
     }
 
@@ -961,6 +1022,7 @@
       render();
     });
     $("#run-command").addEventListener("click", runEncoreCommand);
+    $("#commit-command").addEventListener("click", commitCommandDraft);
     $("#encore-command").addEventListener("keydown", (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key === "Enter") runEncoreCommand();
     });
