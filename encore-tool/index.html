@@ -409,7 +409,9 @@
   <script>
     const storageKey = "proofolio-encore-state";
     const $ = (selector) => document.querySelector(selector);
-    const defaultEncoreAiEndpoint = location.protocol.startsWith("http") ? `${location.origin}/api/encore-coach` : "";
+    const configuredEncoreAiEndpoint = window.TANQ_ENCORE_AI_ENDPOINT || "";
+    const isLocalHttp = /^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+    const defaultEncoreAiEndpoint = configuredEncoreAiEndpoint || (isLocalHttp ? `${location.origin}/api/encore-coach` : "");
     const seedState = {
       experience: [
         {

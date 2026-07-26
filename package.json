@@ -1,0 +1,14 @@
+{
+  "name": "tanq-graph-public",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node encore-ai-server.mjs",
+    "start:encore": "node encore-ai-server.mjs",
+    "start:kids": "node kids-ai-server.mjs"
+  },
+  "engines": {
+    "node": "20"
+  }
+}

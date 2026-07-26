@@ -21,3 +21,8 @@ window.TANQ_FIREBASE_CONFIG = {
   appId: "1:924757219137:web:eb1f8b17f4833948b4f3c0",
   measurementId: "G-6VPZCL2J50"
 };
+
+// Optional public API endpoint for Proofolio Encore.
+// Set this after deploying encore-ai-server.mjs to Cloud Run, Firebase
+// Functions, Vercel, or another HTTPS backend. Never put OPENAI_API_KEY here.
+window.TANQ_ENCORE_AI_ENDPOINT = "";

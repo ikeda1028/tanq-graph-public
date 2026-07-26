@@ -214,3 +214,32 @@ OPENAI_API_KEY="sk-..." node encore-ai-server.mjs
 `file://`で`encore-tool/index.html`を直接開いた場合は、OpenAI APIには接続せず、画面内のローカルコーチ応答にフォールバックします。本物のAI応答を試す場合は、上記のローカルサーバーURLから開いてください。
 
 公開GitHub Pages上ではサーバー処理は動かないため、本番ではFirebase Functions、Cloud Run、Vercelなどに`/api/kids-coach`や`/api/encore-coach`相当のHTTPSエンドポイントを置き、各ToolからそのURLへ接続してください。
+
+### Proofolio Encoreを公開版でAI接続する
+
+GitHub PagesのHTMLへOpenAI APIキーを入れてはいけません。公開版で動かす場合は、`encore-ai-server.mjs`をCloud RunなどのHTTPSバックエンドに置き、`OPENAI_API_KEY`をサーバー側の環境変数として設定します。
+
+Cloud Runで公開する場合の流れ:
+
+```bash
+cd outputs/tanq-graph-public
+gcloud run deploy tanq-encore-ai \
+  --source . \
+  --region asia-northeast1 \
+  --allow-unauthenticated \
+  --set-env-vars OPENAI_API_KEY="sk-...",OPENAI_MODEL="gpt-4.1-mini"
+```
+
+デプロイ後に表示されるURLが例えば次の場合:
+
+```text
+https://tanq-encore-ai-xxxxx-an.a.run.app
+```
+
+`firebase-config.js`の`TANQ_ENCORE_AI_ENDPOINT`を次のように設定します。
+
+```js
+window.TANQ_ENCORE_AI_ENDPOINT = "https://tanq-encore-ai-xxxxx-an.a.run.app/api/encore-coach";
+```
+
+その後、GitHubへpushすると、公開版のProofolio Encore Toolから本物のAIナレッジコーチへ接続できます。

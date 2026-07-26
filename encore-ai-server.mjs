@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = resolve(fileURLToPath(new URL(".", import.meta.url)));
 const port = Number(process.env.PORT || 4191);
+const host = process.env.HOST || (process.env.K_SERVICE ? "0.0.0.0" : "127.0.0.1");
 const openaiApiKey = process.env.OPENAI_API_KEY || "";
 const openaiModel = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const maxBodyBytes = Number(process.env.MAX_BODY_BYTES || 1024 * 1024);
@@ -197,7 +198,8 @@ const server = createServer(async (req, res) => {
   await serveStatic(req, res);
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Proofolio Encore AI server: http://127.0.0.1:${port}/encore-tool/`);
-  console.log(`Encore AI endpoint: http://127.0.0.1:${port}/api/encore-coach`);
+server.listen(port, host, () => {
+  const displayHost = host === "0.0.0.0" ? "127.0.0.1" : host;
+  console.log(`Proofolio Encore AI server: http://${displayHost}:${port}/encore-tool/`);
+  console.log(`Encore AI endpoint: http://${displayHost}:${port}/api/encore-coach`);
 });
