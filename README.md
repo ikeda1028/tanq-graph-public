@@ -215,6 +215,35 @@ OPENAI_API_KEY="sk-..." node encore-ai-server.mjs
 
 公開GitHub Pages上ではサーバー処理は動かないため、本番ではFirebase Functions、Cloud Run、Vercelなどに`/api/kids-coach`や`/api/encore-coach`相当のHTTPSエンドポイントを置き、各ToolからそのURLへ接続してください。
 
+### Vercelで一般公開AIを動かす
+
+このリポジトリにはVercel用のAPI関数が入っています。
+
+- Kids AI: `/api/kids-coach`
+- Encore AI: `/api/encore-coach`
+- 接続確認: `/health`
+
+Vercelで公開する場合:
+
+1. VercelでGitHubリポジトリ`ikeda1028/tanq-graph-public`をImportします。
+2. Framework Presetは`Other`のままで進めます。
+3. Environment Variablesに次を設定します。
+
+```text
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4.1-mini
+```
+
+4. Deployします。
+5. 公開URLが`https://tanq-graph-public.vercel.app`のように出たら、公開版は自動で次を使います。
+
+```text
+https://tanq-graph-public.vercel.app/api/kids-coach
+https://tanq-graph-public.vercel.app/api/encore-coach
+```
+
+GitHub Pages版をそのまま使う場合は、トップ画面の`AI API endpoint`へVercelのEncore URLを入れて保存してください。
+
 ### Proofolio Encoreを公開版でAI接続する
 
 GitHub PagesのHTMLへOpenAI APIキーを入れてはいけません。公開版で動かす場合は、`encore-ai-server.mjs`をCloud RunなどのHTTPSバックエンドに置き、`OPENAI_API_KEY`をサーバー側の環境変数として設定します。

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TANQ Pass Kids Tool</title>
+  <script src="../firebase-config.js?v=tanq-ai-20260730"></script>
   <script src="../project-tool/google-maps-config.js"></script>
   <script src="../tanq-project-tool/google-maps-config.js"></script>
   <style>
@@ -934,7 +935,7 @@
       renderLog();
       $("#kids-age").value = state.identity?.age || "";
       $("#kids-months").value = state.identity?.months || "";
-      $("#ai-endpoint").value = localStorage.getItem(aiEndpointKey) || "";
+      $("#ai-endpoint").value = localStorage.getItem(aiEndpointKey) || window.TANQ_KIDS_AI_ENDPOINT || "";
     }
 
     function kidsPayload() {

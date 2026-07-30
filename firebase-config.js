@@ -22,7 +22,19 @@ window.TANQ_FIREBASE_CONFIG = {
   measurementId: "G-6VPZCL2J50"
 };
 
-// Optional public API endpoint for Proofolio Encore.
-// Set this after deploying encore-ai-server.mjs to Cloud Run, Firebase
-// Functions, Vercel, or another HTTPS backend. Never put OPENAI_API_KEY here.
-window.TANQ_ENCORE_AI_ENDPOINT = localStorage.getItem("tanq-encore-ai-endpoint") || "";
+// Optional public API endpoints. Never put OPENAI_API_KEY here.
+// When this repository is deployed to a host that supports /api functions
+// such as Vercel, the app can use same-origin HTTPS endpoints automatically.
+const tanqSameOriginAiBase = (() => {
+  if (!/^https?:$/.test(location.protocol)) return "";
+  if (location.hostname.endsWith("github.io")) return "";
+  return location.origin;
+})();
+
+window.TANQ_ENCORE_AI_ENDPOINT =
+  localStorage.getItem("tanq-encore-ai-endpoint") ||
+  (tanqSameOriginAiBase ? `${tanqSameOriginAiBase}/api/encore-coach` : "");
+
+window.TANQ_KIDS_AI_ENDPOINT =
+  localStorage.getItem("tanq-kids-ai-endpoint") ||
+  (tanqSameOriginAiBase ? `${tanqSameOriginAiBase}/api/kids-coach` : "");

@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TANQ AI Navigator Studio</title>
+  <script src="../firebase-config.js?v=tanq-ai-20260730"></script>
   <style>
     :root {
       --bg: #f4f0e7;
@@ -239,7 +240,7 @@
         structural: "色、形、数、場所、比較、原因、証拠を問いにする",
         generative: "遊び、想像、改善、作品、誰かに見せる行動へ広げる",
         safety: "危険な場所、知らない人、個人情報、医療判断は大人と確認する",
-        endpoint: "http://127.0.0.1:4180/api/kids-coach",
+        endpoint: window.TANQ_KIDS_AI_ENDPOINT || "http://127.0.0.1:4180/api/kids-coach",
         model: "gpt-4.1-mini"
       },
       passport: {
@@ -249,7 +250,7 @@
         structural: "問い、背景、先行事例、仮説、検証方法、評価指標を整理する",
         generative: "社会課題、進路、研究、プロトタイプ、発表へ広げる",
         safety: "出典、著作権、個人情報、学校提出前の確認を促す",
-        endpoint: "",
+        endpoint: window.TANQ_ENCORE_AI_ENDPOINT || "",
         model: "gpt-4.1-mini"
       },
       proofolio: {
