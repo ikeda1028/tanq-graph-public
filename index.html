@@ -68,6 +68,9 @@
     .lead { margin: 18px 0 0; max-width: 820px; color: var(--muted); font-size: 17px; line-height: 1.7; }
     .interfaces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
     .card { padding: 18px; display: grid; gap: 8px; align-content: start; min-height: 166px; }
+    .service-card { color: inherit; text-decoration: none; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+    .service-card:hover, .service-card:focus-visible { transform: translateY(-2px); border-color: rgba(37,107,87,.5); box-shadow: 0 14px 30px rgba(54,45,30,.12); outline: none; }
+    .service-card small::after { content: "  開く →"; display: inline; color: var(--green); font-weight: 500; }
     .core-card { text-align: center; place-items: center; background: radial-gradient(circle at center, rgba(37,107,87,.12), transparent 62%), var(--panel); }
     .core-mark { width: 78px; height: 78px; border-radius: 20px; display: grid; place-items: center; position: relative; }
     .core-mark::before { content: ""; width: 32px; height: 32px; border-radius: 10px; background: rgba(255,253,247,.92); box-shadow: -25px 0 0 rgba(255,253,247,.52), 25px 0 0 rgba(255,253,247,.52), 0 -25px 0 rgba(255,253,247,.52), 0 25px 0 rgba(255,253,247,.52); }
@@ -295,11 +298,11 @@
           </div>
         </div>
         <div class="interfaces">
-          <div class="card interface-card" data-interface-card="kids"><span class="interface-icon kids-icon"></span><strong>TANQ Pass Kids</strong><small>幼児・小学生向け。あそび、発見、作品、保護者・先生の見守り。</small></div>
-          <div class="card interface-card" data-interface-card="passport"><span class="interface-icon passport-icon"></span><strong>TANQ Passport</strong><small>中高生向け。探究の旅、クエスト、バッジ、進路ポートフォリオ。</small></div>
-          <div class="card core-card"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>同じID、データモデル、証明レイヤー、AIメモリを使う。</small></div>
-          <div class="card interface-card" data-interface-card="proofolio"><span class="interface-icon proofolio-icon"></span><strong>Proofolio</strong><small>社会人向け。実績、人的資本、資格、DAO貢献、キャリア証明。</small></div>
-          <div class="card interface-card" data-interface-card="encore"><span class="interface-icon encore-icon"></span><strong>Proofolio Encore</strong><small>45歳以降向け。経験を再編集し、次の役割・顧問・地域実装へ接続。</small></div>
+          <a class="card interface-card service-card" data-interface-card="kids" href="kids-tool/" aria-label="TANQ Pass Kidsを開く"><span class="interface-icon kids-icon"></span><strong>TANQ Pass Kids</strong><small>幼児・小学生向け。あそび、発見、作品、保護者・先生の見守り。</small></a>
+          <a class="card interface-card service-card" data-interface-card="passport" href="passport-tool/" aria-label="TANQ Passportを開く"><span class="interface-icon passport-icon"></span><strong>TANQ Passport</strong><small>中高生向け。探究の旅、クエスト、バッジ、進路ポートフォリオ。</small></a>
+          <a class="card core-card service-card" href="#dashboard" aria-label="TANQ Graph Coreを見る"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>同じID、データモデル、証明レイヤー、AIメモリを使う。</small></a>
+          <a class="card interface-card service-card" data-interface-card="proofolio" href="project-tool/?interface=proofolio" aria-label="Proofolioを開く"><span class="interface-icon proofolio-icon"></span><strong>Proofolio</strong><small>社会人向け。実績、人的資本、資格、DAO貢献、キャリア証明。</small></a>
+          <a class="card interface-card service-card" data-interface-card="encore" href="encore-tool/" aria-label="Proofolio Encoreを開く"><span class="interface-icon encore-icon"></span><strong>Proofolio Encore</strong><small>45歳以降向け。経験を再編集し、次の役割・顧問・地域実装へ接続。</small></a>
         </div>
       </section>
 
