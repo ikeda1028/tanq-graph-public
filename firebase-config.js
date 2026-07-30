@@ -25,4 +25,4 @@ window.TANQ_FIREBASE_CONFIG = {
 // Optional public API endpoint for Proofolio Encore.
 // Set this after deploying encore-ai-server.mjs to Cloud Run, Firebase
 // Functions, Vercel, or another HTTPS backend. Never put OPENAI_API_KEY here.
-window.TANQ_ENCORE_AI_ENDPOINT = "";
+window.TANQ_ENCORE_AI_ENDPOINT = localStorage.getItem("tanq-encore-ai-endpoint") || "";

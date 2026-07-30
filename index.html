@@ -71,6 +71,12 @@
     .service-card { color: inherit; text-decoration: none; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
     .service-card:hover, .service-card:focus-visible { transform: translateY(-2px); border-color: rgba(37,107,87,.5); box-shadow: 0 14px 30px rgba(54,45,30,.12); outline: none; }
     .service-card small::after { content: "  開く →"; display: inline; color: var(--green); font-weight: 500; }
+    .ai-connection { border: 1px solid rgba(47,95,143,.28); border-radius: 8px; background: linear-gradient(90deg, rgba(47,95,143,.08), rgba(37,107,87,.08), var(--panel)); padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 360px); gap: 14px; align-items: end; }
+    .ai-connection h2 { margin-bottom: 6px; }
+    .ai-connection p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .ai-connection .badge-row { margin-top: 10px; }
+    .ai-endpoint-form { display: grid; gap: 8px; }
+    .ai-endpoint-form input { font-size: 13px; }
     .core-card { text-align: center; place-items: center; background: radial-gradient(circle at center, rgba(37,107,87,.12), transparent 62%), var(--panel); }
     .core-mark { width: 78px; height: 78px; border-radius: 20px; display: grid; place-items: center; position: relative; }
     .core-mark::before { content: ""; width: 32px; height: 32px; border-radius: 10px; background: rgba(255,253,247,.92); box-shadow: -25px 0 0 rgba(255,253,247,.52), 25px 0 0 rgba(255,253,247,.52), 0 -25px 0 rgba(255,253,247,.52), 0 25px 0 rgba(255,253,247,.52); }
@@ -181,7 +187,7 @@
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       .nav { grid-template-columns: repeat(2, 1fr); }
       main { padding: 20px; }
-      .interfaces, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip, .login-choice-grid, .entry-split { grid-template-columns: 1fr; }
+      .interfaces, .ai-connection, .grid, .metrics, .tool-grid, .form-grid, .mini-grid, .mini-grid.three, .project-strip, .login-choice-grid, .entry-split { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .project-material { grid-template-columns: 1fr; }
       .graph-box { display: grid; gap: 10px; min-height: auto; padding: 12px; }
@@ -303,6 +309,26 @@
           <a class="card core-card service-card" href="#dashboard" aria-label="TANQ Graph Coreを見る"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>同じID、データモデル、証明レイヤー、AIメモリを使う。</small></a>
           <a class="card interface-card service-card" data-interface-card="proofolio" href="project-tool/?interface=proofolio" aria-label="Proofolioを開く"><span class="interface-icon proofolio-icon"></span><strong>Proofolio</strong><small>社会人向け。実績、人的資本、資格、DAO貢献、キャリア証明。</small></a>
           <a class="card interface-card service-card" data-interface-card="encore" href="encore-tool/" aria-label="Proofolio Encoreを開く"><span class="interface-icon encore-icon"></span><strong>Proofolio Encore</strong><small>45歳以降向け。経験を再編集し、次の役割・顧問・地域実装へ接続。</small></a>
+        </div>
+        <div class="ai-connection" aria-label="AI connection status">
+          <div>
+            <p class="eyebrow">AI connection</p>
+            <h2>AI Navigator / AI Memory</h2>
+            <p id="ai-connection-message">AIバックエンド接続を確認中です。</p>
+            <div class="badge-row">
+              <span class="badge" id="ai-connection-badge">checking</span>
+              <a class="badge green" href="coach-admin/" target="_blank" rel="noopener">AI Navigator Studio</a>
+              <a class="badge gold" href="kids-tool/" target="_blank" rel="noopener">Kids AI</a>
+              <a class="badge red" href="encore-tool/" target="_blank" rel="noopener">Encore AI</a>
+            </div>
+          </div>
+          <div class="ai-endpoint-form">
+            <label>AI API endpoint<input id="ai-endpoint-global" placeholder="https://.../api/encore-coach"></label>
+            <div class="actions">
+              <button class="primary" id="save-ai-global" type="button">AI接続先を保存</button>
+              <button class="secondary" id="test-ai-global" type="button">接続確認</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -908,6 +934,52 @@
     function graphPublicBaseUrl() {
       if (location.protocol === "file:") return "https://ikeda1028.github.io/tanq-graph-public/";
       return new URL("./", location.href).toString();
+    }
+
+    function configuredAiEndpoint() {
+      return localStorage.getItem("tanq-encore-ai-endpoint") || window.TANQ_ENCORE_AI_ENDPOINT || "";
+    }
+
+    function aiHealthUrl(endpoint) {
+      try {
+        const url = new URL(endpoint, location.href);
+        url.pathname = url.pathname.replace(/\/api\/encore-coach\/?$/, "/health");
+        return url.toString();
+      } catch (error) {
+        return "";
+      }
+    }
+
+    function setAiConnection(message, tone = "gold") {
+      const badge = $("#ai-connection-badge");
+      $("#ai-connection-message").textContent = message;
+      badge.textContent = tone === "green" ? "AI connected" : tone === "red" ? "AI error" : "AI endpoint needed";
+      badge.className = `badge ${tone === "green" ? "green" : tone === "red" ? "red" : "gold"}`;
+    }
+
+    async function refreshAiConnectionStatus() {
+      const endpoint = configuredAiEndpoint();
+      $("#ai-endpoint-global").value = endpoint;
+      if (!endpoint) {
+        setAiConnection("公開ページは静的サイトなので、AIを本当に動かすにはAI API endpointの設定が必要です。未設定時は各ツール内のローカル整理だけが動きます。");
+        return;
+      }
+      const health = aiHealthUrl(endpoint);
+      if (!health) {
+        setAiConnection("AI endpoint URLの形式を確認してください。", "red");
+        return;
+      }
+      try {
+        const response = await fetch(health, { cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.openai_configured === false) {
+          setAiConnection("AIサーバーには到達しましたが、OPENAI_API_KEYがサーバー側で未設定です。", "red");
+          return;
+        }
+        setAiConnection(`AI backend connected: ${data.model || "model ready"}`, "green");
+      } catch (error) {
+        setAiConnection("AI endpointに到達できません。Cloud Run / Functions等のHTTPSバックエンドURLを設定してください。", "red");
+      }
     }
 
     function normalizeEmail(email = "") {
@@ -2666,6 +2738,15 @@
       $("#new-project-owner").dataset.touched = "true";
     });
 
+    $("#save-ai-global").addEventListener("click", () => {
+      const endpoint = $("#ai-endpoint-global").value.trim();
+      localStorage.setItem("tanq-encore-ai-endpoint", endpoint);
+      window.TANQ_ENCORE_AI_ENDPOINT = endpoint;
+      setAiConnection(endpoint ? "AI endpointを保存しました。接続確認を押すと疎通状態を見られます。" : "AI endpointを空にしました。");
+    });
+
+    $("#test-ai-global").addEventListener("click", refreshAiConnectionStatus);
+
     $("#toggle-create-project").addEventListener("click", () => {
       const panel = $("#create-project-panel");
       const open = !panel.classList.contains("open");
@@ -2821,6 +2902,7 @@
       state = await api("/api/state");
       entrySession = readEntrySession();
       render();
+      await refreshAiConnectionStatus();
       const savedFirebaseConfig = readFirebaseConfig();
       if (savedFirebaseConfig) {
         connectFirebase(savedFirebaseConfig).then(async () => {
