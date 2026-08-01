@@ -857,6 +857,75 @@
       }
     ];
     const $ = (selector) => document.querySelector(selector);
+    const identitySessionKey = "tanq-graph-identity-session";
+
+    function normalizeInterfaceKey(value = "") {
+      const key = String(value || "").trim().toLowerCase();
+      if (key === "proofolio-encore" || key === "proofolio_encore") return "encore";
+      if (["kids", "passport", "proofolio", "encore"].includes(key)) return key;
+      return "";
+    }
+
+    function readIdentitySession() {
+      try {
+        return JSON.parse(localStorage.getItem(identitySessionKey) || "null") || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function writeIdentitySession(session) {
+      const clean = Object.fromEntries(Object.entries(session).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+      localStorage.setItem(identitySessionKey, JSON.stringify({ ...readIdentitySession(), ...clean, updated_at: new Date().toISOString() }));
+      return readIdentitySession();
+    }
+
+    function captureIdentityFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
+      const session = {
+        tanq_id: tanqIdValue,
+        email: params.get("email") || params.get("ownerId"),
+        profile_name: params.get("name") || params.get("displayName"),
+        guest_session_id: params.get("sessionId"),
+        client: params.get("client"),
+        service: params.get("service"),
+        interface: normalizeInterfaceKey(params.get("interface") || params.get("service"))
+      };
+      if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
+      return readIdentitySession();
+    }
+
+    function activeTanqIdentity() {
+      const session = captureIdentityFromUrl();
+      const entry = entrySession || readEntrySession();
+      return {
+        tanqId: session.tanq_id || entry?.personId || entry?.orgId || "",
+        email: session.email || entry?.email || "",
+        name: session.profile_name || entry?.name || state?.profile?.name || "",
+        sessionId: session.guest_session_id || entry?.id || "",
+        client: session.client || "graph-public",
+        interface: session.interface || entry?.interfaceMode || state?.profile?.interfaceMode || ""
+      };
+    }
+
+    function withIdentityUrl(target, extra = {}) {
+      const url = new URL(target, location.href);
+      const identity = { ...activeTanqIdentity(), ...extra };
+      Object.entries(identity).forEach(([key, value]) => {
+        if (value) url.searchParams.set(key === "tanqId" ? "tanqId" : key, value);
+      });
+      return url.toString();
+    }
+
+    function refreshIdentityLinks() {
+      document.querySelectorAll("a[href]").forEach((link) => {
+        const raw = link.getAttribute("href") || "";
+        if (!raw || raw.startsWith("#") || raw.startsWith("http") && !raw.includes("ikeda1028.github.io/tanq-graph-public")) return;
+        const service = link.dataset.interfaceCard || "";
+        link.href = withIdentityUrl(raw, service ? { interface: normalizeInterfaceKey(service), service } : {});
+      });
+    }
 
     function setActiveTab(tabId) {
       document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabId));
@@ -1399,6 +1468,7 @@
     }
 
     function localStore() {
+      const session = captureIdentityFromUrl();
       const saved = localStorage.getItem("tanq-graph-public-demo-state");
       const store = saved ? JSON.parse(saved) : structuredClone(seedState);
       const existingProjects = store.projects && store.projects.length ? store.projects : [];
@@ -1407,7 +1477,11 @@
         ...existingProjects,
         ...structuredClone(defaultProjects).filter((project) => !existingProjectIds.has(project.id))
       ];
-      store.profile = normalizeProfile(store.profile);
+      store.profile = normalizeProfile({
+        ...store.profile,
+        name: session.profile_name || store.profile?.name || "",
+        interfaceMode: session.interface || store.profile?.interfaceMode || "passport"
+      });
       store.apiKeys = store.apiKeys || [];
       store.organizations = store.organizations || [];
       store.aiConsultations = store.aiConsultations || [];
@@ -1431,13 +1505,23 @@
     function saveEntrySession(session) {
       entrySession = session;
       localStorage.setItem("tanq-graph-entry-session", JSON.stringify(session));
+      writeIdentitySession({
+        tanq_id: session.personId || session.orgId,
+        email: session.email,
+        profile_name: session.name,
+        guest_session_id: session.id,
+        client: "graph-public",
+        interface: session.interfaceMode
+      });
       applyEntrySession();
+      refreshIdentityLinks();
     }
 
     function clearEntrySession() {
       entrySession = null;
       orgSessionId = null;
       localStorage.removeItem("tanq-graph-entry-session");
+      localStorage.removeItem(identitySessionKey);
       document.body.classList.add("login-pending");
       $("#entry-session-label").textContent = "未選択";
       $("#entry-person-id-label").textContent = "TANQ ID: 未発行";
@@ -2301,6 +2385,7 @@
       renderOrgSession();
       renderAiConsultations();
       renderDriveFiles();
+      refreshIdentityLinks();
     }
 
     async function saveProfile() {

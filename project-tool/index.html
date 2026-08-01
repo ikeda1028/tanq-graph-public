@@ -1096,11 +1096,86 @@
       formationCandidates: []
     };
     const $ = (selector) => document.querySelector(selector);
+    const identitySessionKey = "tanq-graph-identity-session";
+
+    function normalizeInterfaceKey(value = "") {
+      const key = String(value || "").trim().toLowerCase();
+      if (key === "proofolio-encore" || key === "proofolio_encore") return "encore";
+      if (["kids", "passport", "proofolio", "encore"].includes(key)) return key;
+      return "";
+    }
+
+    function readIdentitySession() {
+      try {
+        return JSON.parse(localStorage.getItem(identitySessionKey) || "null") || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function writeIdentitySession(session) {
+      const clean = Object.fromEntries(Object.entries(session).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+      localStorage.setItem(identitySessionKey, JSON.stringify({ ...readIdentitySession(), ...clean, updated_at: new Date().toISOString() }));
+      return readIdentitySession();
+    }
+
+    function captureIdentityFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
+      const session = {
+        tanq_id: tanqIdValue,
+        email: params.get("email") || params.get("ownerId"),
+        profile_name: params.get("name") || params.get("displayName"),
+        guest_session_id: params.get("sessionId"),
+        client: params.get("client"),
+        service: params.get("service"),
+        interface: normalizeInterfaceKey(params.get("interface") || params.get("service"))
+      };
+      if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
+      return readIdentitySession();
+    }
+
+    function applyIncomingIdentity(saved) {
+      const session = captureIdentityFromUrl();
+      const interfaceFromQuery = normalizeInterfaceKey(new URLSearchParams(location.search).get("interface"));
+      const identity = { ...structuredClone(seed.identity), ...(saved.identity || {}) };
+      const tanqIdValue = session.tanq_id || identity.tanq_id;
+      return {
+        ...saved,
+        identity: {
+          ...identity,
+          mode: tanqIdValue ? "linked" : identity.mode,
+          tanq_id: tanqIdValue || null,
+          guest_session_id: session.guest_session_id || identity.guest_session_id || seed.identity.guest_session_id,
+          profile_name: session.profile_name || identity.profile_name || "",
+          entry: session.client || identity.entry || "tool",
+          interface: interfaceFromQuery || session.interface || identity.interface || "passport"
+        }
+      };
+    }
+
+    function withIdentityUrl(target, extra = {}) {
+      const url = new URL(target, location.href);
+      const identity = state.identity || seed.identity;
+      const session = readIdentitySession();
+      const values = {
+        tanqId: identity.tanq_id || session.tanq_id,
+        email: session.email,
+        name: identity.profile_name || session.profile_name,
+        sessionId: identity.guest_session_id || session.guest_session_id,
+        client: session.client,
+        ...extra
+      };
+      Object.entries(values).forEach(([key, value]) => {
+        if (value) url.searchParams.set(key, value);
+      });
+      return url.toString();
+    }
 
     function readState() {
       try {
         const saved = JSON.parse(localStorage.getItem(storageKey) || "null") || structuredClone(seed);
-        return {
+        return applyIncomingIdentity({
           ...saved,
           questions: saved.questions || [],
           tasks: saved.tasks || [],
@@ -1114,9 +1189,9 @@
             ...(saved.identity || {})
           },
           aiConsultations: saved.aiConsultations || []
-        };
+        });
       } catch (error) {
-        return structuredClone(seed);
+        return applyIncomingIdentity(structuredClone(seed));
       }
     }
 
@@ -1299,6 +1374,13 @@
         created_at: state.identity?.created_at || new Date().toISOString()
       };
       if (state.identity.tanq_id) {
+        writeIdentitySession({
+          tanq_id: state.identity.tanq_id,
+          profile_name: state.identity.profile_name,
+          guest_session_id: state.identity.guest_session_id,
+          client: state.identity.entry,
+          interface: state.identity.interface
+        });
         ["aiConsultations", "questions", "tasks", "materials", "feedback", "toolImports", "innovationSeeds", "formationCandidates"].forEach((key) => {
           state[key] = (state[key] || []).map((item) => ({
             ...item,
@@ -2374,8 +2456,8 @@
 
     function processToolUrl() {
       const path = window.location.pathname;
-      if (path.includes("/tanq-graph-public/project-tool/")) return "../process-tool/";
-      return "../tanq-process-tool/index.html";
+      const target = path.includes("/tanq-graph-public/project-tool/") ? "../process-tool/" : "../tanq-process-tool/index.html";
+      return withIdentityUrl(target);
     }
 
     function openProcessTool() {
@@ -2384,8 +2466,8 @@
 
     function kidsToolUrl() {
       const path = window.location.pathname;
-      if (path.includes("/tanq-graph-public/project-tool/")) return "../kids-tool/";
-      return "../tanq-kids-tool/index.html";
+      const target = path.includes("/tanq-graph-public/project-tool/") ? "../kids-tool/" : "../tanq-kids-tool/index.html";
+      return withIdentityUrl(target, { interface: "kids" });
     }
 
     function openKidsTool() {
@@ -2394,8 +2476,8 @@
 
     function passportToolUrl() {
       const path = window.location.pathname;
-      if (path.includes("/tanq-graph-public/project-tool/")) return "../passport-tool/";
-      return "../tanq-passport-tool/index.html";
+      const target = path.includes("/tanq-graph-public/project-tool/") ? "../passport-tool/" : "../tanq-passport-tool/index.html";
+      return withIdentityUrl(target, { interface: "passport" });
     }
 
     function openPassportTool() {

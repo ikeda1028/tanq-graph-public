@@ -313,6 +313,53 @@
       feedback: []
     };
     const $ = (selector) => document.querySelector(selector);
+    const identitySessionKey = "tanq-graph-identity-session";
+
+    function readIdentitySession() {
+      try {
+        return JSON.parse(localStorage.getItem(identitySessionKey) || "null") || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function writeIdentitySession(session) {
+      const clean = Object.fromEntries(Object.entries(session).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+      localStorage.setItem(identitySessionKey, JSON.stringify({ ...readIdentitySession(), ...clean, updated_at: new Date().toISOString() }));
+      return readIdentitySession();
+    }
+
+    function captureIdentityFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
+      const session = {
+        tanq_id: tanqIdValue,
+        email: params.get("email") || params.get("ownerId"),
+        profile_name: params.get("name") || params.get("displayName"),
+        guest_session_id: params.get("sessionId"),
+        client: params.get("client"),
+        interface: params.get("interface") || params.get("service")
+      };
+      if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
+      return readIdentitySession();
+    }
+
+    function withIdentityUrl(target, extra = {}) {
+      const url = new URL(target, location.href);
+      const session = captureIdentityFromUrl();
+      const values = {
+        tanqId: state.identity?.tanq_id || session.tanq_id,
+        email: session.email,
+        name: state.identity?.profile_name || session.profile_name,
+        sessionId: state.identity?.guest_session_id || session.guest_session_id,
+        client: session.client,
+        ...extra
+      };
+      Object.entries(values).forEach(([key, value]) => {
+        if (value) url.searchParams.set(key, value);
+      });
+      return url.toString();
+    }
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
@@ -325,9 +372,17 @@
     function readState() {
       try {
         const saved = JSON.parse(localStorage.getItem(storageKey) || "null") || seed;
+        const session = captureIdentityFromUrl();
         return {
           ...seed,
           ...saved,
+          identity: {
+            ...(saved.identity || {}),
+            tanq_id: saved.identity?.tanq_id || session.tanq_id || null,
+            profile_name: saved.identity?.profile_name || session.profile_name || "",
+            guest_session_id: saved.identity?.guest_session_id || session.guest_session_id || null,
+            entry: saved.identity?.entry || session.client || "tool"
+          },
           project: { ...seed.project, ...(saved.project || {}) },
           questions: saved.questions || [],
           tasks: saved.tasks || [],
@@ -355,8 +410,8 @@
 
     function projectToolUrl() {
       const path = window.location.pathname;
-      if (path.includes("/tanq-graph-public/process-tool/")) return "../project-tool/";
-      return "../tanq-project-tool/index.html";
+      const target = path.includes("/tanq-graph-public/process-tool/") ? "../project-tool/" : "../tanq-project-tool/index.html";
+      return withIdentityUrl(target);
     }
 
     function setStatus(text) {

@@ -328,6 +328,7 @@
 
   <script>
     const $ = (selector) => document.querySelector(selector);
+    const identitySessionKey = "tanq-graph-identity-session";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
     let firebaseApi = null;
@@ -366,10 +367,60 @@
       return String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
     }
 
+    function readIdentitySession() {
+      try {
+        return JSON.parse(localStorage.getItem(identitySessionKey) || "null") || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function writeIdentitySession(session) {
+      const clean = Object.fromEntries(Object.entries(session).filter(([, value]) => value !== null && value !== undefined && value !== ""));
+      localStorage.setItem(identitySessionKey, JSON.stringify({ ...readIdentitySession(), ...clean, updated_at: new Date().toISOString() }));
+      return readIdentitySession();
+    }
+
+    function captureIdentityFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
+      const session = {
+        tanq_id: tanqIdValue,
+        email: params.get("email") || params.get("ownerId"),
+        profile_name: params.get("name") || params.get("displayName"),
+        guest_session_id: params.get("sessionId"),
+        client: params.get("client"),
+        interface: "passport"
+      };
+      if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
+      return readIdentitySession();
+    }
+
+    function withIdentityUrl(target, extra = {}) {
+      const url = new URL(target, location.href);
+      const session = captureIdentityFromUrl();
+      const values = {
+        tanqId: state.linkage?.tanqUserId || session.tanq_id,
+        email: session.email,
+        name: state.learner?.name || session.profile_name,
+        sessionId: session.guest_session_id,
+        client: session.client,
+        ...extra
+      };
+      Object.entries(values).forEach(([key, value]) => {
+        if (value) url.searchParams.set(key, value);
+      });
+      return url.toString();
+    }
+
     function readState() {
       try {
+        const session = captureIdentityFromUrl();
         const saved = JSON.parse(localStorage.getItem("tanq-passport-state") || "null");
-        return saved ? { ...structuredClone(seedState), ...saved } : structuredClone(seedState);
+        const merged = saved ? { ...structuredClone(seedState), ...saved } : structuredClone(seedState);
+        merged.linkage = { ...merged.linkage, tanqUserId: merged.linkage?.tanqUserId || session.tanq_id || "" };
+        merged.learner = { ...merged.learner, name: session.profile_name || merged.learner?.name || "TANQ Learner" };
+        return merged;
       } catch (error) {
         return structuredClone(seedState);
       }
@@ -842,7 +893,7 @@
       button.addEventListener("click", () => $(`[data-tab="${button.dataset.tabJump}"]`).click());
     });
 
-    $("#open-project-tool").addEventListener("click", () => window.open("../project-tool/", "_blank", "noopener"));
+    $("#open-project-tool").addEventListener("click", () => window.open(withIdentityUrl("../project-tool/", { interface: "passport" }), "_blank", "noopener"));
 
     $("#add-quest").addEventListener("click", () => {
       const question = $("#quest-question").value.trim();
