@@ -1426,9 +1426,14 @@
     }
 
     async function refreshAiConsultations() {
-      const consultations = await loadRecentCloudCollection("tanq_ai_consultations", 50);
+      const actorId = entrySession?.role === "organization" ? entrySession.orgId : entrySession?.personId;
+      const consultations = actorId
+        ? await loadCloudCollection("tanq_ai_consultations", actorId)
+        : await loadRecentCloudCollection("tanq_ai_consultations", 50);
       const store = localStore();
-      store.aiConsultations = mergeById(store.aiConsultations || [], consultations);
+      store.aiConsultations = actorId
+        ? consultations.filter((item) => !item.deleted_at)
+        : mergeById(store.aiConsultations || [], consultations);
       state = saveLocal(store);
       renderAiConsultations();
       setStatus(consultations.length ? "AI logs loaded" : "AI logs empty");
@@ -1442,7 +1447,7 @@
         loadCloudCollection("tanq_projects", actorId),
         loadCloudCollection("tanq_activity_logs", actorId),
         loadCloudCollection("tanq_api_keys", actorId),
-        loadRecentCloudCollection("tanq_ai_consultations", 50),
+        loadCloudCollection("tanq_ai_consultations", actorId),
         session.role === "organization" ? loadCloudCollection("tanq_organizations", actorId) : Promise.resolve([])
       ]);
       const store = localStore();
