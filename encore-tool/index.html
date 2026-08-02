@@ -409,7 +409,6 @@
   <script>
     const storageKey = "proofolio-encore-state";
     const $ = (selector) => document.querySelector(selector);
-    const identitySessionKey = "tanq-graph-identity-session";
     const configuredEncoreAiEndpoint = window.TANQ_ENCORE_AI_ENDPOINT || "";
     const isLocalHttp = /^https?:$/.test(location.protocol) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
     const defaultEncoreAiEndpoint = configuredEncoreAiEndpoint || (isLocalHttp ? `${location.origin}/api/encore-coach` : "");
@@ -461,34 +460,13 @@
       commandHistory: [],
       personalKnowledgeNotes: [],
       seeds: [],
-      navigatorNotes: [],
-      identity: {
-        tanq_id: null,
-        profile_name: "",
-        guest_session_id: null,
-        interface: "encore",
-        entry: "encore"
-      }
+      navigatorNotes: []
     };
     let state = readState();
 
     function readState() {
       try {
-        const saved = JSON.parse(localStorage.getItem(storageKey) || "{}") || {};
-        const session = captureIdentityFromUrl();
-        return {
-          ...seedState,
-          ...saved,
-          identity: {
-            ...seedState.identity,
-            ...(saved.identity || {}),
-            tanq_id: saved.identity?.tanq_id || session.tanq_id || null,
-            profile_name: saved.identity?.profile_name || session.profile_name || "",
-            guest_session_id: saved.identity?.guest_session_id || session.guest_session_id || null,
-            interface: "encore",
-            entry: saved.identity?.entry || session.client || "encore"
-          }
-        };
+        return { ...seedState, ...(JSON.parse(localStorage.getItem(storageKey) || "{}") || {}) };
       } catch {
         return structuredClone(seedState);
       }
@@ -501,52 +479,6 @@
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
-    }
-
-    function readIdentitySession() {
-      try {
-        return JSON.parse(localStorage.getItem(identitySessionKey) || "null") || {};
-      } catch (error) {
-        return {};
-      }
-    }
-
-    function writeIdentitySession(session) {
-      const clean = Object.fromEntries(Object.entries(session).filter(([, value]) => value !== null && value !== undefined && value !== ""));
-      localStorage.setItem(identitySessionKey, JSON.stringify({ ...readIdentitySession(), ...clean, updated_at: new Date().toISOString() }));
-      return readIdentitySession();
-    }
-
-    function captureIdentityFromUrl() {
-      const params = new URLSearchParams(location.search);
-      const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
-      const session = {
-        tanq_id: tanqIdValue,
-        email: params.get("email") || params.get("ownerId"),
-        profile_name: params.get("name") || params.get("displayName"),
-        guest_session_id: params.get("sessionId"),
-        client: params.get("client"),
-        interface: "encore"
-      };
-      if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
-      return readIdentitySession();
-    }
-
-    function withIdentityUrl(target, extra = {}) {
-      const url = new URL(target, location.href);
-      const session = captureIdentityFromUrl();
-      const values = {
-        tanqId: state.identity?.tanq_id || session.tanq_id,
-        email: session.email,
-        name: state.identity?.profile_name || session.profile_name,
-        sessionId: state.identity?.guest_session_id || session.guest_session_id,
-        client: session.client,
-        ...extra
-      };
-      Object.entries(values).forEach(([key, value]) => {
-        if (value) url.searchParams.set(key, value);
-      });
-      return url.toString();
     }
 
     function id(prefix) {
@@ -649,8 +581,6 @@
         graph_type: "proofolio_encore_bundle",
         source: "Proofolio Encore",
         owner_interface: "Proofolio Encore",
-        identity: state.identity,
-        tanq_id: state.identity?.tanq_id || null,
         experience_assets: state.experience,
         proof_assets: state.proofs,
         imported_career: state.importedCareer || [],
@@ -1162,9 +1092,6 @@
       }, null, 2);
       $("#seed-list").innerHTML = state.seeds.length ? state.seeds.map(seedCard).join("") : `<div class="card"><span class="badge red">Seed</span><strong>Innovation Seedを抽出してください</strong><small>経験を事業・PPP・教育・DAOの候補へ変換します。</small></div>`;
       $("#graph-payload").textContent = JSON.stringify(graphPayload(), null, 2);
-      document.querySelectorAll('a[href="../"], a[href="../coach-admin/"]').forEach((link) => {
-        link.href = withIdentityUrl(link.getAttribute("href") || "../", { interface: "encore" });
-      });
       if (state.pendingCommandDraft) {
         showCommandResult(state.pendingCommandDraft, "前回のAI整理メモが残っています。内容を見て、よければ記録してください。");
       }
