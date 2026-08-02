@@ -221,7 +221,7 @@
               <div class="entry-panel">
                 <h3>登録済み</h3>
                 <label>メールまたは利用者ID<input id="login-person-identity" placeholder="person_xxx / name@example.jp"></label>
-                <label>ログインコード<input id="login-person-code" placeholder="発行されたコード"></label>
+                <label>ログインコード<input id="login-person-code" placeholder="メールログイン時は空欄でも可"></label>
                 <button class="secondary" id="login-person">ログイン</button>
               </div>
             </div>
@@ -250,7 +250,7 @@
               <div class="entry-panel">
                 <h3>登録済み</h3>
                 <label>メールまたは団体ID<input id="login-org-identity" placeholder="org_xxx / contact@example.jp"></label>
-                <label>ログインコード<input id="login-org-code" placeholder="発行されたコード"></label>
+                <label>ログインコード<input id="login-org-code" placeholder="メールログイン時は空欄でも可"></label>
                 <button class="secondary" id="login-org-entry">団体ログイン</button>
               </div>
             </div>
@@ -1076,11 +1076,12 @@
     function findDbRecord(records = [], identity = "", code = "") {
       const normalized = identity.trim().toLowerCase();
       const loginCode = code.trim();
-      if (!normalized || !loginCode) return null;
+      if (!normalized) return null;
       return records.find((record) => {
         const idMatch = String(record.id || "").toLowerCase() === normalized;
         const emailMatch = String(record.email || "").toLowerCase() === normalized;
-        return (idMatch || emailMatch) && record.loginCode === loginCode;
+        if (loginCode) return (idMatch || emailMatch) && record.loginCode === loginCode;
+        return emailMatch;
       }) || null;
     }
 
@@ -1229,7 +1230,8 @@
       if (!firebaseDb || !firebaseApi) return null;
       const normalized = identity.trim().toLowerCase();
       const loginCode = code.trim();
-      if (!normalized || !loginCode) return null;
+      if (!normalized) return null;
+      if (!loginCode) return findFirebaseRecordByEmail(collectionName, normalized);
       const { collection, doc, getDoc, getDocs, query, where, limit } = firebaseApi;
       const direct = await getDoc(doc(firebaseDb, collectionName, normalized));
       if (direct.exists() && direct.data().loginCode === loginCode) return { id: direct.id, ...direct.data() };
@@ -2630,7 +2632,7 @@
     $("#login-person").addEventListener("click", async () => {
       const person = await findPersonRecord($("#login-person-identity").value, $("#login-person-code").value);
       if (!person) {
-        $("#database-status").textContent = "Demo DBに一致する利用者が見つかりません。利用者IDまたはメール、ログインコードを確認してください。";
+        $("#database-status").textContent = "一致する利用者が見つかりません。メールならコード空欄でも入れます。利用者IDで入る場合はログインコードが必要です。";
         return;
       }
       const profile = {
@@ -2697,7 +2699,7 @@
     $("#login-org-entry").addEventListener("click", async () => {
       const org = await findOrganizationRecord($("#login-org-identity").value, $("#login-org-code").value);
       if (!org) {
-        $("#database-status").textContent = "Demo DBに一致する団体が見つかりません。団体IDまたはメール、ログインコードを確認してください。";
+        $("#database-status").textContent = "一致する団体が見つかりません。メールならコード空欄でも入れます。団体IDで入る場合はログインコードが必要です。";
         return;
       }
       const store = localStore();
