@@ -56,6 +56,8 @@
     .login-form.active { display: grid; }
     .entry-split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .entry-panel { border: 1px solid var(--line); border-radius: 8px; padding: 14px; display: grid; gap: 12px; background: rgba(255,253,247,.64); }
+    .oauth-panel { border: 1px solid rgba(37,107,87,.28); border-radius: 8px; padding: 14px; display: grid; gap: 10px; background: rgba(37,107,87,.08); }
+    .oauth-panel p { margin: 0; color: var(--muted); line-height: 1.6; }
     .login-note { border: 1px solid rgba(169,120,37,.32); border-radius: 8px; padding: 12px; color: var(--muted); background: rgba(169,120,37,.09); line-height: 1.6; }
     .hero { display: grid; gap: 18px; margin-bottom: 18px; }
     .hero-copy, .panel, .card, .tool, .metric, .timeline-item, .step, .graph-box, .graph-item { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; }
@@ -210,6 +212,11 @@
           <h2>ポートフォリオ利用者</h2>
           <small>生徒、学生、社会人、Proofolio Encore利用者。年齢からKids / Passport / Proofolio / Encoreを自動振り分けします。</small>
           <div class="login-form active" id="person-login-form">
+            <div class="oauth-panel">
+              <h3>TANQ OAuth</h3>
+              <p>Googleで本人確認し、同じTANQ IDをChatGPT・Gemini・各TANQサービスで使います。</p>
+              <button class="primary" id="login-with-tanq-oauth" type="button">Google OAuthでログイン</button>
+            </div>
             <div class="entry-split">
               <div class="entry-panel">
                 <h3>新規登録</h3>
@@ -865,6 +872,16 @@
       if (key === "proofolio-encore" || key === "proofolio_encore") return "encore";
       if (["kids", "passport", "proofolio", "encore"].includes(key)) return key;
       return "";
+    }
+
+    function tanqOAuthStartUrl() {
+      const url = new URL("https://tanq-graph-ai-api.tanq-graph.workers.dev/oauth/start");
+      url.searchParams.set("provider", "google");
+      url.searchParams.set("client", "tanq-graph-public");
+      url.searchParams.set("mode", "login");
+      url.searchParams.set("service", "tanq-graph-public");
+      url.searchParams.set("returnTo", "/start?client=tanq-graph-public&mode=login&service=tanq-graph-public");
+      return url.toString();
     }
 
     function readIdentitySession() {
@@ -2870,6 +2887,9 @@
       clearEntrySession({ clearUrl: true });
       $("#database-status").textContent = "ログアウトしました。別のTANQ IDでログインまたは新規登録できます。";
       setStatus("logged out");
+    });
+    $("#login-with-tanq-oauth").addEventListener("click", () => {
+      location.href = tanqOAuthStartUrl();
     });
     $("#profile-age").addEventListener("input", () => {
       updateProfileDraftUI();
