@@ -285,6 +285,7 @@
         <button class="secondary" id="copy-entry-person-id">TANQ IDをコピー</button>
         <button class="secondary" id="issue-keeper-link">Keeper連携リンク</button>
         <button class="secondary" id="switch-entry">入口を切り替え</button>
+        <button class="secondary" id="logout-entry">ログアウト</button>
       </div>
     </aside>
 
@@ -1566,11 +1567,20 @@
       refreshIdentityLinks();
     }
 
-    function clearEntrySession() {
+    function removeIdentityParamsFromUrl() {
+      const url = new URL(location.href);
+      ["tanqId", "tanq_id", "ownerId", "email", "name", "displayName", "sessionId", "client", "service", "interface"].forEach((key) => {
+        url.searchParams.delete(key);
+      });
+      history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+
+    function clearEntrySession(options = {}) {
       entrySession = null;
       orgSessionId = null;
       localStorage.removeItem("tanq-graph-entry-session");
       localStorage.removeItem(identitySessionKey);
+      if (options.clearUrl) removeIdentityParamsFromUrl();
       document.body.classList.add("login-pending");
       $("#entry-session-label").textContent = "未選択";
       $("#entry-person-id-label").textContent = "TANQ ID: 未発行";
@@ -2855,7 +2865,12 @@
       }
       setStatus("keeper link issued");
     });
-    $("#switch-entry").addEventListener("click", clearEntrySession);
+    $("#switch-entry").addEventListener("click", () => clearEntrySession({ clearUrl: true }));
+    $("#logout-entry").addEventListener("click", () => {
+      clearEntrySession({ clearUrl: true });
+      $("#database-status").textContent = "ログアウトしました。別のTANQ IDでログインまたは新規登録できます。";
+      setStatus("logged out");
+    });
     $("#profile-age").addEventListener("input", () => {
       updateProfileDraftUI();
       closeAndClearMaterialForm();
