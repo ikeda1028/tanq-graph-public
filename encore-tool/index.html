@@ -432,8 +432,10 @@
 
     function readState() {
       try {
-        const saved = JSON.parse(localStorage.getItem(storageKey) || "{}") || {};
         const session = captureIdentityFromUrl();
+        const hasIdentity = Boolean(session.tanq_id || session.email || session.guest_session_id);
+        const raw = localStorage.getItem(scopedStorageKey(session)) || (!hasIdentity ? localStorage.getItem(storageKey) : null);
+        const saved = JSON.parse(raw || "{}") || {};
         return {
           ...seedState,
           ...saved,
@@ -455,7 +457,7 @@
 
     function saveState() {
       writeIdentitySession(state.identity || {});
-      localStorage.setItem(storageKey, JSON.stringify(state));
+      localStorage.setItem(scopedStorageKey(state.identity || {}), JSON.stringify(state));
       $("#save-status").textContent = `Saved ${new Date().toLocaleTimeString("ja-JP")}`;
     }
 
@@ -490,6 +492,11 @@
       };
       if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
       return readIdentitySession();
+    }
+
+    function scopedStorageKey(identity = captureIdentityFromUrl()) {
+      const scope = identity.tanq_id || identity.email || identity.guest_session_id || "anonymous";
+      return `${storageKey}:${encodeURIComponent(String(scope).trim().toLowerCase())}`;
     }
 
     function withIdentityUrl(target, extra = {}) {

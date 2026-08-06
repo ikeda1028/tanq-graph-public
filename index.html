@@ -896,6 +896,11 @@
       return readIdentitySession();
     }
 
+    function scopedStorageKey(baseKey, session = captureIdentityFromUrl()) {
+      const scope = session.tanq_id || session.email || session.guest_session_id || "anonymous";
+      return `${baseKey}:${encodeURIComponent(String(scope).trim().toLowerCase())}`;
+    }
+
     function activeTanqIdentity() {
       const session = captureIdentityFromUrl();
       const entry = entrySession || readEntrySession();
@@ -1476,7 +1481,8 @@
 
     function localStore() {
       const session = captureIdentityFromUrl();
-      const saved = localStorage.getItem("tanq-graph-public-demo-state");
+      const hasIdentity = Boolean(session.tanq_id || session.email || session.guest_session_id);
+      const saved = localStorage.getItem(scopedStorageKey("tanq-graph-public-demo-state", session)) || (!hasIdentity ? localStorage.getItem("tanq-graph-public-demo-state") : null);
       const store = saved ? JSON.parse(saved) : structuredClone(seedState);
       const existingProjects = store.projects && store.projects.length ? store.projects : [];
       const existingProjectIds = new Set(existingProjects.map((project) => project.id));
@@ -1497,7 +1503,7 @@
 
     function saveLocal(store) {
       const clean = { tools: store.tools, events: store.events, projects: store.projects || defaultProjects, profile: normalizeProfile(store.profile), apiKeys: store.apiKeys || [], organizations: store.organizations || [], aiConsultations: store.aiConsultations || [] };
-      localStorage.setItem("tanq-graph-public-demo-state", JSON.stringify(clean));
+      localStorage.setItem(scopedStorageKey("tanq-graph-public-demo-state"), JSON.stringify(clean));
       return { ...clean, summary: summarize(clean) };
     }
 
@@ -1678,6 +1684,7 @@
         return { event, state: next };
       }
       if (path === "/api/reset") {
+        localStorage.removeItem(scopedStorageKey("tanq-graph-public-demo-state"));
         localStorage.removeItem("tanq-graph-public-demo-state");
         return localStore();
       }
