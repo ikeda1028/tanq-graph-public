@@ -880,6 +880,24 @@
       return readIdentitySession();
     }
 
+    function hasResolvedTanqIdentity(session = {}) {
+      return Boolean(String(session.tanq_id || "").trim());
+    }
+
+    function entrySessionFromIdentity(session = readIdentitySession()) {
+      if (!hasResolvedTanqIdentity(session)) return null;
+      return {
+        role: "person",
+        name: session.profile_name || session.email || "ポートフォリオ利用者",
+        email: session.email || "",
+        personId: session.tanq_id,
+        interfaceMode: session.interface || "passport",
+        db: "TANQ OAuth",
+        source: session.client || "oauth",
+        started_at: session.updated_at || new Date().toISOString()
+      };
+    }
+
     function captureIdentityFromUrl() {
       const params = new URLSearchParams(location.search);
       const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
@@ -894,6 +912,20 @@
       };
       if (Object.values(session).some(Boolean)) return writeIdentitySession(session);
       return readIdentitySession();
+    }
+
+    function syncEntrySessionWithIdentity(session = readIdentitySession()) {
+      const identityEntry = entrySessionFromIdentity(session);
+      if (!identityEntry) return null;
+      const saved = readEntrySession();
+      if (!saved || saved.role !== "person" || saved.personId !== identityEntry.personId || saved.email !== identityEntry.email) {
+        entrySession = identityEntry;
+        localStorage.setItem("tanq-graph-entry-session", JSON.stringify(identityEntry));
+        return identityEntry;
+      }
+      entrySession = { ...saved, ...identityEntry, name: identityEntry.name || saved.name };
+      localStorage.setItem("tanq-graph-entry-session", JSON.stringify(entrySession));
+      return entrySession;
     }
 
     function scopedStorageKey(baseKey, session = captureIdentityFromUrl()) {
@@ -912,6 +944,10 @@
         client: session.client || "graph-public",
         interface: session.interface || entry?.interfaceMode || state?.profile?.interfaceMode || ""
       };
+    }
+
+    function activeEntryPersonId() {
+      return activeTanqIdentity().tanqId || entrySession?.personId || "";
     }
 
     function withIdentityUrl(target, extra = {}) {
@@ -1541,6 +1577,7 @@
     }
 
     function applyEntrySession() {
+      syncEntrySessionWithIdentity(readIdentitySession());
       if (!entrySession) {
         document.body.classList.add("login-pending");
         $("#entry-session-label").textContent = "未選択";
@@ -1554,8 +1591,9 @@
         $("#entry-person-id-label").textContent = `団体ID: ${entrySession.orgId || "未設定"}`;
         setActiveTab("org-login");
       } else {
-        $("#entry-session-label").textContent = `利用者: ${entrySession.name || "ポートフォリオ"} / DB接続`;
-        $("#entry-person-id-label").textContent = `TANQ ID: ${entrySession.personId || "未設定"}`;
+        const identity = activeTanqIdentity();
+        $("#entry-session-label").textContent = `利用者: ${identity.name || entrySession.name || "ポートフォリオ"} / ${entrySession.db || "DB接続"}`;
+        $("#entry-person-id-label").textContent = `TANQ ID: ${identity.tanqId || entrySession.personId || "未設定"}`;
         setActiveTab("dashboard");
       }
     }
@@ -2765,7 +2803,7 @@
 
     $("#save-profile").addEventListener("click", saveProfile);
     $("#copy-entry-person-id").addEventListener("click", async () => {
-      const id = entrySession?.role === "organization" ? entrySession.orgId : entrySession?.personId;
+      const id = entrySession?.role === "organization" ? entrySession.orgId : activeEntryPersonId();
       if (!id) {
         setStatus("TANQ ID is not available");
         $("#database-status").textContent = "ログインまたは新規登録するとTANQ IDが発行されます。";
@@ -2787,6 +2825,7 @@
         $("#database-status").textContent = "ポートフォリオ利用者としてログインまたは新規登録すると、Keeper連携リンクを発行できます。";
         return;
       }
+      const tanqId = activeEntryPersonId();
       const token = generateKeeperLinkToken();
       const createdAt = new Date();
       const expiresAt = new Date(createdAt.getTime() + 30 * 60 * 1000);
@@ -2796,8 +2835,8 @@
         token,
         purpose: "chatgpt_keeper_link",
         status: "active",
-        tanq_user_id: entrySession.personId,
-        owner_person_id: entrySession.personId,
+        tanq_user_id: tanqId,
+        owner_person_id: tanqId,
         display_name: entrySession.name || "",
         owner_interface: entrySession.interfaceMode || currentInterfaceMode(),
         db: entrySession.db || activeDbLabel(),
@@ -2807,7 +2846,7 @@
       };
       localStorage.setItem("tanq-keeper-link-session", JSON.stringify(record));
       await saveFirebaseRecord("tanq_identity_links", record);
-      const text = `TANQ Keeper連携リンクです。\n${linkUrl}\n\nTANQ KeeperはこのリンクをGraph Coreで検証し、tanq_user_id=${entrySession.personId} として保存してください。`;
+      const text = `TANQ Keeper連携リンクです。\n${linkUrl}\n\nTANQ KeeperはこのリンクをGraph Coreで検証し、tanq_user_id=${tanqId} として保存してください。`;
       try {
         await navigator.clipboard.writeText(text);
         $("#database-status").textContent = `Keeper連携リンクをコピーしました。30分以内にTANQ Keeperへ貼ってください。`;
@@ -2998,8 +3037,9 @@
     });
 
     async function boot() {
+      const capturedIdentity = captureIdentityFromUrl();
       state = await api("/api/state");
-      entrySession = readEntrySession();
+      entrySession = syncEntrySessionWithIdentity(capturedIdentity) || readEntrySession();
       render();
       await refreshAiConnectionStatus();
       const savedFirebaseConfig = readFirebaseConfig();
