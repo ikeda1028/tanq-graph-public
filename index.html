@@ -876,11 +876,19 @@
 
     function tanqOAuthStartUrl() {
       const url = new URL("https://tanq-graph-ai-api.tanq-graph.workers.dev/oauth/start");
+      const returnTo = new URL(location.href);
+      returnTo.searchParams.delete("tanqId");
+      returnTo.searchParams.delete("tanq_id");
+      returnTo.searchParams.delete("ownerId");
+      returnTo.searchParams.delete("email");
+      returnTo.searchParams.delete("name");
+      returnTo.searchParams.delete("displayName");
+      returnTo.searchParams.delete("sessionId");
       url.searchParams.set("provider", "google");
       url.searchParams.set("client", "tanq-graph-public");
       url.searchParams.set("mode", "login");
       url.searchParams.set("service", "tanq-graph-public");
-      url.searchParams.set("returnTo", "/start?client=tanq-graph-public&mode=login&service=tanq-graph-public");
+      url.searchParams.set("returnTo", returnTo.toString());
       return url.toString();
     }
 
