@@ -442,11 +442,11 @@
           identity: {
             ...seedState.identity,
             ...(saved.identity || {}),
-            tanq_id: saved.identity?.tanq_id || session.tanq_id || null,
-            email: saved.identity?.email || session.email || "",
-            profile_name: saved.identity?.profile_name || session.profile_name || "",
-            guest_session_id: saved.identity?.guest_session_id || session.guest_session_id || null,
-            client: saved.identity?.client || session.client || "",
+            tanq_id: session.tanq_id || saved.identity?.tanq_id || null,
+            email: session.email || saved.identity?.email || "",
+            profile_name: session.profile_name || saved.identity?.profile_name || "",
+            guest_session_id: session.guest_session_id || saved.identity?.guest_session_id || null,
+            client: session.client || saved.identity?.client || "",
             interface: "encore"
           }
         };

@@ -518,11 +518,11 @@
           identity: {
             ...seed.identity,
             ...(saved.identity || {}),
-            tanq_id: saved.identity?.tanq_id || session.tanq_id || null,
-            guest_session_id: saved.identity?.guest_session_id || session.guest_session_id || seed.identity.guest_session_id,
-            profile_name: saved.identity?.profile_name || session.profile_name || "",
+            tanq_id: session.tanq_id || saved.identity?.tanq_id || null,
+            guest_session_id: session.guest_session_id || saved.identity?.guest_session_id || seed.identity.guest_session_id,
+            profile_name: session.profile_name || saved.identity?.profile_name || "",
             interface: "kids",
-            entry: saved.identity?.entry || session.client || "kids"
+            entry: session.client || saved.identity?.entry || "kids"
           },
           project: { ...seed.project, ...(saved.project || {}), owner: "TANQ Pass Kids" },
           questions: saved.questions || [],

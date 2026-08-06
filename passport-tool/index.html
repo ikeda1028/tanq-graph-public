@@ -418,7 +418,7 @@
         const session = captureIdentityFromUrl();
         const saved = JSON.parse(localStorage.getItem("tanq-passport-state") || "null");
         const merged = saved ? { ...structuredClone(seedState), ...saved } : structuredClone(seedState);
-        merged.linkage = { ...merged.linkage, tanqUserId: merged.linkage?.tanqUserId || session.tanq_id || "" };
+        merged.linkage = { ...merged.linkage, tanqUserId: session.tanq_id || merged.linkage?.tanqUserId || "" };
         merged.learner = { ...merged.learner, name: session.profile_name || merged.learner?.name || "TANQ Learner" };
         return merged;
       } catch (error) {
