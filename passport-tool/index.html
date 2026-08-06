@@ -329,6 +329,7 @@
   <script>
     const $ = (selector) => document.querySelector(selector);
     const identitySessionKey = "tanq-graph-identity-session";
+    const storageKey = "tanq-passport-state";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
     let firebaseApi = null;
@@ -396,6 +397,11 @@
       return readIdentitySession();
     }
 
+    function scopedStorageKey(identity = captureIdentityFromUrl()) {
+      const scope = identity.tanq_id || identity.email || identity.guest_session_id || "anonymous";
+      return `${storageKey}:${encodeURIComponent(String(scope).trim().toLowerCase())}`;
+    }
+
     function withIdentityUrl(target, extra = {}) {
       const url = new URL(target, location.href);
       const session = captureIdentityFromUrl();
@@ -416,7 +422,9 @@
     function readState() {
       try {
         const session = captureIdentityFromUrl();
-        const saved = JSON.parse(localStorage.getItem("tanq-passport-state") || "null");
+        const hasIdentity = Boolean(session.tanq_id || session.email || session.guest_session_id);
+        const raw = localStorage.getItem(scopedStorageKey(session)) || (!hasIdentity ? localStorage.getItem(storageKey) : null);
+        const saved = JSON.parse(raw || "null");
         const merged = saved ? { ...structuredClone(seedState), ...saved } : structuredClone(seedState);
         merged.linkage = { ...merged.linkage, tanqUserId: session.tanq_id || merged.linkage?.tanqUserId || "" };
         merged.learner = { ...merged.learner, name: session.profile_name || merged.learner?.name || "TANQ Learner" };
@@ -437,7 +445,7 @@
     }
 
     function saveState() {
-      localStorage.setItem("tanq-passport-state", JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+      localStorage.setItem(scopedStorageKey({ tanq_id: state.linkage?.tanqUserId || "", email: readIdentitySession().email, guest_session_id: readIdentitySession().guest_session_id }), JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
     }
 
     function setKeeperStatus(message) {
@@ -803,13 +811,40 @@
       `;
     }
 
+    function graphSafeId(value = "item") {
+      return String(value || "item").toLowerCase().replace(/[^a-z0-9_:-]+/g, "_").slice(0, 120);
+    }
+
+    function scopedGraphId(baseId, ownerPersonId) {
+      const owner = graphSafeId(ownerPersonId || "anonymous");
+      const base = graphSafeId(baseId || Date.now());
+      return `passport_${owner}_${base}`;
+    }
+
     function graphPayload() {
       const now = new Date().toISOString();
-      const projectId = "passport_project_" + (state.learner.name || "learner").toLowerCase().replace(/[^a-z0-9]+/g, "_").slice(0, 18);
       const ownerPersonId = state.linkage?.tanqUserId || null;
+      const projectId = scopedGraphId("project", ownerPersonId);
       const owner = ownerPersonId
         ? { owner_person_id: ownerPersonId, tanq_user_id: ownerPersonId, owner_interface: "passport" }
         : { owner_interface: "passport" };
+      const scopedQuests = state.quests.map((quest) => ({
+        ...quest,
+        id: scopedGraphId(quest.id, ownerPersonId),
+        local_id: quest.local_id || quest.id,
+        quest_id: quest.quest_id ? scopedGraphId(quest.quest_id, ownerPersonId) : undefined
+      }));
+      const scopedCoachLogs = state.coachLogs.map((log) => ({
+        ...log,
+        id: scopedGraphId(log.id, ownerPersonId),
+        local_id: log.local_id || log.id
+      }));
+      const scopedEvidence = state.evidence.map((item) => ({
+        ...item,
+        id: scopedGraphId(item.id, ownerPersonId),
+        local_id: item.local_id || item.id,
+        quest_id: item.quest_id ? scopedGraphId(item.quest_id, ownerPersonId) : undefined
+      }));
       return {
         source: "TANQ Passport",
         synced_at: now,
@@ -824,21 +859,21 @@
           ...owner,
           created_at: state.quests[0]?.created_at || now
         },
-        question_seeds: state.quests.map((quest) => ({ ...quest, ...owner, graph_type: "question_seed", owner: "TANQ Passport" })),
+        question_seeds: scopedQuests.map((quest) => ({ ...quest, ...owner, graph_type: "question_seed", owner: "TANQ Passport" })),
         activity_logs: [
-          ...state.quests.map((quest) => ({ id: "log_" + quest.id, ...owner, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
-          ...state.coachLogs.map((log) => ({ id: "log_" + log.id, ...owner, graph_type: "activity_log", source: "Quest Navigator", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
+          ...scopedQuests.map((quest) => ({ id: scopedGraphId("log_" + quest.local_id, ownerPersonId), ...owner, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
+          ...scopedCoachLogs.map((log) => ({ id: scopedGraphId("log_" + log.local_id, ownerPersonId), ...owner, graph_type: "activity_log", source: "Quest Navigator", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
         ],
-        ai_consultations: state.coachLogs.map((log) => ({
+        ai_consultations: scopedCoachLogs.map((log) => ({
           ...log,
           ...owner,
           graph_type: "ai_consultation",
           source_tool: "TANQ Passport",
           trust: 1
         })),
-        materials: state.evidence.map((item) => ({ ...item, ...owner, graph_type: "material", source_tool: "TANQ Passport", trust: Number(item.trust || 1) })),
-        innovation_seeds: state.coachLogs.map((log) => ({
-          id: "seed_" + log.id,
+        materials: scopedEvidence.map((item) => ({ ...item, ...owner, graph_type: "material", source_tool: "TANQ Passport", trust: Number(item.trust || 1) })),
+        innovation_seeds: scopedCoachLogs.map((log) => ({
+          id: scopedGraphId("seed_" + log.local_id, ownerPersonId),
           ...owner,
           source_consultation_id: log.id,
           title: log.innovationSeed.title,
