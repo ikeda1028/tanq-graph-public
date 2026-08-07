@@ -135,6 +135,9 @@
     .timeline { display: grid; gap: 10px; }
     .timeline-item { display: grid; grid-template-columns: 100px 1fr auto; gap: 12px; align-items: center; padding: 12px; }
     .timeline-item.latest, .timeline-item.imported { border-color: rgba(37,107,87,.55); background: linear-gradient(90deg, rgba(37,107,87,.12), var(--panel)); }
+    .timeline-button { width: 100%; text-align: left; cursor: pointer; color: var(--ink); font: inherit; }
+    .timeline-button:hover { border-color: rgba(37,107,87,.72); }
+    .timeline-detail { display: grid; gap: 10px; }
     .form-grid, .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .mini-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
@@ -276,6 +279,7 @@
       </div>
       <nav class="nav">
         <button class="active" data-tab="dashboard">Dashboard</button>
+        <button data-tab="settings">共通設定</button>
         <button data-tab="tools">Tools</button>
         <button data-tab="api">API</button>
         <button data-tab="admin">Admin</button>
@@ -500,16 +504,6 @@
             <pre class="code" id="project-api-payload"></pre>
           </div>
           <div class="panel wide">
-            <h2>実Coreタイムライン</h2>
-            <div class="timeline" id="timeline"></div>
-          </div>
-          <div class="panel narrow">
-            <h2>接続対象</h2>
-            <div class="badge-row" id="selected-tools"></div>
-            <h3>生成されるデータ</h3>
-            <div class="badge-row" id="selected-records"></div>
-          </div>
-          <div class="panel wide">
             <h2>Personal Intelligence Graph</h2>
             <div class="graph-box" aria-label="Personal Intelligence Graph">
               <div class="graph-line a"></div>
@@ -530,6 +524,45 @@
           <div class="panel full">
             <h2>Driveから取り込んだ内容</h2>
             <div class="artifact-list" id="dashboard-drive-artifacts"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <h2>共通設定</h2>
+                <small>Kids、Passport、Proofolio、Encoreで共通利用するTANQ IDとCore接続を確認します。</small>
+              </div>
+              <a class="badge green" href="https://tanq-graph-ai-api.tanq-graph.workers.dev/start" target="_blank" rel="noopener">OAuth / Start</a>
+            </div>
+            <div class="mini-grid three">
+              <div class="card"><span class="badge green">TANQ ID</span><strong id="settings-tanq-id">未発行</strong><small>各サービスに引き継ぐ本人IDです。</small></div>
+              <div class="card"><span class="badge gold">表示名</span><strong id="settings-display-name">未設定</strong><small>ログイン・登録画面から更新されます。</small></div>
+              <div class="card"><span class="badge">Client</span><strong id="settings-client">未設定</strong><small>ChatGPT、Geminiなど接続元です。</small></div>
+            </div>
+          </div>
+          <div class="panel wide">
+            <div class="section-head">
+              <div>
+                <h2>Coreタイムライン</h2>
+                <small>項目を押すと、問い・証拠・メタ情報の詳細を確認できます。</small>
+              </div>
+              <button class="secondary" id="refresh-core-timeline" type="button">読み込み</button>
+            </div>
+            <div class="timeline" id="timeline"></div>
+          </div>
+          <div class="panel narrow">
+            <h2>Core詳細</h2>
+            <div class="timeline" id="core-timeline-detail"></div>
+          </div>
+          <div class="panel full">
+            <h2>接続対象</h2>
+            <div class="badge-row" id="selected-tools"></div>
+            <h3>生成されるデータ</h3>
+            <div class="badge-row" id="selected-records"></div>
           </div>
         </div>
       </section>
@@ -1816,11 +1849,46 @@
       const evidenceCount = Array.isArray(inquiry.evidence) ? inquiry.evidence.length : 0;
       const trust = evidenceCount ? Math.min(4, 2 + evidenceCount) : 1;
       const tone = trust >= 4 ? "green" : trust >= 2 ? "gold" : "";
-      return `<div class="timeline-item imported">
+      return `<button class="timeline-item timeline-button imported" type="button" data-core-inquiry-id="${escapeHtml(inquiry.id)}">
         <small>TANQ Core</small>
         <strong>${escapeHtml(inquiry.title)}<br><small>${escapeHtml(inquiry.centralQuestion)}</small></strong>
         ${badge(`L${trust}`, tone)}
+      </button>`;
+    }
+
+    function renderCoreTimelineDetail(inquiry) {
+      const target = $("#core-timeline-detail");
+      if (!target) return;
+      if (!inquiry) {
+        target.innerHTML = `<div class="timeline-item"><small>Core</small><strong>Coreタイムラインの項目を押すと詳細が表示されます。</strong>${badge("Ready")}</div>`;
+        return;
+      }
+      const evidence = Array.isArray(inquiry.evidence) ? inquiry.evidence : [];
+      target.innerHTML = `<div class="timeline-detail">
+        <div class="timeline-item imported">
+          <small>Inquiry</small>
+          <strong>${escapeHtml(inquiry.title || "無題")}<br><small>${escapeHtml(inquiry.centralQuestion || "問いの本文は未設定です。")}</small></strong>
+          ${badge(inquiry.status || "active", "green")}
+        </div>
+        <div class="timeline-item">
+          <small>ID</small>
+          <strong>${escapeHtml(inquiry.id)}<br><small>Owner: ${escapeHtml(inquiry.ownerId || "未設定")}</small></strong>
+          ${badge(`v${inquiry.version || 1}`)}
+        </div>
+        ${evidence.length ? evidence.map((item) => `<div class="timeline-item">
+          <small>Evidence</small>
+          <strong>${escapeHtml(item.title || "証拠")}<br><small>${escapeHtml(item.summary || item.content || "内容未設定")}</small></strong>
+          ${badge(item.reliability || "unknown", item.reliability === "high" ? "green" : "gold")}
+        </div>`).join("") : `<div class="timeline-item"><small>Evidence</small><strong>証拠はまだありません。</strong>${badge("Empty")}</div>`}
       </div>`;
+    }
+
+    function bindCoreTimelineButtons(inquiries = []) {
+      document.querySelectorAll("[data-core-inquiry-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          renderCoreTimelineDetail(inquiries.find((item) => item.id === button.dataset.coreInquiryId));
+        });
+      });
     }
 
     function coreInquiryAsEvent(inquiry, source = "TANQ Core") {
@@ -1846,7 +1914,8 @@
     async function refreshCoreTimeline() {
       const timeline = $("#timeline");
       if (!timeline) return;
-      timeline.innerHTML = coreTimelineLoginItem("実Coreタイムラインを読み込み中です。");
+      timeline.innerHTML = coreTimelineLoginItem("Coreタイムラインを読み込み中です。");
+      renderCoreTimelineDetail();
       try {
         const token = readCoreSessionToken();
         const response = await fetch(`${coreBaseUrl}/api/core/inquiries`, {
@@ -1862,9 +1931,11 @@
         timeline.innerHTML = inquiries.length
           ? inquiries.map(coreTimelineItem).join("")
           : coreTimelineLoginItem("このTANQ IDにはまだ探究記録がありません。ChatGPT Actionsから保存するとここに出ます。");
+        bindCoreTimelineButtons(inquiries);
+        renderCoreTimelineDetail(inquiries[0]);
         renderCoreInquiryLists(inquiries);
       } catch (error) {
-        timeline.innerHTML = coreTimelineLoginItem("実Coreタイムラインを読み込めませんでした。TANQ Graph Coreを直接開いて確認してください。");
+        timeline.innerHTML = coreTimelineLoginItem("Coreタイムラインを読み込めませんでした。TANQ Graph Coreを直接開いて確認してください。");
       }
     }
 
@@ -2547,9 +2618,18 @@
       setTimeout(() => { $("#save-status").textContent = ""; }, 1600);
     }
 
+    function renderCommonSettings() {
+      const identity = activeTanqIdentity();
+      const tanqId = identity.tanqId || "未発行";
+      $("#settings-tanq-id").textContent = tanqId;
+      $("#settings-display-name").textContent = identity.name || identity.email || "未設定";
+      $("#settings-client").textContent = identity.client || "graph-public";
+    }
+
     function render() {
       renderTools();
       renderMetrics();
+      renderCommonSettings();
       renderProfile();
       renderProjectDashboard();
       renderEvents();
@@ -2925,6 +3005,7 @@
     });
 
     $("#save-profile").addEventListener("click", saveProfile);
+    $("#refresh-core-timeline").addEventListener("click", refreshCoreTimeline);
     $("#copy-entry-person-id").addEventListener("click", async () => {
       const id = entrySession?.role === "organization" ? entrySession.orgId : activeEntryPersonId();
       if (!id) {
