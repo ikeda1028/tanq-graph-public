@@ -198,12 +198,38 @@
       gap: 8px;
       align-content: start;
     }
-    button.step, button.card {
+    .step[role="button"], button.card {
       width: 100%;
       color: var(--ink);
       text-align: left;
       cursor: pointer;
     }
+    .step-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .photo-icon {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: inline-grid;
+      place-items: center;
+      overflow: hidden;
+      color: var(--green);
+      background: var(--surface);
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .photo-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .photo-icon:hover { border-color: rgba(36,107,85,.55); }
     .step.done { border-color: rgba(36,107,85,.55); background: linear-gradient(180deg, rgba(36,107,85,.1), var(--surface)); }
     .step.active { outline: 2px solid rgba(36,107,85,.5); outline-offset: 2px; }
     .detail-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 12px; }
@@ -1197,21 +1223,47 @@
         : `<article class="detail-card">${badge(label, tone)}<strong>まだ記録はありません</strong><small>${escapeHtml(description)}</small></article>`;
     }
 
+    function stagePhotoPreview(stage) {
+      return stageRecords(stage).find((item) => item.image || item.photo?.image_data_url);
+    }
+
     function renderSteps() {
       $("#kids-steps").innerHTML = processStages.map((stage) => {
         const [label, tone, description] = stageLabels[stage];
         const count = stageCount(stage);
-        return `<button class="step ${count ? "done" : ""} ${selectedStage === stage ? "active" : ""}" data-stage-detail="${stage}" type="button">
-          ${badge(String(count), count ? tone : "")}
+        const photo = stagePhotoPreview(stage);
+        const photoSrc = photo?.image || photo?.photo?.image_data_url || "";
+        return `<div class="step ${count ? "done" : ""} ${selectedStage === stage ? "active" : ""}" data-stage-detail="${stage}" role="button" tabindex="0">
+          <div class="step-top">
+            ${badge(String(count), count ? tone : "")}
+            ${photoSrc ? `<span class="photo-icon" data-stage-photo="${stage}" title="写真とコメント詳細を見る"><img src="${escapeHtml(photoSrc)}" alt="${escapeHtml(label)}の写真"></span>` : `<span class="photo-icon" data-stage-photo="${stage}" title="詳細を見る">写真</span>`}
+          </div>
           <strong>${escapeHtml(label)}</strong>
           <small>${escapeHtml(description)}</small>
-        </button>`;
+        </div>`;
       }).join("");
       document.querySelectorAll("[data-stage-detail]").forEach((button) => {
         button.addEventListener("click", () => {
           selectedStage = button.dataset.stageDetail;
           renderSteps();
           renderStepDetail();
+        });
+        button.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          selectedStage = button.dataset.stageDetail;
+          renderSteps();
+          renderStepDetail();
+          $("#step-detail-title").scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      });
+      document.querySelectorAll("[data-stage-photo]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          selectedStage = button.dataset.stagePhoto;
+          renderSteps();
+          renderStepDetail();
+          $("#step-detail-title").scrollIntoView({ behavior: "smooth", block: "start" });
         });
       });
     }

@@ -265,6 +265,15 @@
     .question-card {
       grid-template-columns: 140px 1fr 190px;
       align-items: start;
+      width: 100%;
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+    .question-card[role="button"] { font: inherit; }
+    .question-card.active {
+      border-color: rgba(36,107,85,.55);
+      background: linear-gradient(90deg, rgba(36,107,85,.1), var(--surface));
     }
     .question-meta {
       display: grid;
@@ -287,6 +296,29 @@
       height: 100%;
       border-radius: inherit;
       background: linear-gradient(90deg, var(--gold), var(--green));
+    }
+    .detail-grid { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 12px; }
+    .detail-list { display: grid; gap: 10px; }
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+    }
+    .raw-json {
+      margin: 0;
+      max-height: 300px;
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #f5efe2;
+      background: #26241f;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
     }
     .kids-hero {
       display: grid;
@@ -546,7 +578,7 @@
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       main { padding: 20px; }
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log, .innovation-grid, .score-grid, .formation-grid, .innovation-path { grid-template-columns: 1fr; }
+      .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log, .innovation-grid, .score-grid, .formation-grid, .innovation-path, .detail-grid { grid-template-columns: 1fr; }
       .identity-flow { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .question-card { grid-template-columns: 1fr; }
@@ -634,6 +666,19 @@
           <div class="panel full">
             <h2>問いのリスト</h2>
             <div class="timeline" id="question-list"></div>
+          </div>
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <h2 id="question-detail-title">問いの詳細</h2>
+                <p class="lead" id="question-detail-summary">問いを押すと、きっかけ、理由、次の一手、関連ログを確認できます。</p>
+              </div>
+              <span class="badge gold" id="question-detail-badge">未選択</span>
+            </div>
+            <div class="detail-grid">
+              <div class="detail-list" id="question-detail-links"></div>
+              <div class="detail-card" id="question-detail-body"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -1222,6 +1267,7 @@
     let state = readState();
     let kidsPhotoDraft = null;
     let kidsCurrentGeo = null;
+    let selectedQuestionId = "";
 
     function badge(text, tone = "") {
       return `<span class="badge ${tone}">${escapeHtml(text)}</span>`;
@@ -1990,12 +2036,89 @@
       });
     }
 
+    function linkedQuestionRecords(questionId) {
+      return {
+        tasks: (state.tasks || []).filter((item) => item.source_question_id === questionId),
+        materials: (state.materials || []).filter((item) => item.source_question_id === questionId),
+        aiConsultations: (state.aiConsultations || []).filter((item) => item.linked_question_id === questionId),
+        feedback: (state.feedback || []).filter((item) => item.source_question_id === questionId)
+      };
+    }
+
+    function linkedQuestionItem(label, item, tone = "") {
+      const title = item.title || item.question || item.reviewer || item.kind || "関連ログ";
+      const summary = item.summary || item.text || item.ai_answer || item.insight || item.next_question || "";
+      return `<article class="detail-card">
+        ${badge(label, tone)}
+        <strong>${escapeHtml(title)}</strong>
+        <small>${escapeHtml(summary || "内容なし")}</small>
+        ${item.created_at ? `<small>${escapeHtml(new Date(item.created_at).toLocaleString("ja-JP"))}</small>` : ""}
+      </article>`;
+    }
+
+    function questionGraphRecord(question) {
+      const maturity = questionMaturity[question.maturity || "seed"] || questionMaturity.seed;
+      const identity = state.identity || seed.identity;
+      return {
+        ...question,
+        tanq_id: identity.tanq_id || null,
+        guest_session_id: identity.guest_session_id || null,
+        subject_id: effectiveSubjectId(),
+        subject_kind: effectiveSubjectKind(),
+        graph_type: "question_seed",
+        source: "TANQ Project Tool",
+        trust: maturity.trust || 0
+      };
+    }
+
+    function renderQuestionDetail() {
+      const questions = state.questions || [];
+      if (!selectedQuestionId || !questions.some((item) => item.id === selectedQuestionId)) {
+        selectedQuestionId = questions[0]?.id || "";
+      }
+      const question = questions.find((item) => item.id === selectedQuestionId);
+      if (!question) {
+        $("#question-detail-title").textContent = "問いの詳細";
+        $("#question-detail-summary").textContent = "問いを保存すると詳細を確認できます。";
+        $("#question-detail-badge").textContent = "未選択";
+        $("#question-detail-links").innerHTML = `<article class="detail-card">${badge("Question")}<strong>まだ問いはありません</strong><small>左上のフォームから問いを保存してください。</small></article>`;
+        $("#question-detail-body").innerHTML = `${badge("Empty")}<strong>詳細なし</strong>`;
+        return;
+      }
+      const maturity = questionMaturity[question.maturity || "seed"] || questionMaturity.seed;
+      const linked = linkedQuestionRecords(question.id);
+      const linkedCount = linked.tasks.length + linked.materials.length + linked.aiConsultations.length + linked.feedback.length;
+      $("#question-detail-title").textContent = question.text || "問いの詳細";
+      $("#question-detail-summary").textContent = linkedCount ? `${linkedCount}件の関連ログがあります。` : "まだ関連ログはありません。";
+      $("#question-detail-badge").textContent = maturity.label;
+      $("#question-detail-badge").className = `badge ${maturity.tone}`;
+      $("#question-detail-links").innerHTML = [
+        ...linked.tasks.map((item) => linkedQuestionItem(stageInfo(item.stage)[0], item, stageInfo(item.stage)[1])),
+        ...linked.materials.map((item) => linkedQuestionItem(item.kind || "資料", item, "gold")),
+        ...linked.aiConsultations.map((item) => linkedQuestionItem(item.source || "AI相談", item, "blue")),
+        ...linked.feedback.map((item) => linkedQuestionItem("Feedback", item, "red"))
+      ].join("") || `<article class="detail-card">${badge("Related")}<strong>関連ログはまだありません</strong><small>プロジェクト化、資料追加、AI相談ログ保存でここに増えます。</small></article>`;
+      $("#question-detail-body").innerHTML = `
+        <div class="badge-row">
+          ${badge(question.domain || "領域未設定")}
+          ${badge(maturity.label, maturity.tone)}
+          ${question.promoted ? badge("Project化済み", "green") : badge("Project未作成", "gold")}
+        </div>
+        <strong>${escapeHtml(question.text || "問い")}</strong>
+        <small>きっかけ: ${escapeHtml(question.trigger || "未登録")}</small>
+        <small>理由: ${escapeHtml(question.reason || "未登録")}</small>
+        <small>次の一手: ${escapeHtml(question.next_action || "未設定")}</small>
+        ${question.promoted_project_id ? `<small>Project ID: ${escapeHtml(question.promoted_project_id)}</small>` : ""}
+        <pre class="raw-json">${escapeHtml(JSON.stringify(questionGraphRecord(question), null, 2))}</pre>
+      `;
+    }
+
     function renderQuestions() {
       const questions = state.questions || [];
       $("#question-list").innerHTML = questions.length
         ? questions.map((question) => {
           const maturity = questionMaturity[question.maturity || "seed"] || questionMaturity.seed;
-          return `<div class="timeline-item question-card">
+          return `<div class="timeline-item question-card ${selectedQuestionId === question.id ? "active" : ""}" data-question-detail-id="${escapeHtml(question.id)}" role="button" tabindex="0">
           <div class="question-meta">
             <small>${escapeHtml(question.domain)}</small>
             ${badge(maturity.label, maturity.tone)}
@@ -2014,9 +2137,28 @@
         }).join("")
         : `<div class="timeline-item"><small>Seed</small><strong>まだ問いはありません<br><small>違和感、ふしぎ、知りたいことをまず保存します。</small></strong>${badge("Question")}</div>`;
 
-      document.querySelectorAll("[data-promote-question-id]").forEach((button) => {
-        button.addEventListener("click", () => promoteQuestion(button.dataset.promoteQuestionId));
+      document.querySelectorAll("[data-question-detail-id]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          if (event.target.closest("[data-promote-question-id]")) return;
+          selectedQuestionId = button.dataset.questionDetailId;
+          renderQuestions();
+          renderQuestionDetail();
+        });
+        button.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          selectedQuestionId = button.dataset.questionDetailId;
+          renderQuestions();
+          renderQuestionDetail();
+        });
       });
+      document.querySelectorAll("[data-promote-question-id]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          promoteQuestion(button.dataset.promoteQuestionId);
+        });
+      });
+      renderQuestionDetail();
     }
 
     function promoteQuestion(id) {
@@ -2030,6 +2172,7 @@
         trust_stage: "draft"
       };
       state.questions = (state.questions || []).map((item) => item.id === id ? { ...item, promoted: true, promoted_project_id: state.project.id, promoted_at: new Date().toISOString() } : item);
+      selectedQuestionId = id;
       state.tasks = [{
         id: "task_promote_" + Date.now(),
         title: "問いを探究プロジェクト化",
@@ -2680,7 +2823,7 @@
         setStatus("question required");
         return;
       }
-      state.questions = [{
+      const question = {
         id: "q_" + Date.now(),
         text,
         trigger: $("#question-trigger").value.trim(),
@@ -2690,7 +2833,9 @@
         next_action: $("#question-next-action").value.trim(),
         promoted: false,
         created_at: new Date().toISOString()
-      }, ...(state.questions || [])];
+      };
+      state.questions = [question, ...(state.questions || [])];
+      selectedQuestionId = question.id;
       $("#question-text").value = "";
       $("#question-trigger").value = "";
       $("#question-reason").value = "";
