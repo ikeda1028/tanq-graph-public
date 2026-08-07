@@ -500,7 +500,7 @@
             <pre class="code" id="project-api-payload"></pre>
           </div>
           <div class="panel wide">
-            <h2>デモタイムライン</h2>
+            <h2>実Coreタイムライン</h2>
             <div class="timeline" id="timeline"></div>
           </div>
           <div class="panel narrow">
@@ -826,6 +826,7 @@
     const interfaceLabels = { kids: "TANQ Pass Kids", passport: "TANQ Passport", proofolio: "Proofolio", encore: "Proofolio Encore" };
     const statusLabels = { connected: "基盤接続中", next: "次に接続", external: "外部証明・外部データ" };
     const statusDots = { connected: "", next: "next", external: "external" };
+    const coreBaseUrl = "https://tanq-graph-ai-api.tanq-graph.workers.dev";
     const defaultProjects = [
       { id: "project_kids_001", name: "身近なふしぎ探究", question: "毎日のあそびや発見から、どんな問いが生まれるか", owner: "TANQ Pass Kids", exportTargets: ["TANQ Passport", "保護者共有", "先生コメント"] },
       { id: "project_local_ppp_001", name: "地方創生PPP探究", question: "空き店舗を探究拠点として再生できるか", owner: "TANQ Passport / Proofolio", exportTargets: ["PPM", "Proofolio", "DAO貢献評価API"] },
@@ -1790,6 +1791,45 @@
       return `<div class="timeline-item${latest}"><small>${event.source}</small><strong>${event.title}<br><small>${event.summary}</small></strong>${badge("L" + event.trust, tone)}</div>`;
     }
 
+    function coreTimelineItem(inquiry) {
+      const evidenceCount = Array.isArray(inquiry.evidence) ? inquiry.evidence.length : 0;
+      const trust = evidenceCount ? Math.min(4, 2 + evidenceCount) : 1;
+      const tone = trust >= 4 ? "green" : trust >= 2 ? "gold" : "";
+      return `<div class="timeline-item imported">
+        <small>TANQ Core</small>
+        <strong>${escapeHtml(inquiry.title)}<br><small>${escapeHtml(inquiry.centralQuestion)}</small></strong>
+        ${badge(`L${trust}`, tone)}
+      </div>`;
+    }
+
+    function coreTimelineLoginItem(message = "Google OAuthでログインすると、ChatGPT Actionsから保存した探究記録を表示します。") {
+      return `<div class="timeline-item">
+        <small>Core</small>
+        <strong>${escapeHtml(message)}<br><small><a href="${coreBaseUrl}/core" target="_blank" rel="noopener">TANQ Graph Coreを開く</a></small></strong>
+        ${badge("Login")}
+      </div>`;
+    }
+
+    async function refreshCoreTimeline() {
+      const timeline = $("#timeline");
+      if (!timeline) return;
+      timeline.innerHTML = coreTimelineLoginItem("実Coreタイムラインを読み込み中です。");
+      try {
+        const response = await fetch(`${coreBaseUrl}/api/core/inquiries`, { credentials: "include" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) {
+          timeline.innerHTML = coreTimelineLoginItem(payload.error?.message || "ログインが必要です。");
+          return;
+        }
+        const inquiries = payload.data?.inquiries || [];
+        timeline.innerHTML = inquiries.length
+          ? inquiries.map(coreTimelineItem).join("")
+          : coreTimelineLoginItem("このTANQ IDにはまだ探究記録がありません。ChatGPT Actionsから保存するとここに出ます。");
+      } catch (error) {
+        timeline.innerHTML = coreTimelineLoginItem("実Coreタイムラインを読み込めませんでした。TANQ Graph Coreを直接開いて確認してください。");
+      }
+    }
+
     function projectOf(event) {
       const projects = state.projects || defaultProjects;
       return projects.find((project) => project.id === event.project_id) || projects[0];
@@ -2195,7 +2235,7 @@
     }
 
     function renderEvents() {
-      $("#timeline").innerHTML = state.events.map(timelineItem).join("");
+      refreshCoreTimeline();
       $("#kids-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, source: "みつけた記録", title: event.type === "Artifact" ? `つくった: ${event.title}` : `できた: ${event.title}` })).join("");
       $("#passport-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, title: event.title.replace("PPP", "探究") })).join("");
       $("#proofolio-list").innerHTML = state.events.slice(0, 4).map((event) => timelineItem({ ...event, title: `${event.type} / ${event.title}` })).join("");
