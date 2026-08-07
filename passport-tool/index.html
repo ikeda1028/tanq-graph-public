@@ -529,6 +529,19 @@
       return sessionStorage.getItem(coreSessionKey) || "";
     }
 
+    function tanqCoreOAuthUrl() {
+      const url = new URL(`${coreBaseUrl}/oauth/start`);
+      const returnTo = new URL(location.href);
+      returnTo.searchParams.delete("coreSession");
+      returnTo.searchParams.delete("coreSessionExpiresAt");
+      url.searchParams.set("provider", "google");
+      url.searchParams.set("client", "tanq-graph-public");
+      url.searchParams.set("mode", "login");
+      url.searchParams.set("service", "tanq-graph-public");
+      url.searchParams.set("returnTo", returnTo.toString());
+      return url.toString();
+    }
+
     function questFromCoreInquiry(inquiry) {
       return {
         id: inquiry.id,
@@ -564,10 +577,11 @@
       state.evidence = state.evidence.filter((item) => !seedEvidenceIds.has(item.id));
     }
 
-    async function importCoreInquiries() {
+    async function importCoreInquiries(options = {}) {
       const token = readCoreSessionToken();
       if (!token) {
-        setKeeperStatus("Core読み込みにはPublicページからGoogle OAuthで読み込んでください。");
+        setKeeperStatus("Core読み込みにはGoogle OAuthが必要です。");
+        if (options.allowRedirect) window.location.href = tanqCoreOAuthUrl();
         return;
       }
       setKeeperStatus("TANQ Coreから探究記録を読み込み中...");
@@ -1163,8 +1177,8 @@
 
     $("#save-tanq-id").addEventListener("click", () => saveTanqId("sync"));
     $("#inbox-save-tanq-id").addEventListener("click", () => saveTanqId("inbox"));
-    $("#import-core-inquiries").addEventListener("click", importCoreInquiries);
-    $("#inbox-import-core-inquiries").addEventListener("click", importCoreInquiries);
+    $("#import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
+    $("#inbox-import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
     $("#import-keeper-firestore").addEventListener("click", () => importKeeperFromFirestore("sync"));
     $("#inbox-import-firestore").addEventListener("click", () => importKeeperFromFirestore("inbox"));
     $("#import-keeper-api").addEventListener("click", () => importKeeperFromApi("sync"));

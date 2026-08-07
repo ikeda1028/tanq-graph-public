@@ -1003,6 +1003,8 @@
       Object.entries(identity).forEach(([key, value]) => {
         if (value) url.searchParams.set(key === "tanqId" ? "tanqId" : key, value);
       });
+      const coreSession = readCoreSessionToken();
+      if (coreSession && url.origin === location.origin) url.searchParams.set("coreSession", coreSession);
       return url.toString();
     }
 
