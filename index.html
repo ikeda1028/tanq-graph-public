@@ -1821,6 +1821,18 @@
       </div>`;
     }
 
+    function coreInquiryAsEvent(inquiry, source = "TANQ Core") {
+      const evidenceCount = Array.isArray(inquiry.evidence) ? inquiry.evidence.length : 0;
+      return {
+        id: inquiry.id,
+        source,
+        type: "Question",
+        title: inquiry.title || "Core Inquiry",
+        summary: inquiry.centralQuestion || "問いの本文は未設定です。",
+        trust: evidenceCount ? Math.min(4, 2 + evidenceCount) : 2
+      };
+    }
+
     function coreTimelineLoginItem(message = "Google OAuthでログインすると、ChatGPT Actionsから保存した探究記録を表示します。") {
       return `<div class="timeline-item">
         <small>Core</small>
@@ -1848,9 +1860,19 @@
         timeline.innerHTML = inquiries.length
           ? inquiries.map(coreTimelineItem).join("")
           : coreTimelineLoginItem("このTANQ IDにはまだ探究記録がありません。ChatGPT Actionsから保存するとここに出ます。");
+        renderCoreInquiryLists(inquiries);
       } catch (error) {
         timeline.innerHTML = coreTimelineLoginItem("実Coreタイムラインを読み込めませんでした。TANQ Graph Coreを直接開いて確認してください。");
       }
+    }
+
+    function renderCoreInquiryLists(inquiries = []) {
+      if (!inquiries.length) return;
+      const events = inquiries.map((inquiry) => coreInquiryAsEvent(inquiry));
+      $("#kids-list").innerHTML = events.slice(0, 4).map((event) => timelineItem({ ...event, source: "みつけた問い" })).join("");
+      $("#passport-list").innerHTML = events.slice(0, 4).map((event) => timelineItem({ ...event, source: "探究クエスト" })).join("");
+      $("#proofolio-list").innerHTML = events.slice(0, 4).map((event) => timelineItem({ ...event, source: "Core Proof", title: `Question / ${event.title}` })).join("");
+      $("#encore-list").innerHTML = events.slice(0, 4).map((event) => timelineItem({ ...event, source: "Encore Proof", title: `再証明: ${event.title}` })).join("");
     }
 
     function projectOf(event) {

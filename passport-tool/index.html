@@ -303,6 +303,7 @@
             </div>
             <div class="actions">
               <button class="primary" id="save-tanq-id" type="button">IDを保存</button>
+              <button class="secondary" id="import-core-inquiries" type="button">TANQ Coreから読み込む</button>
               <button class="secondary" id="import-keeper-firestore" type="button">FirestoreからKeeperデータを取り込む</button>
               <button class="secondary" id="import-keeper-api" type="button">Keeper APIから取り込む</button>
             </div>
@@ -329,6 +330,8 @@
   <script>
     const $ = (selector) => document.querySelector(selector);
     const identitySessionKey = "tanq-graph-identity-session";
+    const coreBaseUrl = "https://tanq-graph-ai-api.tanq-graph.workers.dev";
+    const coreSessionKey = "tanq-graph-core-session";
     const storageKey = "tanq-passport-state";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
@@ -385,6 +388,14 @@
     function captureIdentityFromUrl() {
       const params = new URLSearchParams(location.search);
       const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
+      const coreSession = params.get("coreSession");
+      if (coreSession) {
+        sessionStorage.setItem(coreSessionKey, coreSession);
+        params.delete("coreSession");
+        params.delete("coreSessionExpiresAt");
+        const query = params.toString();
+        history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
+      }
       const session = {
         tanq_id: tanqIdValue,
         email: params.get("email") || params.get("ownerId"),
@@ -425,7 +436,14 @@
         const hasIdentity = Boolean(session.tanq_id || session.email || session.guest_session_id);
         const raw = localStorage.getItem(scopedStorageKey(session)) || (!hasIdentity ? localStorage.getItem(storageKey) : null);
         const saved = JSON.parse(raw || "null");
-        const merged = saved ? { ...structuredClone(seedState), ...saved } : structuredClone(seedState);
+        const base = structuredClone(seedState);
+        if (hasIdentity && !saved) {
+          base.quests = [];
+          base.evidence = [];
+          base.coachLogs = [];
+          base.badges = ["Question Owner"];
+        }
+        const merged = saved ? { ...base, ...saved } : base;
         merged.linkage = { ...merged.linkage, tanqUserId: session.tanq_id || merged.linkage?.tanqUserId || "" };
         merged.learner = { ...merged.learner, name: session.profile_name || merged.learner?.name || "TANQ Learner" };
         return merged;
@@ -504,6 +522,74 @@
       const map = new Map(existing.map((item) => [item.id, item]));
       incoming.forEach((item) => map.set(item.id, { ...(map.get(item.id) || {}), ...item }));
       return [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function readCoreSessionToken() {
+      return sessionStorage.getItem(coreSessionKey) || "";
+    }
+
+    function questFromCoreInquiry(inquiry) {
+      return {
+        id: inquiry.id,
+        question: inquiry.centralQuestion || inquiry.title || "ChatGPTから保存した問い",
+        trigger: inquiry.title || "TANQ Coreから読み込んだ探究記録",
+        domain: Array.isArray(inquiry.tags) && inquiry.tags.length ? inquiry.tags[0] : "AI相談",
+        stage: "question",
+        owner_person_id: inquiry.ownerId || state.linkage.tanqUserId || null,
+        tanq_user_id: inquiry.ownerId || state.linkage.tanqUserId || null,
+        source_tool: "TANQ Core",
+        created_at: inquiry.createdAt || inquiry.created_at || new Date().toISOString()
+      };
+    }
+
+    function evidenceFromCoreInquiry(inquiry) {
+      return (inquiry.evidence || []).map((item) => ({
+        id: item.id,
+        quest_id: inquiry.id,
+        title: item.title || "Core Evidence",
+        url: item.sourceUrl || "",
+        note: item.summary || item.content || "",
+        trust: item.reliability === "high" ? 4 : item.reliability === "medium" ? 3 : 2,
+        owner_person_id: inquiry.ownerId || state.linkage.tanqUserId || null,
+        source_tool: "TANQ Core",
+        created_at: item.createdAt || item.created_at || inquiry.createdAt || new Date().toISOString()
+      }));
+    }
+
+    function removeSeedDemoItems() {
+      const seedQuestIds = new Set(seedState.quests.map((quest) => quest.id));
+      const seedEvidenceIds = new Set(seedState.evidence.map((item) => item.id));
+      state.quests = state.quests.filter((quest) => !seedQuestIds.has(quest.id));
+      state.evidence = state.evidence.filter((item) => !seedEvidenceIds.has(item.id));
+    }
+
+    async function importCoreInquiries() {
+      const token = readCoreSessionToken();
+      if (!token) {
+        setKeeperStatus("Core読み込みにはPublicページからGoogle OAuthで読み込んでください。");
+        return;
+      }
+      setKeeperStatus("TANQ Coreから探究記録を読み込み中...");
+      try {
+        const response = await fetch(`${coreBaseUrl}/api/core/inquiries`, {
+          credentials: "include",
+          headers: { authorization: `Bearer ${token}` }
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error?.message || `HTTP ${response.status}`);
+        const inquiries = payload.data?.inquiries || [];
+        removeSeedDemoItems();
+        state.quests = mergeById(state.quests, inquiries.map(questFromCoreInquiry));
+        state.evidence = mergeById(state.evidence, inquiries.flatMap(evidenceFromCoreInquiry));
+        state.linkage.tanqUserId = payload.data?.user?.tanqId || state.linkage.tanqUserId;
+        state.linkage.imported_at = new Date().toISOString();
+        if (inquiries.length && !state.badges.includes("Core Linked")) state.badges.push("Core Linked");
+        saveState();
+        render();
+        setKeeperStatus(`TANQ Coreから読み込みました。問い ${inquiries.length}件`);
+      } catch (error) {
+        setKeeperStatus(`Core読み込みに失敗: ${error.message}`);
+      }
     }
 
     function questFromKeeperQuestion(item) {
@@ -1076,6 +1162,7 @@
 
     $("#save-tanq-id").addEventListener("click", () => saveTanqId("sync"));
     $("#inbox-save-tanq-id").addEventListener("click", () => saveTanqId("inbox"));
+    $("#import-core-inquiries").addEventListener("click", importCoreInquiries);
     $("#import-keeper-firestore").addEventListener("click", () => importKeeperFromFirestore("sync"));
     $("#inbox-import-firestore").addEventListener("click", () => importKeeperFromFirestore("inbox"));
     $("#import-keeper-api").addEventListener("click", () => importKeeperFromApi("sync"));
@@ -1100,6 +1187,7 @@
 
     connectFirebase();
     render();
+    importCoreInquiries();
   </script>
 </body>
 </html>
