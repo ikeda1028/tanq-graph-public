@@ -99,9 +99,12 @@
     .icon-button { width: 42px; height: 42px; display: inline-grid; place-items: center; background: var(--panel); border-color: var(--line); color: var(--ink); padding: 0; }
     .code { margin: 0; max-height: 420px; overflow: auto; background: #24231f; color: #f5efe2; border-radius: 8px; padding: 14px; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .coach-output { border: 1px solid rgba(37,107,87,.28); background: linear-gradient(180deg, rgba(37,107,87,.08), var(--panel)); border-radius: 8px; padding: 14px; line-height: 1.7; display: grid; gap: 10px; }
+    .raw-json { margin: 0; max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 8px; color: #f5efe2; background: #26241f; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .timeline { display: grid; gap: 10px; }
     .inbox-list { display: grid; gap: 12px; }
     .inbox-item { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,247,.72); padding: 14px; display: grid; gap: 10px; }
+    button.inbox-item { width: 100%; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+    .inbox-item.active { outline: 2px solid rgba(37,107,87,.5); outline-offset: 2px; }
     .inbox-item.keeper { border-color: rgba(37,107,87,.34); background: linear-gradient(180deg, rgba(37,107,87,.08), var(--panel)); }
     .inbox-item.ai { border-color: rgba(47,95,143,.28); }
     .inbox-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
@@ -214,6 +217,13 @@
               <span class="badge green" id="keeper-inbox-count">0件</span>
             </div>
             <div class="inbox-list" id="keeper-inbox-list"></div>
+          </div>
+          <div class="panel full">
+            <div class="inbox-head">
+              <h2 id="keeper-detail-title">ChatGPT保存詳細</h2>
+              <span class="badge gold" id="keeper-detail-badge">未選択</span>
+            </div>
+            <div class="coach-output" id="keeper-detail-body">ChatGPT保存一覧を押すと、詳細と探究ボードへの公開操作を表示します。</div>
           </div>
         </div>
       </section>
@@ -454,6 +464,7 @@
     }
 
     let state = readState();
+    let selectedKeeperInboxId = "";
 
     function readGraphEntrySession() {
       try {
@@ -743,6 +754,7 @@
           stage: questStageName(quest.stage),
           created_at: quest.created_at,
           target: "Quest Board",
+          public_board: quest.public_board === true || quest.public_visibility === "public",
           raw: quest
         })),
         ...keeperLogs.map((log) => ({
@@ -755,6 +767,7 @@
           stage: "相談ログ",
           created_at: log.created_at,
           target: "AI探究ナビゲーター",
+          public_board: log.public_board === true || log.public_visibility === "public",
           raw: log
         }))
       ].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
@@ -762,12 +775,15 @@
 
     function renderKeeperInbox() {
       const rows = keeperInboxRows();
+      if (!selectedKeeperInboxId || !rows.some((item) => item.id === selectedKeeperInboxId)) {
+        selectedKeeperInboxId = rows[0]?.id || "";
+      }
       $("#keeper-inbox-count").textContent = `${rows.length}件`;
       $("#keeper-inbox-list").innerHTML = rows.length ? rows.map((item) => `
-        <div class="inbox-item ${item.kind === "Question Seed" ? "keeper" : "ai"}">
+        <button class="inbox-item ${item.kind === "Question Seed" ? "keeper" : "ai"} ${selectedKeeperInboxId === item.id ? "active" : ""}" data-keeper-detail-id="${escapeHtml(item.id)}" type="button">
           <div class="inbox-head">
             <strong>${escapeHtml(item.title)}</strong>
-            <span class="badge ${item.tone === "green" ? "green" : ""}">${escapeHtml(item.kind)}</span>
+            <span class="badge ${item.tone === "green" ? "green" : ""}">${escapeHtml(item.public_board ? "公開中" : item.kind)}</span>
           </div>
           <small>${escapeHtml(item.body)}</small>
           <div class="inbox-meta">
@@ -776,8 +792,98 @@
             <span class="badge">${escapeHtml(item.target)}</span>
             <span class="badge red">${escapeHtml(item.created_at ? item.created_at.slice(0, 10) : "日付未設定")}</span>
           </div>
-        </div>
+        </button>
       `).join("") : `<div class="inbox-item"><strong>まだChatGPT保存データはありません。</strong><small>TANQ Keeperで保存するときに同じTANQ IDを付け、FirestoreまたはKeeper APIから読み込んでください。</small></div>`;
+      document.querySelectorAll("[data-keeper-detail-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedKeeperInboxId = button.dataset.keeperDetailId;
+          renderKeeperInbox();
+        });
+      });
+      renderKeeperDetail();
+    }
+
+    function selectedKeeperItem() {
+      return keeperInboxRows().find((item) => item.id === selectedKeeperInboxId) || null;
+    }
+
+    function keeperPublicCollection(item) {
+      return item?.kind === "Question Seed" ? "tanq_question_seeds" : "tanq_ai_consultations";
+    }
+
+    function updateKeeperRaw(item, patch) {
+      if (!item?.raw?.id) return null;
+      if (item.kind === "Question Seed") {
+        state.quests = state.quests.map((quest) => quest.id === item.raw.id ? { ...quest, ...patch } : quest);
+        return state.quests.find((quest) => quest.id === item.raw.id);
+      }
+      state.coachLogs = state.coachLogs.map((log) => log.id === item.raw.id ? { ...log, ...patch } : log);
+      return state.coachLogs.find((log) => log.id === item.raw.id);
+    }
+
+    function keeperPublicRecord(item, raw) {
+      const tanqUserId = state.linkage.tanqUserId || raw.owner_person_id || raw.tanq_user_id || "";
+      return {
+        ...raw,
+        id: raw.id,
+        source_item_type: item.kind === "Question Seed" ? "questions" : "aiConsultations",
+        title: item.title,
+        text: item.title,
+        summary: item.body,
+        domain: item.domain,
+        owner_label: "TANQ Passport",
+        tanq_id: tanqUserId,
+        subject_id: tanqUserId,
+        subject_kind: "person",
+        public_board: true,
+        public_visibility: "public",
+        public_updated_at: new Date().toISOString()
+      };
+    }
+
+    async function toggleKeeperPublic(id) {
+      const item = keeperInboxRows().find((row) => row.id === id);
+      if (!item) return;
+      const nextPublic = !(item.raw.public_board === true || item.raw.public_visibility === "public");
+      const raw = updateKeeperRaw(item, {
+        public_board: nextPublic,
+        public_visibility: nextPublic ? "public" : "private",
+        public_updated_at: new Date().toISOString()
+      });
+      saveState();
+      if (nextPublic) await saveFirebaseRecord(keeperPublicCollection(item), keeperPublicRecord(item, raw));
+      renderKeeperInbox();
+      setKeeperStatus(nextPublic ? "探究ボードへ公開しました。" : "探究ボードから下げました。");
+    }
+
+    function renderKeeperDetail() {
+      const item = selectedKeeperItem();
+      if (!item) {
+        $("#keeper-detail-title").textContent = "ChatGPT保存詳細";
+        $("#keeper-detail-badge").textContent = "未選択";
+        $("#keeper-detail-body").textContent = "ChatGPT保存一覧を押すと、詳細と探究ボードへの公開操作を表示します。";
+        return;
+      }
+      const isPublic = item.raw.public_board === true || item.raw.public_visibility === "public";
+      $("#keeper-detail-title").textContent = item.title || "ChatGPT保存詳細";
+      $("#keeper-detail-badge").textContent = isPublic ? "公開中" : "非公開";
+      $("#keeper-detail-badge").className = `badge ${isPublic ? "green" : "gold"}`;
+      $("#keeper-detail-body").innerHTML = `
+        <div class="inbox-meta">
+          <span class="badge ${item.tone === "green" ? "green" : ""}">${escapeHtml(item.kind)}</span>
+          <span class="badge">${escapeHtml(item.domain)}</span>
+          <span class="badge gold">${escapeHtml(item.stage)}</span>
+          <span class="badge">${escapeHtml(item.target)}</span>
+        </div>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.body || "本文なし")}</small>
+        <div class="actions">
+          <button class="${isPublic ? "secondary" : "primary"}" data-keeper-public-id="${escapeHtml(item.id)}" type="button">${isPublic ? "探究ボードから下げる" : "探究ボードへ公開"}</button>
+          <a class="secondary" href="../inquiry-board/" target="_blank" rel="noopener">探究ボードを見る</a>
+        </div>
+        <pre class="raw-json">${escapeHtml(JSON.stringify(item.raw, null, 2))}</pre>
+      `;
+      document.querySelector("[data-keeper-public-id]")?.addEventListener("click", () => toggleKeeperPublic(item.id));
     }
 
     function classifyKeeperItem(item) {

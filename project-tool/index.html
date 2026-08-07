@@ -1897,6 +1897,7 @@
           ${tasks.length ? tasks.map((task) => `<div class="item ${tone}">
             <strong>${escapeHtml(task.title)}</strong>
             <small>${escapeHtml(task.summary || "メモなし")}</small>
+            ${publicRecordButton("tasks", task)}
           </div>`).join("") : `<small>まだ作業ログはありません。</small>`}
         </div>`;
       }).join("");
@@ -1911,7 +1912,10 @@
         ? rows.map((item) => `<div class="timeline-item ${latestSync ? "latest" : ""}">
           <small>${escapeHtml(item.kindLabel)}</small>
           <strong>${escapeHtml(item.title)}<br><small>${escapeHtml(item.text || item.url || "本文なし")}</small></strong>
-          ${badge(item.kindLabel, item.tone)}
+          <div class="actions">
+            ${badge(item.kindLabel, item.tone)}
+            ${publicRecordButton(item.kindLabel === "Feedback" ? "feedback" : "materials", item)}
+          </div>
         </div>`).join("")
         : `<div class="timeline-item"><small>Empty</small><strong>資料・フィードバックはまだありません</strong>${badge("Ready")}</div>`;
     }
@@ -2008,6 +2012,7 @@
             <strong>${escapeHtml(item.question || item.title || "ChatGPT会話ログ")}<br><small>${escapeHtml(aiConsultationSummary(item))}</small><br><small>ID: ${escapeHtml(idLabel)}</small></strong>
             <div class="actions">
               ${imported ? badge("資料化済み", "green") : `<button class="secondary" data-import-ai-consultation-id="${item.id}">資料に追加</button>`}
+              ${publicRecordButton("aiConsultations", item)}
               ${badge("L" + Number(item.trust || 1), "gold")}
             </div>
           </div>`;
@@ -2069,6 +2074,96 @@
         source: "TANQ Project Tool",
         trust: maturity.trust || 0
       };
+    }
+
+    const publicRecordCollections = {
+      questions: "tanq_question_seeds",
+      tasks: "tanq_activity_logs",
+      materials: "tanq_materials",
+      feedback: "tanq_feedback",
+      aiConsultations: "tanq_ai_consultations",
+      toolImports: "tanq_activity_logs",
+      experienceAssets: "tanq_experience_assets",
+      innovationSeeds: "tanq_innovation_seeds",
+      formationCandidates: "tanq_formation_candidates"
+    };
+
+    function publicRecordButton(type, item = {}) {
+      if (!item.id) return "";
+      const isPublic = item.public_board === true || item.public_visibility === "public";
+      return `<button class="${isPublic ? "secondary" : "primary"}" data-public-record-type="${escapeHtml(type)}" data-public-record-id="${escapeHtml(item.id)}" type="button">${isPublic ? "ボードから下げる" : "探究ボードへ投稿"}</button>`;
+    }
+
+    function publicRecordTitle(type, item = {}) {
+      if (type === "questions") return item.text || item.title || "問い";
+      if (type === "tasks") return item.title || stageInfo(item.stage)[0] || "活動ログ";
+      if (type === "feedback") return `${item.reviewer || "Reviewer"} feedback`;
+      if (type === "aiConsultations") return item.title || item.question || "AI相談ログ";
+      if (type === "experienceAssets") return item.title || "経験資産";
+      return item.title || item.name || item.kind || "TANQデータ";
+    }
+
+    function publicRecordSummary(type, item = {}) {
+      if (type === "questions") return item.reason || item.trigger || item.next_action || "";
+      if (type === "feedback") return item.text || "";
+      if (type === "aiConsultations") return aiConsultationSummary(item);
+      return item.summary || item.text || item.url || item.note || "";
+    }
+
+    function publicBoardRecord(type, item = {}) {
+      const identity = state.identity || seed.identity;
+      return {
+        ...item,
+        id: item.id,
+        graph_type: item.graph_type || type,
+        source_item_type: type,
+        title: publicRecordTitle(type, item),
+        text: type === "questions" ? item.text : item.text || item.title || item.question || "",
+        summary: publicRecordSummary(type, item),
+        domain: item.domain || item.kind || item.importType || item.role || stageInfo(item.stage)[0] || "TANQデータ",
+        owner_label: state.project?.owner || ownerByInterface(state.identity?.interface) || "TANQ Project Tool",
+        tanq_id: item.tanq_id || identity.tanq_id || null,
+        guest_session_id: item.guest_session_id || identity.guest_session_id || null,
+        subject_id: item.subject_id || effectiveSubjectId(),
+        subject_kind: item.subject_kind || effectiveSubjectKind(),
+        public_board: item.public_board === true,
+        public_visibility: item.public_visibility || (item.public_board ? "public" : "private"),
+        public_updated_at: item.public_updated_at || new Date().toISOString()
+      };
+    }
+
+    function findPublicRecord(type, id) {
+      return (state[type] || []).find((item) => item.id === id);
+    }
+
+    function updatePublicRecord(type, id, patch) {
+      state[type] = (state[type] || []).map((item) => item.id === id ? { ...item, ...patch } : item);
+      return findPublicRecord(type, id);
+    }
+
+    async function togglePublicRecord(type, id) {
+      const item = findPublicRecord(type, id);
+      if (!item) return;
+      const nextPublic = !(item.public_board === true || item.public_visibility === "public");
+      const updated = updatePublicRecord(type, id, {
+        public_board: nextPublic,
+        public_visibility: nextPublic ? "public" : "private",
+        public_updated_at: new Date().toISOString()
+      });
+      saveState(state);
+      const collectionName = publicRecordCollections[type];
+      if (collectionName) await saveFirebaseRecord(collectionName, publicBoardRecord(type, updated));
+      render();
+      setStatus(nextPublic ? "published to inquiry board" : "removed from inquiry board");
+    }
+
+    function attachPublicRecordButtons() {
+      document.querySelectorAll("[data-public-record-type]").forEach((button) => {
+        button.addEventListener("click", (event) => {
+          event.stopPropagation();
+          togglePublicRecord(button.dataset.publicRecordType, button.dataset.publicRecordId);
+        });
+      });
     }
 
     function renderQuestionDetail() {
@@ -2160,6 +2255,7 @@
           </strong>
           <div class="question-actions">
             <div class="progress" aria-label="問いの成熟度"><span style="width:${maturity.progress}%"></span></div>
+            ${publicRecordButton("questions", question)}
             ${question.promoted ? "" : `<button class="secondary" data-promote-question-id="${question.id}">プロジェクト化</button>`}
           </div>
         </div>`;
@@ -2278,7 +2374,10 @@
         ? imports.map((item) => `<div class="timeline-item">
           <small>${escapeHtml(item.toolName)}</small>
           <strong>${escapeHtml(item.title)}<br><small>${escapeHtml(item.text || item.url || "内容なし")}</small></strong>
-          ${badge(item.importType, item.importType === "feedback" ? "red" : item.importType === "activity" ? "green" : "gold")}
+          <div class="actions">
+            ${badge(item.importType, item.importType === "feedback" ? "red" : item.importType === "activity" ? "green" : "gold")}
+            ${publicRecordButton("toolImports", item)}
+          </div>
         </div>`).join("")
         : `<div class="timeline-item"><small>Empty</small><strong>外部ツールからの取り込みはまだありません</strong>${badge("Ready")}</div>`;
     }
@@ -2537,6 +2636,7 @@
           ${badge(seedRecord.opportunity_type || "Innovation Seed", "green")}
           ${badge(`L${seedRecord.trust_level || 1}`, "gold")}
           ${badge(`${seedRecord.innovation_score || 0} / 100`)}
+          ${publicRecordButton("innovationSeeds", seedRecord)}
         </div>
         <h3>${escapeHtml(seedRecord.title)}</h3>
         <div>
@@ -2576,7 +2676,10 @@
           ${badge(item.priority, item.priority === "High" ? "green" : "gold")}
           <strong>${escapeHtml(item.role)}</strong>
           <small>${escapeHtml(item.reason)}</small>
-          ${badge(item.recommended_tool || "TANQ")}
+          <div class="badge-row">
+            ${badge(item.recommended_tool || "TANQ")}
+            ${publicRecordButton("formationCandidates", item)}
+          </div>
         </div>`).join("")
         : `<div class="formation-card"><span class="badge gold">Ready</span><strong>チーム候補なし</strong><small>Seedを生成すると役割候補を表示します。</small></div>`;
     }
@@ -2612,6 +2715,7 @@
         <div class="badge-row">
           ${(item.tags || []).slice(0, 3).map((tag) => badge(tag, "green")).join("")}
           ${badge(`L${item.trust || 1}`, "gold")}
+          ${publicRecordButton("experienceAssets", item)}
         </div>
       </div>`;
     }
@@ -2775,6 +2879,7 @@
       renderExperienceGraph();
       renderInnovationEngine();
       renderPayload();
+      attachPublicRecordButtons();
     }
 
     function setStatus(text) {

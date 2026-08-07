@@ -214,6 +214,20 @@
       return theme.summary || theme.reason || theme.trigger || theme.next_action || "この探究テーマにはまだ説明がありません。";
     }
 
+    function sourceLabel(theme = {}) {
+      return {
+        questions: "問い",
+        tasks: "活動ログ",
+        materials: "資料",
+        feedback: "フィードバック",
+        aiConsultations: "AI相談",
+        toolImports: "外部ツール",
+        experienceAssets: "Experience",
+        innovationSeeds: "Innovation",
+        formationCandidates: "Formation"
+      }[theme.source_item_type] || theme.graph_type || "探究テーマ";
+    }
+
     function publicThemes(items) {
       return items.filter((item) => item.public_board === true || item.public_visibility === "public" || item.visibility === "public");
     }
@@ -252,7 +266,8 @@
         return `<article class="theme-card">
           <div class="theme-main">
             <div class="badge-row">
-              ${badge(theme.domain || "探究テーマ", "green")}
+              ${badge(sourceLabel(theme), "green")}
+              ${badge(theme.domain || "探究テーマ")}
               ${badge(`評価 ${averageRating(list)}`, "gold")}
               ${badge(`コメント ${list.length}件`)}
             </div>
@@ -333,12 +348,30 @@
       let cloudThemes = [];
       let cloudComments = [];
       if (firebaseDb && firebaseApi) {
-        try {
-          cloudThemes = publicThemes(await loadCollection("tanq_question_seeds"));
-          $("#status").textContent = `公開探究 ${cloudThemes.length}件を読み込みました。`;
-        } catch (error) {
-          $("#status").textContent = `公開探究の読み込み待ち: ${error.message}`;
+        const publicSources = [
+          ["tanq_question_seeds", "questions"],
+          ["tanq_activity_logs", "tasks"],
+          ["tanq_materials", "materials"],
+          ["tanq_feedback", "feedback"],
+          ["tanq_ai_consultations", "aiConsultations"],
+          ["tanq_experience_assets", "experienceAssets"],
+          ["tanq_innovation_seeds", "innovationSeeds"],
+          ["tanq_formation_candidates", "formationCandidates"]
+        ];
+        const loaded = [];
+        for (const [collectionName, sourceType] of publicSources) {
+          try {
+            loaded.push(...publicThemes(await loadCollection(collectionName)).map((item) => ({
+              ...item,
+              source_collection: item.source_collection || collectionName,
+              source_item_type: item.source_item_type || sourceType
+            })));
+          } catch (error) {
+            $("#status").textContent = `一部データは読み込み待ちです: ${collectionName}`;
+          }
         }
+        cloudThemes = loaded;
+        $("#status").textContent = `公開データ ${cloudThemes.length}件を読み込みました。`;
         try {
           cloudComments = await loadCollection("tanq_public_comments");
         } catch (error) {

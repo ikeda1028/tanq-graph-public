@@ -149,6 +149,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /tanq_formation_candidates/{docId} {
+      allow read, write: if true;
+    }
+
+    match /tanq_experience_assets/{docId} {
+      allow read, write: if true;
+    }
+
     match /tanq_ai_consultations/{docId} {
       allow read, write: if true;
     }
