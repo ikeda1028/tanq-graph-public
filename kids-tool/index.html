@@ -1058,6 +1058,56 @@
       return (state.tasks || []).filter((task) => task.stage === stage && task.audience === "kids").length;
     }
 
+    function linkedQuestionRecords(question = {}) {
+      const materials = (state.materials || []).filter((item) => item.audience === "kids" && item.source_question_id === question.id);
+      const tasks = (state.tasks || []).filter((item) => item.audience === "kids" && item.source_question_id === question.id);
+      const feedback = (state.feedback || []).filter((item) => item.audience === "kids" && item.source_question_id === question.id);
+      return { materials, tasks, feedback };
+    }
+
+    function questionDetailExtras(question = {}) {
+      const { materials, tasks, feedback } = linkedQuestionRecords(question);
+      const photo = question.photo_observation || {};
+      const chunks = [];
+      chunks.push(`<div class="detail-card">
+        ${badge("ふしぎID", "gold")}
+        <small>${escapeHtml(question.id || "未設定")}</small>
+        <small>入力: ${escapeHtml(question.input_mode || "text")}</small>
+        ${question.promoted ? `<small>Project化: ${escapeHtml(question.promoted_project_id || "済み")}</small>` : "<small>Project化: まだ</small>"}
+      </div>`);
+      if (photo.file_name || photo.ai_title || photo.ai_summary) {
+        chunks.push(`<div class="detail-card">
+          ${badge("写真のみたて", "green")}
+          <strong>${escapeHtml(photo.ai_title || "写真メモ")}</strong>
+          <small>${escapeHtml(photo.ai_summary || "AIのみたては未登録です。")}</small>
+          ${photo.file_name ? `<small>ファイル: ${escapeHtml(photo.file_name)}</small>` : ""}
+        </div>`);
+      }
+      if (materials.length) {
+        chunks.push(`<div class="detail-card">
+          ${badge("関連する写真・資料")}
+          ${materials.map((item) => `<div>
+            <strong>${escapeHtml(item.title || item.kind || "資料")}</strong>
+            ${recordImage(item) ? `<img src="${escapeHtml(recordImage(item))}" alt="${escapeHtml(item.title || "写真")}">` : ""}
+            <small>${escapeHtml(item.text || item.url || "本文なし")}</small>
+          </div>`).join("")}
+        </div>`);
+      }
+      if (tasks.length) {
+        chunks.push(`<div class="detail-card">
+          ${badge("このふしぎから生まれたメモ", "green")}
+          ${tasks.map((item) => `<small>${escapeHtml(stageLabels[item.stage]?.[0] || item.stage || "たんけん")}: ${escapeHtml(item.title || "")} / ${escapeHtml(item.summary || "")}</small>`).join("")}
+        </div>`);
+      }
+      if (feedback.length) {
+        chunks.push(`<div class="detail-card">
+          ${badge("コメント", "red")}
+          ${feedback.map((item) => `<small>${escapeHtml(item.reviewer || "コメント")}: ${escapeHtml(item.text || "")}</small>`).join("")}
+        </div>`);
+      }
+      return chunks.join("");
+    }
+
     function stageRecords(stage) {
       if (stage === "question") {
         return (state.questions || [])
@@ -1066,11 +1116,12 @@
             id: item.id,
             label: "ふしぎ",
             title: item.text,
-            text: [item.trigger, item.reason, item.next_action ? `つぎ: ${item.next_action}` : ""].filter(Boolean).join("\n"),
+            text: [item.trigger ? `みつけたところ: ${item.trigger}` : "", item.reason ? `理由: ${item.reason}` : "", item.next_action ? `つぎ: ${item.next_action}` : ""].filter(Boolean).join("\n"),
             tone: "gold",
             geo: item.geo || item.photo_observation?.geo,
             image: item.image_data_url || item.photo_observation?.image_data_url,
             photo: item.photo_observation,
+            raw: item,
             created_at: item.created_at
           }));
       }
@@ -1140,6 +1191,7 @@
           ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title || "たんけん写真")}">` : ""}
           ${item.photo?.ai_title || item.photo?.ai_summary ? `<small>${escapeHtml([item.photo.ai_title, item.photo.ai_summary].filter(Boolean).join("。"))}</small>` : ""}
           <small>${escapeHtml(item.text || "メモなし")}</small>
+          ${selectedStage === "question" ? questionDetailExtras(item.raw || item) : ""}
           ${item.geo?.label ? `<a class="map-link" href="${escapeHtml(item.geo.map_url || googleMapsUrl(item.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(item.geo.label)}</a>` : ""}
         </article>`).join("")
         : `<article class="detail-card">${badge(label, tone)}<strong>まだ記録はありません</strong><small>${escapeHtml(description)}</small></article>`;
@@ -1286,6 +1338,7 @@
         <strong>${escapeHtml(recordTitle(selectedTable, selected))}</strong>
         ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(recordTitle(selectedTable, selected))}">` : ""}
         <small>${escapeHtml(recordSummary(selectedTable, selected) || "概要なし")}</small>
+        ${selectedTable === "questions" ? questionDetailExtras(selected) : ""}
         ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
         <pre class="raw-json">${escapeHtml(JSON.stringify(selected, null, 2))}</pre>
       `;
