@@ -74,7 +74,7 @@
     .toolbar { padding: 14px; display: grid; grid-template-columns: 1fr 220px auto; gap: 10px; align-items: end; }
     .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
     .theme-card { padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; }
-    .theme-main, .comment-box, .comments { display: grid; gap: 12px; align-content: start; }
+    .theme-main, .comment-box, .comments, .side-stack { display: grid; gap: 12px; align-content: start; }
     .theme-title { font-size: 24px; line-height: 1.35; }
     .theme-thumb {
       width: 100%;
@@ -94,6 +94,38 @@
       background: #fffaf2;
     }
     .meta small { display: block; color: var(--muted); }
+    .support-index {
+      border: 1px solid rgba(40,119,93,.24);
+      border-radius: 8px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(40,119,93,.08), #fffaf2);
+      display: grid;
+      gap: 10px;
+    }
+    .ai-diagnosis {
+      border: 1px solid rgba(45,95,138,.22);
+      border-radius: 8px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(45,95,138,.08), #fffaf2);
+      display: grid;
+      gap: 8px;
+    }
+    .ai-diagnosis strong { font-size: 18px; }
+    .meter {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(45,95,138,.12);
+      overflow: hidden;
+    }
+    .meter span { display: block; height: 100%; background: var(--green); }
+    .support-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffaf2;
+      display: grid;
+      gap: 6px;
+    }
     .comment {
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -142,6 +174,8 @@
     const $ = (selector) => document.querySelector(selector);
     const firebaseSdkVersion = "12.16.0";
     const localCommentsKey = "tanq-public-inquiry-comments";
+    const localSupportsKey = "tanq-public-inquiry-supports";
+    const defaultSupportNeeds = ["応援マーク", "資金", "メンター", "IT支援", "法律", "マーケティング"];
     const demoThemes = [
       {
         id: "demo_public_child_inquiry",
@@ -153,6 +187,7 @@
         owner_label: "TANQ Core",
         maturity: "seed",
         public_board: true,
+        support_needs: ["応援マーク", "メンター", "IT支援"],
         thumbnail_data_url: "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='960'%20height='540'%20viewBox='0%200%20960%20540'%3E%3Crect%20width='960'%20height='540'%20fill='%23fffdf7'/%3E%3Crect%20x='56'%20y='56'%20width='848'%20height='428'%20rx='32'%20fill='%23eef3ed'%20stroke='%2328775d'%20stroke-width='3'/%3E%3Ccircle%20cx='176'%20cy='176'%20r='64'%20fill='%23c38c2a'/%3E%3Ccircle%20cx='152'%20cy='164'%20r='12'%20fill='%23fffdf7'/%3E%3Ccircle%20cx='200'%20cy='164'%20r='12'%20fill='%23fffdf7'/%3E%3Ccircle%20cx='176'%20cy='204'%20r='8'%20fill='%23fffdf7'/%3E%3Ctext%20x='292'%20y='182'%20font-family='system-ui,sans-serif'%20font-size='34'%20font-weight='700'%20fill='%2325231f'%3E%E5%85%AC%E9%96%8B%E6%8E%A2%E7%A9%B6%E3%83%9C%E3%83%BC%E3%83%89%3C/text%3E%3Ctext%20x='292'%20y='248'%20font-family='system-ui,sans-serif'%20font-size='48'%20font-weight='700'%20fill='%2328775d'%3ETANQ%20Inquiry%3C/text%3E%3Ctext%20x='292'%20y='318'%20font-family='system-ui,sans-serif'%20font-size='28'%20fill='%236f685f'%3E%E5%95%8F%E3%81%84%E3%81%AE%E3%82%B5%E3%83%A0%E3%83%8D%E3%82%92%E8%A1%A8%E7%A4%BA%3C/text%3E%3C/svg%3E",
         created_at: "2026-08-07T00:00:00+09:00"
       }
@@ -161,6 +196,7 @@
     let firebaseApi = null;
     let themes = [];
     let comments = [];
+    let supports = [];
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
@@ -215,6 +251,19 @@
     function writeLocalComment(comment) {
       const next = [comment, ...readLocalComments()].slice(0, 200);
       localStorage.setItem(localCommentsKey, JSON.stringify(next));
+    }
+
+    function readLocalSupports() {
+      try {
+        return JSON.parse(localStorage.getItem(localSupportsKey) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function writeLocalSupport(record) {
+      const next = [record, ...readLocalSupports()].slice(0, 300);
+      localStorage.setItem(localSupportsKey, JSON.stringify(next));
     }
 
     function themeTitle(theme) {
@@ -273,6 +322,68 @@
       return comments.filter((item) => item.theme_id === themeId || item.question_id === themeId);
     }
 
+    function themeSupports(themeId) {
+      return supports.filter((item) => item.theme_id === themeId || item.question_id === themeId);
+    }
+
+    function supportNeeds(theme = {}) {
+      const raw = theme.support_needs || theme.supportNeeds || theme.requested_supports || theme.requestedSupports || theme.support_types;
+      const list = Array.isArray(raw) ? raw : String(raw || "").split(/[、,\n]/);
+      const clean = list.map((item) => String(item).trim()).filter(Boolean);
+      return clean.length ? clean.slice(0, 8) : defaultSupportNeeds;
+    }
+
+    function themeText(theme = {}) {
+      return [themeTitle(theme), themeSummary(theme), theme.trigger, theme.next_action, theme.domain].filter(Boolean).join(" ");
+    }
+
+    function keyTerms(value = "") {
+      const normalized = String(value)
+        .toLowerCase()
+        .replace(/[。、，,.!?！？「」『』（）()【】\[\]・]/g, " ")
+        .split(/\s+/)
+        .flatMap((word) => {
+          if (!word) return [];
+          if (/^[a-z0-9_-]{3,}$/.test(word)) return [word];
+          return word.length >= 4 ? Array.from({ length: Math.min(word.length - 1, 12) }, (_, index) => word.slice(index, index + 2)) : [word];
+        })
+        .filter((word) => word.length >= 2 && !["する", "ため", "こと", "どう", "どの", "なぜ", "から", "でき", "よう", "探究"].includes(word));
+      return [...new Set(normalized)].slice(0, 80);
+    }
+
+    function similarThemes(theme, allThemes = themes) {
+      const baseTerms = keyTerms(themeText(theme));
+      if (!baseTerms.length) return [];
+      return allThemes.filter((item) => item.id !== theme.id).map((item) => {
+        const terms = keyTerms(themeText(item));
+        const overlap = terms.filter((term) => baseTerms.includes(term)).length;
+        const sameDomain = theme.domain && item.domain && theme.domain === item.domain;
+        return { item, overlap, sameDomain };
+      }).filter(({ overlap, sameDomain }) => overlap >= 3 || (sameDomain && overlap >= 1));
+    }
+
+    function feasibilityDiagnosis(theme, commentList, supportList, similarCount) {
+      const summary = themeSummary(theme);
+      let score = 35;
+      if (theme.trigger) score += 10;
+      if (theme.next_action) score += 15;
+      if (summary.length > 40) score += 10;
+      if (supportNeeds(theme).length >= 3) score += 6;
+      score += Math.min(supportList.length * 6, 18);
+      const rating = Number(averageRating(commentList));
+      if (rating) score += Math.min(Math.max((rating - 3) * 6, -8), 12);
+      if (similarCount > 0) score += 4;
+      if (similarCount >= 8) score -= 6;
+      score = Math.max(5, Math.min(96, Math.round(score)));
+      const level = score >= 75 ? "高い" : score >= 55 ? "中程度" : "要検討";
+      const reason = score >= 75
+        ? "問い・次の一手・支援接点がそろい始めています。小さな検証に進めます。"
+        : score >= 55
+          ? "方向性は見えています。検証方法、協力者、必要資源を具体化すると進めやすくなります。"
+          : "問いの背景、次に試すこと、必要な支援をもう少し具体化すると実現可能性が上がります。";
+      return { score, level, reason };
+    }
+
     function averageRating(items) {
       const ratings = items.map((item) => Number(item.rating)).filter(Boolean);
       if (!ratings.length) return "-";
@@ -300,6 +411,10 @@
       const visible = sortThemes(themes);
       $("#board").innerHTML = visible.length ? visible.map((theme) => {
         const list = themeComments(theme.id);
+        const supportList = themeSupports(theme.id);
+        const needs = supportNeeds(theme);
+        const similarCount = similarThemes(theme, visible).length;
+        const diagnosis = feasibilityDiagnosis(theme, list, supportList, similarCount);
         const thumb = themeThumbnail(theme);
         return `<article class="theme-card">
           <div class="theme-main">
@@ -309,6 +424,7 @@
               ${badge(theme.domain || "探究テーマ")}
               ${badge(`評価 ${averageRating(list)}`, "gold")}
               ${badge(`コメント ${list.length}件`)}
+              ${badge(`支援 ${supportList.length}件`, "green")}
             </div>
             <h2 class="theme-title">${escapeHtml(themeTitle(theme))}</h2>
             <p class="lead">${escapeHtml(themeSummary(theme))}</p>
@@ -317,31 +433,65 @@
               <div class="meta"><small>次の一手</small><strong>${escapeHtml(theme.next_action || "未設定")}</strong></div>
               <div class="meta"><small>公開元</small><strong>${escapeHtml(theme.owner_label || theme.source || "TANQ Project Tool")}</strong></div>
             </div>
+            <div class="support-index">
+              <strong>支援募集インデックス</strong>
+              <div class="badge-row">${needs.map((item) => badge(item, item === "資金" ? "gold" : "green")).join("")}</div>
+            </div>
+            <div class="ai-diagnosis">
+              <div class="badge-row">${badge("AI診断", "green")}${badge(`類似課題 ${similarCount}件`)}${badge(`実現可能性 ${diagnosis.level}`, diagnosis.score >= 75 ? "green" : diagnosis.score >= 55 ? "gold" : "red")}</div>
+              <strong>${diagnosis.score}%</strong>
+              <div class="meter"><span style="width:${diagnosis.score}%"></span></div>
+              <p>${escapeHtml(diagnosis.reason)}</p>
+            </div>
             <div class="comments">
+              <strong>支援の申し込み</strong>
+              ${supportList.slice(0, 4).map((item) => `<div class="support-item">
+                <div class="badge-row">${badge(item.support_type || "応援", "green")}${item.amount ? badge(`${Number(item.amount).toLocaleString()}円`, "gold") : ""}${badge(item.supporter || "匿名")}</div>
+                <p>${escapeHtml(item.message || item.comment || "")}</p>
+              </div>`).join("") || `<div class="support-item"><p>まだ支援申し込みはありません。</p></div>`}
+            </div>
+            <div class="comments">
+              <strong>評価・コメント</strong>
               ${list.slice(0, 5).map((item) => `<div class="comment">
                 <div class="badge-row">${badge(`評価 ${item.rating || "-"}`, "gold")}${badge(item.reviewer || "匿名")}</div>
                 <p>${escapeHtml(item.comment || item.text || "")}</p>
               </div>`).join("") || `<div class="comment"><p>まだコメントはありません。</p></div>`}
             </div>
           </div>
-          <form class="comment-box" data-comment-theme-id="${escapeHtml(theme.id)}">
-            <h3>評価・コメントを書く</h3>
-            <label>評価<select name="rating">
-              <option value="5">5 とても探究したい</option>
-              <option value="4">4 面白い</option>
-              <option value="3">3 もう少し知りたい</option>
-              <option value="2">2 見直しが必要</option>
-              <option value="1">1 まだ伝わりにくい</option>
-            </select></label>
-            <label>名前 任意<input name="reviewer" placeholder="匿名でも可"></label>
-            <label>コメント<textarea name="comment" placeholder="問いの良い点、気になる点、検証アイデアなど"></textarea></label>
-            <button class="primary" type="submit">送信する</button>
-          </form>
+          <div class="side-stack">
+            <form class="comment-box" data-support-theme-id="${escapeHtml(theme.id)}">
+              <h3>支援を申し込む</h3>
+              <label>支援の種類<select name="support_type">
+                ${needs.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("")}
+              </select></label>
+              <label>金額 任意<input name="amount" type="number" min="0" step="1000" placeholder="資金支援の場合 例: 10000"></label>
+              <label>名前 任意<input name="supporter" placeholder="匿名でも可"></label>
+              <label>連絡先 任意<input name="contact" placeholder="メール、SNS、URLなど"></label>
+              <label>申し込み内容<textarea name="message" placeholder="応援、提供できること、相談したいこと"></textarea></label>
+              <button class="primary" type="submit">支援を申し込む</button>
+            </form>
+            <form class="comment-box" data-comment-theme-id="${escapeHtml(theme.id)}">
+              <h3>評価・コメントを書く</h3>
+              <label>評価<select name="rating">
+                <option value="5">5 とても探究したい</option>
+                <option value="4">4 面白い</option>
+                <option value="3">3 もう少し知りたい</option>
+                <option value="2">2 見直しが必要</option>
+                <option value="1">1 まだ伝わりにくい</option>
+              </select></label>
+              <label>名前 任意<input name="reviewer" placeholder="匿名でも可"></label>
+              <label>コメント<textarea name="comment" placeholder="問いの良い点、気になる点、検証アイデアなど"></textarea></label>
+              <button class="primary" type="submit">送信する</button>
+            </form>
+          </div>
         </article>`;
       }).join("") : `<div class="panel empty">公開中の探究テーマはまだありません。Project Toolで問いを選び、「公開ボードへ出す」を押してください。</div>`;
 
       document.querySelectorAll("[data-comment-theme-id]").forEach((form) => {
         form.addEventListener("submit", submitComment);
+      });
+      document.querySelectorAll("[data-support-theme-id]").forEach((form) => {
+        form.addEventListener("submit", submitSupport);
       });
     }
 
@@ -381,11 +531,57 @@
       render();
     }
 
+    async function submitSupport(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const supportType = form.elements.support_type.value;
+      const message = form.elements.message.value.trim();
+      const amount = Number(form.elements.amount.value || 0);
+      if (!supportType) {
+        $("#status").textContent = "支援の種類を選んでください。";
+        return;
+      }
+      if (supportType !== "応援マーク" && !message && !amount) {
+        $("#status").textContent = "支援内容、または金額を入力してください。";
+        return;
+      }
+      const record = {
+        id: `pub_support_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        theme_id: form.dataset.supportThemeId,
+        support_type: supportType,
+        amount: amount > 0 ? amount : null,
+        supporter: form.elements.supporter.value.trim() || "匿名",
+        contact: form.elements.contact.value.trim(),
+        message: message || (supportType === "応援マーク" ? "応援します。" : ""),
+        status: "offered",
+        created_at: new Date().toISOString()
+      };
+      supports = [record, ...supports];
+      writeLocalSupport(record);
+      if (firebaseDb && firebaseApi) {
+        try {
+          const { doc, setDoc, serverTimestamp } = firebaseApi;
+          await setDoc(doc(firebaseDb, "tanq_public_support_applications", record.id), {
+            ...cleanForFirestore(record),
+            synced_at: serverTimestamp()
+          }, { merge: true });
+          $("#status").textContent = "支援申し込みを保存しました。";
+        } catch (error) {
+          $("#status").textContent = "ローカルに保存しました。Firestore Rulesに tanq_public_support_applications を追加してください。";
+        }
+      } else {
+        $("#status").textContent = "支援申し込みをローカルに保存しました。";
+      }
+      form.reset();
+      render();
+    }
+
     async function loadBoard() {
       $("#status").textContent = "公開探究を読み込み中です。";
       await connectFirebase();
       let cloudThemes = [];
       let cloudComments = [];
+      let cloudSupports = [];
       if (firebaseDb && firebaseApi) {
         const publicSources = [
           ["tanq_question_seeds", "questions"],
@@ -416,9 +612,15 @@
         } catch (error) {
           $("#status").textContent = `${$("#status").textContent} コメントはローカル表示です。`;
         }
+        try {
+          cloudSupports = await loadCollection("tanq_public_support_applications");
+        } catch (error) {
+          $("#status").textContent = `${$("#status").textContent} 支援申し込みはローカル表示です。`;
+        }
       }
       themes = cloudThemes.length ? cloudThemes : demoThemes;
       comments = [...cloudComments, ...readLocalComments()];
+      supports = [...cloudSupports, ...readLocalSupports()];
       render();
     }
 
