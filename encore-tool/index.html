@@ -242,19 +242,23 @@
             </div>
           </div>
           <div class="panel half">
-            <h2>Facebook Network Import</h2>
-            <small>Facebookの友達・知人リストを、人脈資産として取り込みます。氏名、関係、メモを1行ずつ入れられます。</small>
+            <h2>Network / Public Activity Import</h2>
+            <small>友達一覧は自動取得せず、本人が貼り付けた人脈メモや公開Facebookページ・投稿URLだけを保存します。</small>
             <label>関係カテゴリ<select id="facebook-relationship-kind">
               <option>友人</option>
               <option>仕事つながり</option>
               <option>地域つながり</option>
               <option>教育・同窓</option>
               <option>紹介候補</option>
+              <option>公開活動</option>
             </select></label>
-            <label>Facebookから貼り付け<textarea id="facebook-import-text" placeholder="山田太郎, 地域活動で接点&#10;佐藤花子, 教育関係"></textarea></label>
+            <label>人脈メモを貼り付け<textarea id="facebook-import-text" placeholder="山田太郎, 地域活動で接点&#10;佐藤花子, 教育関係"></textarea></label>
             <label>CSV / TXTファイル<input id="facebook-file" type="file" accept=".csv,.txt,.tsv,text/csv,text/plain"></label>
+            <label>公開Facebookページ / 投稿URL<input id="facebook-public-url" value="https://www.facebook.com/manabinomichi" placeholder="https://www.facebook.com/..."></label>
+            <label>公開活動メモ<input id="facebook-public-note" value="学びの道の公開活動ページ" placeholder="どんな活動として扱うか"></label>
             <div class="actions">
               <button class="primary" id="import-facebook" type="button">人脈として取り込む</button>
+              <button class="secondary" id="add-facebook-public-url" type="button">公開活動URLとして追加</button>
             </div>
           </div>
           <div class="panel half">
@@ -630,6 +634,7 @@
         </div>
         <strong>${escapeHtml(person.name)}</strong>
         <small>${escapeHtml(person.note || "メモなし")}</small>
+        ${person.source_url ? `<a href="${escapeHtml(person.source_url)}" target="_blank" rel="noopener">${escapeHtml(person.source_url)}</a>` : ""}
       </article>`;
     }
 
@@ -713,6 +718,22 @@
           created_at: new Date().toISOString()
         };
       });
+    }
+
+    function publicFacebookActivity(url, note) {
+      const normalizedUrl = String(url || "").trim();
+      if (!normalizedUrl) return null;
+      return {
+        id: `fb_public_${normalizedUrl.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 80) || id("url")}`,
+        source: "Facebook Public Page",
+        graph_type: "public_activity",
+        name: note || "Facebook公開活動",
+        relationship_kind: "公開活動",
+        note: "公開URLとして本人が追加した活動ログです。友達情報は取得していません。",
+        source_url: normalizedUrl,
+        trust: 2,
+        created_at: new Date().toISOString()
+      };
     }
 
     function mergeById(existing = [], incoming = []) {
@@ -1013,6 +1034,13 @@
       if (!records.length) return;
       state.networkPeople = [...records, ...(state.networkPeople || [])];
       $("#facebook-import-text").value = "";
+      saveState();
+      render();
+    });
+    $("#add-facebook-public-url").addEventListener("click", () => {
+      const record = publicFacebookActivity($("#facebook-public-url").value, $("#facebook-public-note").value.trim());
+      if (!record) return;
+      state.networkPeople = mergeById(state.networkPeople || [], [record]);
       saveState();
       render();
     });
