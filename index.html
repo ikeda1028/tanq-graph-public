@@ -302,7 +302,7 @@
         <div class="hero-copy">
           <p class="eyebrow">GitHub Pages public demo</p>
           <h1>探究・実績・資格・貢献を保存できるTANQ Graph</h1>
-          <p class="lead">TANQ Pass Kids、TANQ Passport、Proofolio、Proofolio Encoreが同じTANQ Graph Coreを共有する公開デモです。入力内容はブラウザ内に保存され、実API・実認証・実Drive同期はまだ行いません。</p>
+          <p class="lead">TANQ Pass Kids、TANQ Passport、Proofolio、Proofolio Encoreが同じTANQ Graph Coreを共有する公開デモです。実際にChatGPT Actionsから保存した探究記録は、OAuthログイン後のTANQ Graph Coreで確認します。</p>
           <div class="actions" style="margin-top:18px">
             <a class="primary" href="project-tool/" target="_blank" rel="noopener">TANQ Project Toolを開く</a>
             <a class="secondary" href="kids-tool/" target="_blank" rel="noopener">Kids Toolを見る</a>
@@ -315,7 +315,7 @@
         <div class="interfaces">
           <a class="card interface-card service-card" data-interface-card="kids" href="kids-tool/" aria-label="TANQ Pass Kidsを開く"><span class="interface-icon kids-icon"></span><strong>TANQ Pass Kids</strong><small>幼児・小学生向け。あそび、発見、作品、保護者・先生の見守り。</small></a>
           <a class="card interface-card service-card" data-interface-card="passport" href="passport-tool/" aria-label="TANQ Passportを開く"><span class="interface-icon passport-icon"></span><strong>TANQ Passport</strong><small>中高生向け。探究の旅、クエスト、バッジ、進路ポートフォリオ。</small></a>
-          <a class="card core-card service-card" href="#dashboard" aria-label="TANQ Graph Coreを見る"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>同じID、データモデル、証明レイヤー、AIメモリを使う。</small></a>
+          <a class="card core-card service-card" href="https://tanq-graph-ai-api.tanq-graph.workers.dev/core" aria-label="TANQ Graph Coreを見る"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>OAuthで確認した本人IDの実データを見る。</small></a>
           <a class="card interface-card service-card" data-interface-card="proofolio" href="project-tool/?interface=proofolio" aria-label="Proofolioを開く"><span class="interface-icon proofolio-icon"></span><strong>Proofolio</strong><small>社会人向け。実績、人的資本、資格、DAO貢献、キャリア証明。</small></a>
           <a class="card interface-card service-card" data-interface-card="encore" href="encore-tool/" aria-label="Proofolio Encoreを開く"><span class="interface-icon encore-icon"></span><strong>Proofolio Encore</strong><small>45歳以降向け。経験を再編集し、次の役割・顧問・地域実装へ接続。</small></a>
         </div>
@@ -500,7 +500,7 @@
             <pre class="code" id="project-api-payload"></pre>
           </div>
           <div class="panel wide">
-            <h2>最新タイムライン</h2>
+            <h2>デモタイムライン</h2>
             <div class="timeline" id="timeline"></div>
           </div>
           <div class="panel narrow">
