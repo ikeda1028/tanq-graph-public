@@ -38,3 +38,9 @@ window.TANQ_ENCORE_AI_ENDPOINT =
 window.TANQ_KIDS_AI_ENDPOINT =
   localStorage.getItem("tanq-kids-ai-endpoint") ||
   (tanqSameOriginAiBase ? `${tanqSameOriginAiBase}/api/kids-coach` : "");
+
+window.TANQ_INQUIRY_DIAGNOSIS_ENDPOINT =
+  localStorage.getItem("tanq-inquiry-diagnosis-endpoint") ||
+  (tanqSameOriginAiBase
+    ? `${tanqSameOriginAiBase}/api/inquiry-diagnosis`
+    : "https://tanq-graph-public.vercel.app/api/inquiry-diagnosis");

@@ -9,6 +9,6 @@
     "start:kids": "node kids-ai-server.mjs"
   },
   "engines": {
-    "node": "20"
+    "node": "24.x"
   }
 }
