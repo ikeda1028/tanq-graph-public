@@ -206,6 +206,7 @@
               <label>Keeper API Bundle URL<input id="inbox-keeper-api-url" value="https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle"></label>
               <label>AIサムネ生成API URL<input id="keeper-thumbnail-endpoint" value="https://tanq-graph-ai-api.tanq-graph.workers.dev/api/thumbnail"></label>
               <label>AIサムネAPI Token 任意<input id="keeper-thumbnail-token" type="password" placeholder="必要な場合のみ"></label>
+              <label>AIサムネ指示文 任意<input id="keeper-thumbnail-style" placeholder="例: 写真風ではなく、温かい教育系イラスト。文字は入れない。"></label>
             </div>
             <div class="actions">
               <button class="primary" id="inbox-save-tanq-id" type="button">IDを保存</button>
@@ -361,6 +362,7 @@
     const storageKey = "tanq-passport-state";
     const keeperThumbnailEndpointKey = "tanq-passport-keeper-thumbnail-endpoint";
     const keeperThumbnailTokenKey = "tanq-passport-keeper-thumbnail-token";
+    const keeperThumbnailStyleKey = "tanq-passport-keeper-thumbnail-style";
     const defaultKeeperThumbnailEndpoint = "https://tanq-graph-ai-api.tanq-graph.workers.dev/api/thumbnail";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
@@ -1019,6 +1021,7 @@
         };
       }
       const token = localStorage.getItem(keeperThumbnailTokenKey)?.trim();
+      const style = localStorage.getItem(keeperThumbnailStyleKey)?.trim();
       const headers = { "content-type": "application/json" };
       if (token) headers.authorization = `Bearer ${token}`;
       const response = await fetch(endpoint, {
@@ -1032,6 +1035,7 @@
           domain: item.domain || item.raw?.domain || "",
           source: "TANQ Passport",
           tanqId: state.linkage.tanqUserId || "",
+          style,
           raw: item.raw
         })
       });
@@ -1439,6 +1443,7 @@
       $("#inbox-keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
       $("#keeper-thumbnail-endpoint").value = localStorage.getItem(keeperThumbnailEndpointKey) || defaultKeeperThumbnailEndpoint;
       $("#keeper-thumbnail-token").value = localStorage.getItem(keeperThumbnailTokenKey) || "";
+      $("#keeper-thumbnail-style").value = localStorage.getItem(keeperThumbnailStyleKey) || "";
       $("#session-label").textContent = state.linkage.tanqUserId ? `${state.linkage.tanqUserId} / TANQ Passport` : "TANQ Passport / Local draft";
       setKeeperStatus(state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携");
       renderCoachOutput();
@@ -1607,6 +1612,7 @@
     $("#save-keeper-thumbnail-endpoint").addEventListener("click", () => {
       localStorage.setItem(keeperThumbnailEndpointKey, $("#keeper-thumbnail-endpoint").value.trim());
       localStorage.setItem(keeperThumbnailTokenKey, $("#keeper-thumbnail-token").value.trim());
+      localStorage.setItem(keeperThumbnailStyleKey, $("#keeper-thumbnail-style").value.trim());
       setKeeperStatus("AIサムネ生成API設定を保存しました。");
     });
     $("#import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
