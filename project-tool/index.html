@@ -584,47 +584,6 @@
       </div>
     </aside>
     <main>
-      <section class="panel full identity-card" id="identity-card">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Entry / TANQ ID</p>
-            <h2>Toolから始めても、あとでTANQ Graphへ統合できます</h2>
-          </div>
-          <span class="badge green" id="identity-mode-badge">Guest</span>
-        </div>
-        <div class="identity-flow">
-          <div class="identity-step active" data-identity-step="guest">
-            <b>1. ゲストで記録</b>
-            <small>写真、問い、音声メモをすぐ保存。端末内に一時保存します。</small>
-          </div>
-          <div class="identity-step" data-identity-step="id">
-            <b>2. TANQ IDを作成</b>
-            <small>残したい記録を本人IDに結び、年齢に応じたUIへ振り分けます。</small>
-          </div>
-          <div class="identity-step" data-identity-step="graph">
-            <b>3. Graphへ統合</b>
-            <small>問い、活動、資料、地図、フィードバックをTANQ Graphへ送ります。</small>
-          </div>
-        </div>
-        <div class="form-grid">
-          <label>名前またはニックネーム<input id="identity-name" placeholder="例: たんきゅう太郎"></label>
-          <label>年齢<input id="identity-age" type="number" min="3" max="100" placeholder="例: 10"></label>
-        </div>
-        <div class="form-grid">
-          <label>既存TANQ ID<input id="identity-existing-id" placeholder="例: tanq_abc123"></label>
-          <label>入口<select id="identity-entry">
-            <option value="tool">TANQ Project Toolから開始</option>
-            <option value="graph">TANQ Graphから開始</option>
-            <option value="external">外部ツールから開始</option>
-          </select></label>
-        </div>
-        <div class="actions">
-          <button class="secondary" id="continue-guest" type="button">ゲストで続ける</button>
-          <button class="primary" id="create-tanq-id" type="button">TANQ IDを作成して残す</button>
-          <button class="secondary" id="use-existing-tanq-id" type="button">既存IDで続ける</button>
-          <small id="identity-message">最初は登録なしで使えます。Graph同期や共有のタイミングでID化できます。</small>
-        </div>
-      </section>
       <section class="hero">
         <p class="eyebrow">Inquiry project workspace</p>
         <h1>問いが生まれ、プロジェクトになる前から記録する</h1>
@@ -1348,15 +1307,23 @@
     function renderIdentity() {
       const identity = state.identity || seed.identity;
       $("#identity-status").textContent = identityLabel();
-      $("#identity-mode-badge").textContent = identity.tanq_id ? ownerByInterface(identity.interface) : "Guest";
       $("#ai-log-identity-note").textContent = `${effectiveSubjectKind()}: ${effectiveSubjectId()} に紐づけて保存します。`;
-      $("#identity-message").textContent = identity.tanq_id
-        ? `${identityLabel()} として記録中。Toolで始めた記録をTANQ Graphへ統合できます。`
-        : "最初は登録なしで使えます。Graph同期や共有のタイミングでID化できます。";
-      $("#identity-name").value = identity.profile_name || "";
-      $("#identity-age").value = identity.age || "";
-      $("#identity-existing-id").value = identity.mode === "linked" ? identity.tanq_id || "" : "";
-      $("#identity-entry").value = identity.entry || "tool";
+      const modeBadge = $("#identity-mode-badge");
+      if (modeBadge) modeBadge.textContent = identity.tanq_id ? ownerByInterface(identity.interface) : "Guest";
+      const message = $("#identity-message");
+      if (message) {
+        message.textContent = identity.tanq_id
+          ? `${identityLabel()} として記録中。`
+          : "OAuthでTANQ Graphへログインすると本人IDに紐づきます。";
+      }
+      const nameInput = $("#identity-name");
+      const ageInput = $("#identity-age");
+      const existingInput = $("#identity-existing-id");
+      const entryInput = $("#identity-entry");
+      if (nameInput) nameInput.value = identity.profile_name || "";
+      if (ageInput) ageInput.value = identity.age || "";
+      if (existingInput) existingInput.value = identity.mode === "linked" ? identity.tanq_id || "" : "";
+      if (entryInput) entryInput.value = identity.entry || "tool";
       document.querySelectorAll("[data-identity-step]").forEach((step) => {
         const key = step.dataset.identityStep;
         const active = key === "guest" && !identity.tanq_id
@@ -1367,16 +1334,16 @@
     }
 
     function setIdentity(mode) {
-      const age = $("#identity-age").value.trim();
+      const age = $("#identity-age")?.value.trim() || state.identity?.age || "";
       const interfaceKey = inferInterfaceByAge(age);
-      const existingId = $("#identity-existing-id").value.trim();
+      const existingId = $("#identity-existing-id")?.value.trim() || state.identity?.tanq_id || "";
       state.identity = {
         ...(state.identity || seed.identity),
         mode,
-        entry: $("#identity-entry").value,
+        entry: $("#identity-entry")?.value || "graph",
         tanq_id: mode === "guest" ? null : (mode === "linked" ? existingId : state.identity?.tanq_id || tanqId()),
         guest_session_id: state.identity?.guest_session_id || seed.identity.guest_session_id,
-        profile_name: $("#identity-name").value.trim(),
+        profile_name: $("#identity-name")?.value.trim() || state.identity?.profile_name || "",
         age,
         interface: interfaceKey,
         created_at: state.identity?.created_at || new Date().toISOString()
@@ -2511,17 +2478,17 @@
       });
     });
 
-    $("#continue-guest").addEventListener("click", () => setIdentity("guest"));
-    $("#create-tanq-id").addEventListener("click", () => setIdentity("registered"));
-    $("#use-existing-tanq-id").addEventListener("click", () => {
-      if (!$("#identity-existing-id").value.trim()) {
-        $("#identity-message").textContent = "既存TANQ IDを入力してください。";
+    $("#continue-guest")?.addEventListener("click", () => setIdentity("guest"));
+    $("#create-tanq-id")?.addEventListener("click", () => setIdentity("registered"));
+    $("#use-existing-tanq-id")?.addEventListener("click", () => {
+      if (!$("#identity-existing-id")?.value.trim()) {
+        if ($("#identity-message")) $("#identity-message").textContent = "既存TANQ IDを入力してください。";
         return;
       }
       setIdentity("linked");
     });
     ["identity-name", "identity-age", "identity-entry"].forEach((id) => {
-      $("#" + id).addEventListener("change", () => {
+      $("#" + id)?.addEventListener("change", () => {
         if (state.identity?.tanq_id) setIdentity(state.identity.mode || "registered");
       });
     });
