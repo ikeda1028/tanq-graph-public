@@ -303,6 +303,18 @@
       border-color: rgba(36,107,85,.55);
       background: linear-gradient(90deg, rgba(36,107,85,.1), var(--surface));
     }
+    .record-edit-form {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid rgba(36,107,85,.24);
+      border-radius: 8px;
+      background: rgba(36,107,85,.06);
+    }
+    .record-edit-form input[type="file"] {
+      padding: 10px;
+      background: var(--surface);
+    }
     .raw-json {
       margin: 0;
       max-height: 320px;
@@ -1376,6 +1388,100 @@
       return `<small class="missing-photo-note">写真ファイル「${escapeHtml(filename || "未設定")}」の名前は残っていますが、画像データは保存されていません。もう一度写真を入れて保存すると表示できます。</small>`;
     }
 
+    function tableStateKey(tableName) {
+      if (tableName === "questions") return "questions";
+      if (tableName === "tasks") return "tasks";
+      if (tableName === "materials") return "materials";
+      if (tableName === "feedback") return "feedback";
+      return "";
+    }
+
+    function updateTableRecord(tableName, id, patch) {
+      const key = tableStateKey(tableName);
+      if (!key || !id) return null;
+      let updated = null;
+      state[key] = (state[key] || []).map((record) => {
+        if (record.id !== id) return record;
+        updated = { ...record, ...patch, updated_at: new Date().toISOString() };
+        return updated;
+      });
+      return updated;
+    }
+
+    function editTitleLabel(tableName) {
+      if (tableName === "questions") return "ふしぎ";
+      if (tableName === "feedback") return "コメントした人";
+      if (tableName === "materials") return "資料名";
+      return "タイトル";
+    }
+
+    function editBodyLabel(tableName) {
+      if (tableName === "questions") return "きっかけ・メモ";
+      if (tableName === "feedback") return "コメント";
+      if (tableName === "materials") return "説明";
+      return "メモ";
+    }
+
+    function editableBodyValue(tableName, record = {}) {
+      if (tableName === "questions") return record.trigger || "";
+      if (tableName === "tasks") return record.summary || "";
+      if (tableName === "materials") return record.text || "";
+      if (tableName === "feedback") return record.text || "";
+      return "";
+    }
+
+    function editPatchFromValues(tableName, record, title, body, imagePatch = {}) {
+      const common = {
+        ...imagePatch
+      };
+      if (tableName === "questions") {
+        return {
+          ...common,
+          text: title,
+          trigger: body,
+          photo_observation: {
+            ...(record.photo_observation || {}),
+            ...(imagePatch.image_data_url ? { image_data_url: imagePatch.image_data_url, file_name: imagePatch.file_name || record.photo_observation?.file_name } : {})
+          }
+        };
+      }
+      if (tableName === "tasks") return { ...common, title, summary: body };
+      if (tableName === "materials") return { ...common, title, text: body };
+      if (tableName === "feedback") return { ...common, reviewer: title, text: body };
+      return common;
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("写真の読み込みに失敗しました。"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function saveSelectedTableRecord() {
+      const records = tableRecords(selectedTable);
+      const selected = records.find((record) => record.id === selectedRecordId);
+      if (!selected) return;
+      const title = $("#record-edit-title")?.value.trim() || recordTitle(selectedTable, selected);
+      const body = $("#record-edit-body")?.value.trim() || "";
+      const file = $("#record-edit-photo")?.files?.[0] || null;
+      let imagePatch = {};
+      if (file) {
+        imagePatch = {
+          image_data_url: await readFileAsDataUrl(file),
+          file_name: file.name
+        };
+      }
+      updateTableRecord(selectedTable, selected.id, editPatchFromValues(selectedTable, selected, title, body, imagePatch));
+      saveState();
+      render();
+      selectedTable = selectedTable || "questions";
+      selectedRecordId = selected.id;
+      renderTableDetails();
+    }
+
     function renderTableDetails() {
       const tableEntries = Object.entries(tableLabels);
       $("#table-tabs").innerHTML = tableEntries.map(([key, [label, tone]]) => {
@@ -1432,8 +1538,25 @@
         <small>${escapeHtml(recordSummary(selectedTable, selected) || "概要なし")}</small>
         ${selectedTable === "questions" ? questionDetailExtras(selected) : ""}
         ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
+        <form class="record-edit-form" id="record-edit-form">
+          <strong>この記録を編集</strong>
+          <label>${escapeHtml(editTitleLabel(selectedTable))}<input id="record-edit-title" value="${escapeHtml(recordTitle(selectedTable, selected))}"></label>
+          <label>${escapeHtml(editBodyLabel(selectedTable))}<textarea id="record-edit-body">${escapeHtml(editableBodyValue(selectedTable, selected))}</textarea></label>
+          <label>写真を入れ直す<input id="record-edit-photo" type="file" accept="image/*"></label>
+          <button class="primary" type="submit">変更を保存</button>
+          <small id="record-edit-status">保存すると、このテーブルの記録と詳細表示に反映されます。</small>
+        </form>
         <pre class="raw-json">${escapeHtml(JSON.stringify(selected, null, 2))}</pre>
       `;
+      $("#record-edit-form")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        $("#record-edit-status").textContent = "保存中...";
+        try {
+          await saveSelectedTableRecord();
+        } catch (error) {
+          $("#record-edit-status").textContent = `保存できませんでした: ${error.message}`;
+        }
+      });
     }
 
     function renderIdentity() {
