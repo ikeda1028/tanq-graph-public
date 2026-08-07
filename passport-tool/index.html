@@ -79,7 +79,9 @@
     .dot.gold { background: var(--gold); }
     .dot.blue { background: var(--blue); }
     .dot.red { background: var(--red); }
-    .quest { padding: 11px; display: grid; gap: 6px; border-color: rgba(37,107,87,.28); background: rgba(255,253,247,.76); }
+    .quest { padding: 11px; display: grid; gap: 6px; border-color: rgba(37,107,87,.28); background: rgba(255,253,247,.76); cursor: pointer; }
+    .quest:focus-visible { outline: 3px solid rgba(47,95,143,.25); outline-offset: 2px; }
+    .quest.active { border-color: var(--green); box-shadow: 0 0 0 2px rgba(37,107,87,.12); }
     .quest small { line-height: 1.5; }
     .mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .mini-grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -176,6 +178,11 @@
           <div class="panel wide">
             <h2>今の探究ステージ</h2>
             <div class="stage-board" id="stage-board"></div>
+            <div class="inbox-head" style="margin-top:14px">
+              <h2 id="stage-detail-title">探究ステージ詳細</h2>
+              <span class="badge gold" id="stage-detail-badge">未選択</span>
+            </div>
+            <div class="coach-output" id="stage-detail-body">今の探究ステージのカードを押すと、詳細とTANQボードへの投稿操作を表示します。</div>
           </div>
           <div class="panel narrow">
             <h2>成長バッジ</h2>
@@ -465,6 +472,7 @@
 
     let state = readState();
     let selectedKeeperInboxId = "";
+    let selectedStageQuestId = "";
 
     function readGraphEntrySession() {
       try {
@@ -691,27 +699,136 @@
       return "Question Owner";
     }
 
+    function selectedStageQuest() {
+      return state.quests.find((quest) => quest.id === selectedStageQuestId) || state.quests[0] || null;
+    }
+
+    function stageQuestPublicRecord(quest) {
+      const tanqUserId = state.linkage.tanqUserId || quest.owner_person_id || quest.tanq_user_id || "";
+      const isPublic = quest.public_board === true || quest.public_visibility === "public";
+      return {
+        ...quest,
+        id: quest.id,
+        graph_type: "question_seed",
+        source_item_type: "questions",
+        title: quest.question,
+        text: quest.question,
+        summary: quest.trigger || "背景未登録",
+        domain: quest.domain || "探究",
+        stage_label: questStageName(quest.stage),
+        owner_label: "TANQ Passport",
+        tanq_id: tanqUserId,
+        subject_id: tanqUserId,
+        subject_kind: "person",
+        public_board: isPublic,
+        public_visibility: isPublic ? "public" : "private",
+        public_updated_at: new Date().toISOString()
+      };
+    }
+
+    async function toggleStageQuestPublic(id) {
+      const quest = state.quests.find((item) => item.id === id);
+      if (!quest) return;
+      const nextPublic = !(quest.public_board === true || quest.public_visibility === "public");
+      let updatedQuest = null;
+      state.quests = state.quests.map((item) => {
+        if (item.id !== id) return item;
+        updatedQuest = {
+          ...item,
+          public_board: nextPublic,
+          public_visibility: nextPublic ? "public" : "private",
+          public_updated_at: new Date().toISOString()
+        };
+        return updatedQuest;
+      });
+      saveState();
+      try {
+        await saveFirebaseRecord("tanq_question_seeds", stageQuestPublicRecord(updatedQuest));
+        setKeeperStatus(nextPublic ? "TANQボードへ投稿しました。" : "TANQボードから下げました。");
+      } catch (error) {
+        setKeeperStatus(`TANQボード同期に失敗しました: ${error.message}`);
+      }
+      renderStageBoard("#stage-board");
+      renderStageBoard("#quest-board");
+      renderStageDetail();
+      renderKeeperInbox();
+    }
+
+    function renderStageDetail() {
+      const quest = selectedStageQuest();
+      if (!quest) {
+        $("#stage-detail-title").textContent = "探究ステージ詳細";
+        $("#stage-detail-badge").textContent = "未選択";
+        $("#stage-detail-badge").className = "badge gold";
+        $("#stage-detail-body").textContent = "今の探究ステージのカードを押すと、詳細とTANQボードへの投稿操作を表示します。";
+        return;
+      }
+      const isPublic = quest.public_board === true || quest.public_visibility === "public";
+      $("#stage-detail-title").textContent = quest.question || "探究ステージ詳細";
+      $("#stage-detail-badge").textContent = isPublic ? "TANQボード公開中" : "非公開";
+      $("#stage-detail-badge").className = `badge ${isPublic ? "green" : "gold"}`;
+      $("#stage-detail-body").innerHTML = `
+        <div class="inbox-meta">
+          <span class="badge green">${escapeHtml(questStageName(quest.stage))}</span>
+          <span class="badge">${escapeHtml(quest.domain || "探究")}</span>
+          <span class="badge gold">${escapeHtml(badgeForQuest(quest))}</span>
+          <span class="badge red">${escapeHtml(quest.created_at ? quest.created_at.slice(0, 10) : "日付未設定")}</span>
+        </div>
+        <strong>${escapeHtml(quest.question || "問い未設定")}</strong>
+        <small>${escapeHtml(quest.trigger || "背景未登録")}</small>
+        <div class="actions">
+          <button class="${isPublic ? "secondary" : "primary"}" data-stage-public-id="${escapeHtml(quest.id)}" type="button">${isPublic ? "TANQボードから下げる" : "TANQボードへ投稿"}</button>
+          <a class="secondary" href="../inquiry-board/" target="_blank" rel="noopener">TANQボードを見る</a>
+        </div>
+        <pre class="raw-json">${escapeHtml(JSON.stringify(stageQuestPublicRecord(quest), null, 2))}</pre>
+      `;
+      document.querySelector("[data-stage-public-id]")?.addEventListener("click", () => toggleStageQuestPublic(quest.id));
+    }
+
     function renderStageBoard(targetId) {
       const board = $(targetId);
+      if (!selectedStageQuestId || !state.quests.some((quest) => quest.id === selectedStageQuestId)) {
+        selectedStageQuestId = state.quests[0]?.id || "";
+      }
       board.innerHTML = stages.map(([id, label, tone]) => {
         const quests = state.quests.filter((quest) => quest.stage === id);
         return `<div class="stage">
           <div class="stage-head"><h3>${label}</h3><span class="dot ${tone}"></span></div>
-          ${quests.length ? quests.map((quest) => `<div class="quest" data-quest="${escapeHtml(quest.id)}">
-            <span class="badge ${tone === "green" ? "green" : tone}">${escapeHtml(quest.domain)}</span>
+          ${quests.length ? quests.map((quest) => {
+            const isPublic = quest.public_board === true || quest.public_visibility === "public";
+            return `<div class="quest ${selectedStageQuestId === quest.id ? "active" : ""}" data-stage-quest-id="${escapeHtml(quest.id)}" role="button" tabindex="0">
+            <div class="badge-row"><span class="badge ${tone === "green" ? "green" : tone}">${escapeHtml(quest.domain)}</span>${isPublic ? `<span class="badge green">TANQボード公開中</span>` : ""}</div>
             <strong>${escapeHtml(quest.question)}</strong>
             <small>${escapeHtml(quest.trigger || "背景未登録")}</small>
             <select data-stage-select="${escapeHtml(quest.id)}">
               ${stages.map(([stageId, stageLabel]) => `<option value="${stageId}" ${stageId === quest.stage ? "selected" : ""}>${stageLabel}</option>`).join("")}
             </select>
-          </div>`).join("") : `<small>まだクエストはありません。</small>`}
+          </div>`;
+          }).join("") : `<small>まだクエストはありません。</small>`}
         </div>`;
       }).join("");
-      document.querySelectorAll("[data-stage-select]").forEach((select) => {
+      board.querySelectorAll("[data-stage-quest-id]").forEach((card) => {
+        const openDetail = () => {
+          selectedStageQuestId = card.dataset.stageQuestId;
+          renderStageBoard("#stage-board");
+          renderStageBoard("#quest-board");
+          renderStageDetail();
+        };
+        card.addEventListener("click", openDetail);
+        card.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openDetail();
+          }
+        });
+      });
+      board.querySelectorAll("[data-stage-select]").forEach((select) => {
+        select.addEventListener("click", (event) => event.stopPropagation());
         select.addEventListener("change", () => {
           state.quests = state.quests.map((quest) => quest.id === select.dataset.stageSelect ? { ...quest, stage: select.value, updated_at: new Date().toISOString() } : quest);
           const badge = badgeForQuest(selectedQuest(select.dataset.stageSelect));
           if (!state.badges.includes(badge)) state.badges.push(badge);
+          selectedStageQuestId = select.dataset.stageSelect;
           saveState();
           render();
         });
@@ -823,6 +940,7 @@
 
     function keeperPublicRecord(item, raw) {
       const tanqUserId = state.linkage.tanqUserId || raw.owner_person_id || raw.tanq_user_id || "";
+      const isPublic = raw.public_board === true || raw.public_visibility === "public";
       return {
         ...raw,
         id: raw.id,
@@ -835,8 +953,8 @@
         tanq_id: tanqUserId,
         subject_id: tanqUserId,
         subject_kind: "person",
-        public_board: true,
-        public_visibility: "public",
+        public_board: isPublic,
+        public_visibility: isPublic ? "public" : "private",
         public_updated_at: new Date().toISOString()
       };
     }
@@ -851,7 +969,13 @@
         public_updated_at: new Date().toISOString()
       });
       saveState();
-      if (nextPublic) await saveFirebaseRecord(keeperPublicCollection(item), keeperPublicRecord(item, raw));
+      try {
+        await saveFirebaseRecord(keeperPublicCollection(item), keeperPublicRecord(item, raw));
+      } catch (error) {
+        setKeeperStatus(`探究ボード同期に失敗しました: ${error.message}`);
+        renderKeeperInbox();
+        return;
+      }
       renderKeeperInbox();
       setKeeperStatus(nextPublic ? "探究ボードへ公開しました。" : "探究ボードから下げました。");
     }
@@ -1104,6 +1228,7 @@
       }
       renderStageBoard("#stage-board");
       renderStageBoard("#quest-board");
+      renderStageDetail();
       renderSelectors();
       renderEvidence();
       renderKeeperInbox();
