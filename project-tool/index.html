@@ -113,6 +113,7 @@
     .eyebrow { margin: 0; color: var(--green); font-weight: 500; font-size: 13px; }
     .tab { display: none; }
     .tab.active { display: block; }
+    [hidden] { display: none !important; }
     .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; margin-bottom: 16px; }
     .panel, .card, .lane, .timeline-item, .payload-box {
       border: 1px solid var(--line);
@@ -569,6 +570,7 @@
         <button id="open-passport-tool" type="button">Passport Tool</button>
         <button class="active" data-tab="questions">Questions</button>
         <button data-tab="workspace">Project</button>
+        <button data-tab="experience" id="experience-tab-button" hidden>Experience Graph</button>
         <button id="open-process-tool" type="button">Process Tool</button>
         <button data-tab="materials">Materials</button>
         <button data-tab="tools">Tools</button>
@@ -694,6 +696,51 @@
               <button class="secondary" id="open-process-from-project" type="button">Process Toolを別ページで開く</button>
               <small>工程設計・PPM・実行管理は独立コンテンツとして扱います。</small>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="experience" class="tab">
+        <div class="grid">
+          <div class="panel full">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Proofolio</p>
+                <h2>Experience Graph</h2>
+                <p class="lead">業務経験、成果、証跡、AI相談ログを本人IDに紐づく経験資産としてまとめます。</p>
+              </div>
+              <span class="badge green" id="experience-owner-badge">Proofolio</span>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>経験を追加</h2>
+            <div class="form-grid">
+              <label>経験タイトル<input id="experience-title" placeholder="例: 地域PPP企画の合意形成"></label>
+              <label>役割<input id="experience-role" placeholder="例: Project Lead"></label>
+            </div>
+            <div class="form-grid">
+              <label>組織・場<input id="experience-org" placeholder="例: 学びの道 / 三浦市"></label>
+              <label>期間<input id="experience-period" placeholder="例: 2026年7月-"></label>
+            </div>
+            <label>内容・成果<textarea id="experience-summary" placeholder="何を担い、どんな成果や学びが残ったか"></textarea></label>
+            <label>タグ<input id="experience-tags" placeholder="PPP, 教育, 事業開発"></label>
+            <div class="actions">
+              <button class="primary" id="add-experience-asset" type="button">経験資産に追加</button>
+              <button class="secondary" id="build-experience-from-project" type="button">現在のProjectから作る</button>
+              <button class="secondary" id="import-experience-evidence" type="button">資料・AI相談から変換</button>
+            </div>
+          </div>
+          <div class="panel half">
+            <h2>経験資産の状態</h2>
+            <div class="cards">
+              <div class="card"><small>Experience</small><b id="metric-experience-assets">0</b></div>
+              <div class="card"><small>Evidence Links</small><b id="metric-experience-evidence">0</b></div>
+            </div>
+            <p class="lead">Proofolioでは、問いや資料を「経験」「役割」「成果」「根拠」に変換して、キャリアや外部評価へ接続します。</p>
+          </div>
+          <div class="panel full">
+            <h2>経験資産一覧</h2>
+            <div class="timeline" id="experience-asset-list"></div>
           </div>
         </div>
       </section>
@@ -1052,14 +1099,18 @@
       feedback: [],
       toolImports: [],
       innovationSeeds: [],
-      formationCandidates: []
+      formationCandidates: [],
+      experienceAssets: []
     };
     const $ = (selector) => document.querySelector(selector);
     const identitySessionKey = "tanq-graph-identity-session";
 
     function normalizeInterfaceKey(value = "") {
       const key = String(value || "").trim().toLowerCase();
-      if (key === "proofolio-encore" || key === "proofolio_encore") return "encore";
+      if (key === "proofolio-encore" || key === "proofolio_encore" || key.includes("encore")) return "encore";
+      if (key.includes("proofolio")) return "proofolio";
+      if (key.includes("passport")) return "passport";
+      if (key.includes("kids")) return "kids";
       if (["kids", "passport", "proofolio", "encore"].includes(key)) return key;
       return "";
     }
@@ -1151,6 +1202,7 @@
           toolImports: saved.toolImports || [],
           innovationSeeds: saved.innovationSeeds || [],
           formationCandidates: saved.formationCandidates || [],
+          experienceAssets: saved.experienceAssets || [],
           identity: {
             ...structuredClone(seed.identity),
             ...(saved.identity || {})
@@ -1356,7 +1408,7 @@
           client: state.identity.entry,
           interface: state.identity.interface
         });
-        ["aiConsultations", "questions", "tasks", "materials", "feedback", "toolImports", "innovationSeeds", "formationCandidates"].forEach((key) => {
+        ["aiConsultations", "questions", "tasks", "materials", "feedback", "toolImports", "innovationSeeds", "formationCandidates", "experienceAssets"].forEach((key) => {
           state[key] = (state[key] || []).map((item) => ({
             ...item,
             tanq_id: item.tanq_id || state.identity.tanq_id,
@@ -1410,7 +1462,8 @@
         ...(state.tasks || []).map((item) => `${item.title} ${item.summary || ""}`),
         ...(state.materials || []).map((item) => `${item.title} ${item.text || ""} ${item.url || ""}`),
         ...(state.feedback || []).map((item) => `${item.reviewer || ""} ${item.text || ""}`),
-        ...(state.aiConsultations || []).map((item) => `${item.title || item.question || ""} ${aiConsultationSummary(item)} ${item.insight || ""} ${item.next_question || ""}`)
+        ...(state.aiConsultations || []).map((item) => `${item.title || item.question || ""} ${aiConsultationSummary(item)} ${item.insight || ""} ${item.next_question || ""}`),
+        ...(state.experienceAssets || []).map((item) => `${item.title || ""} ${item.role || ""} ${item.organization || ""} ${item.summary || ""} ${(item.tags || []).join(" ")}`)
       ].join("\n").toLowerCase();
     }
 
@@ -1612,6 +1665,15 @@
           graph_type: "project",
           trust: stageTrust[project.trust_stage] || 1
         },
+        experience_assets: (state.experienceAssets || []).map((item) => ({
+          ...item,
+          tanq_id: identity.tanq_id || item.tanq_id || null,
+          guest_session_id: identity.guest_session_id || item.guest_session_id || null,
+          subject_id: effectiveSubjectId(),
+          subject_kind: effectiveSubjectKind(),
+          graph_type: "experience_asset",
+          source: "TANQ Project Tool / Proofolio"
+        })),
         activity_logs: state.tasks.map((task) => ({
           id: task.id,
           graph_type: "activity_log",
@@ -1738,6 +1800,15 @@
           graph_type: "activity_log",
           source: item.source || "ChatGPT",
           type: "AI Consultation"
+        });
+      }
+      for (const item of payload.experience_assets || []) {
+        await saveFirebaseRecord("tanq_experience_assets", item);
+        await saveFirebaseRecord("tanq_activity_logs", {
+          ...item,
+          graph_type: "activity_log",
+          source: "Proofolio Experience Graph",
+          type: "Experience Asset"
         });
       }
       for (const item of payload.innovation_engine.innovation_seeds || []) {
@@ -2349,11 +2420,120 @@
         : `<div class="timeline-item"><small>L1</small><strong>AI相談ログはまだありません<br><small>MaterialsのAI相談ログを保存すると、信頼レベル付き資産へ変換できます。</small></strong>${badge("Ready")}</div>`;
     }
 
+    function isProofolioInterface() {
+      const interfaceKey = state.identity?.interface || normalizeInterfaceKey(state.project?.owner) || inferInterfaceByAge(state.identity?.age);
+      const owner = state.project?.owner || ownerByInterface(interfaceKey);
+      return interfaceKey === "proofolio" || interfaceKey === "encore" || /Proofolio/.test(owner);
+    }
+
+    function experienceEvidenceCount() {
+      return (state.experienceAssets || []).reduce((sum, item) => sum + (item.evidence_ids || []).length + (item.source_ids || []).length, 0);
+    }
+
+    function experienceAssetItem(item) {
+      return `<div class="timeline-item">
+        <small>${escapeHtml(item.role || "Experience")}</small>
+        <strong>${escapeHtml(item.title || "経験資産")}<br>
+          <small>${escapeHtml([item.organization, item.period].filter(Boolean).join(" / ") || "組織・期間未設定")}</small><br>
+          <small>${escapeHtml(item.summary || "内容未設定")}</small>
+        </strong>
+        <div class="badge-row">
+          ${(item.tags || []).slice(0, 3).map((tag) => badge(tag, "green")).join("")}
+          ${badge(`L${item.trust || 1}`, "gold")}
+        </div>
+      </div>`;
+    }
+
+    function buildExperienceAsset(input = {}) {
+      const identity = state.identity || seed.identity;
+      return {
+        id: input.id || "exp_" + Date.now(),
+        graph_type: "experience_asset",
+        tanq_id: identity.tanq_id || null,
+        guest_session_id: identity.guest_session_id || null,
+        subject_id: effectiveSubjectId(),
+        subject_kind: effectiveSubjectKind(),
+        title: input.title || "Proofolio経験資産",
+        role: input.role || "Contributor",
+        organization: input.organization || "",
+        period: input.period || "",
+        summary: input.summary || "",
+        tags: input.tags || [],
+        source_ids: input.source_ids || [],
+        evidence_ids: input.evidence_ids || [],
+        trust: input.trust || 1,
+        created_at: input.created_at || new Date().toISOString()
+      };
+    }
+
+    function buildProjectExperienceAsset() {
+      const project = collectFormProject();
+      return buildExperienceAsset({
+        id: "exp_project_" + project.id,
+        title: project.name || "探究プロジェクト経験",
+        role: project.owner === "Proofolio Encore" ? "Experience Editor" : "Project Lead",
+        organization: $("#experience-org").value.trim() || "TANQ / Proofolio",
+        period: $("#experience-period").value.trim() || new Date().getFullYear() + "年",
+        summary: [project.question, project.hypothesis].filter(Boolean).join("\n"),
+        tags: ["project", "proofolio", ...(project.exportTargets || []).slice(0, 3)],
+        source_ids: [project.id],
+        trust: stageTrust[project.trust_stage] || 1
+      });
+    }
+
+    function buildEvidenceExperienceAssets() {
+      const materialAssets = (state.materials || []).map((item) => buildExperienceAsset({
+        id: "exp_mat_" + item.id,
+        title: item.title || "資料化した経験",
+        role: "Evidence Keeper",
+        organization: item.kind || "",
+        summary: item.text || item.url || "資料を証跡として保存しました。",
+        tags: ["evidence", item.kind || "material"].filter(Boolean),
+        evidence_ids: [item.id],
+        trust: 2,
+        created_at: item.created_at || new Date().toISOString()
+      }));
+      const aiAssets = (state.aiConsultations || []).map((item) => buildExperienceAsset({
+        id: "exp_ai_" + item.id,
+        title: item.title || item.question || "AI相談から得た経験",
+        role: "AI Reflection",
+        organization: item.source || "ChatGPT",
+        summary: aiConsultationSummary(item),
+        tags: ["ai", "reflection"],
+        source_ids: [item.id],
+        trust: Number(item.trust || 1),
+        created_at: item.created_at || new Date().toISOString()
+      }));
+      return [...materialAssets, ...aiAssets];
+    }
+
+    function upsertExperienceAssets(items) {
+      state.experienceAssets = mergeById(state.experienceAssets || [], items);
+      saveState(state);
+      render();
+      setStatus("experience updated");
+    }
+
+    function renderExperienceGraph() {
+      const navButton = $("#experience-tab-button");
+      const shouldShow = isProofolioInterface();
+      navButton.hidden = !shouldShow;
+      if (!shouldShow && $("#experience")?.classList.contains("active")) {
+        document.querySelector('[data-tab="questions"]').click();
+      }
+      $("#experience-owner-badge").textContent = ownerByInterface(state.identity?.interface || normalizeInterfaceKey(state.project?.owner) || "proofolio");
+      $("#metric-experience-assets").textContent = (state.experienceAssets || []).length;
+      $("#metric-experience-evidence").textContent = experienceEvidenceCount();
+      $("#experience-asset-list").innerHTML = (state.experienceAssets || []).length
+        ? state.experienceAssets.map(experienceAssetItem).join("")
+        : `<div class="timeline-item"><small>Proofolio</small><strong>経験資産はまだありません<br><small>現在のProject、資料、AI相談ログからExperience Graphを作れます。</small></strong>${badge("Ready", "green")}</div>`;
+    }
+
     function renderInnovationEngine() {
       const seedRecord = latestInnovationSeed();
       const scores = seedRecord?.scores || innovationScores();
       const scoreValue = seedRecord?.innovation_score || innovationScoreValue(scores);
-      const assets = (state.questions || []).length + (state.tasks || []).length + (state.materials || []).length + (state.feedback || []).length + (state.aiConsultations || []).length;
+      const assets = (state.questions || []).length + (state.tasks || []).length + (state.materials || []).length + (state.feedback || []).length + (state.aiConsultations || []).length + (state.experienceAssets || []).length;
       const trustLevel = seedRecord?.trust_level || trustLevelFromState();
       const formationCount = (state.formationCandidates || []).length;
       $("#innovation-score").textContent = scoreValue;
@@ -2420,6 +2600,7 @@
       renderEvidence();
       renderAiConsultations();
       renderExternalTools();
+      renderExperienceGraph();
       renderInnovationEngine();
       renderPayload();
     }
@@ -2702,6 +2883,41 @@
       saveState(state);
       render();
       setStatus("tool imported");
+    });
+
+    $("#add-experience-asset").addEventListener("click", () => {
+      const title = $("#experience-title").value.trim();
+      const summary = $("#experience-summary").value.trim();
+      if (!title && !summary) {
+        setStatus("experience required");
+        return;
+      }
+      upsertExperienceAssets([buildExperienceAsset({
+        title: title || "Proofolio経験資産",
+        role: $("#experience-role").value.trim() || "Contributor",
+        organization: $("#experience-org").value.trim(),
+        period: $("#experience-period").value.trim(),
+        summary,
+        tags: $("#experience-tags").value.split(",").map((item) => item.trim()).filter(Boolean),
+        trust: 1
+      })]);
+      $("#experience-title").value = "";
+      $("#experience-role").value = "";
+      $("#experience-summary").value = "";
+      $("#experience-tags").value = "";
+    });
+
+    $("#build-experience-from-project").addEventListener("click", () => {
+      upsertExperienceAssets([buildProjectExperienceAsset()]);
+    });
+
+    $("#import-experience-evidence").addEventListener("click", () => {
+      const assets = buildEvidenceExperienceAssets();
+      if (!assets.length) {
+        setStatus("evidence empty");
+        return;
+      }
+      upsertExperienceAssets(assets);
     });
 
     $("#sync-graph").addEventListener("click", syncToGraph);
