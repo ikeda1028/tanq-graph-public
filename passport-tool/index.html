@@ -972,6 +972,29 @@
       });
     }
 
+    function compressImageDataUrl(dataUrl, maxWidth = 720, maxHeight = 405, quality = 0.78) {
+      if (!String(dataUrl || "").startsWith("data:image/") || String(dataUrl).startsWith("data:image/svg")) return Promise.resolve(dataUrl);
+      if (String(dataUrl).length < 420000) return Promise.resolve(dataUrl);
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => {
+          const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight, 1);
+          const width = Math.max(1, Math.round(image.naturalWidth * scale));
+          const height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.fillStyle = "#fffdf7";
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(image, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        image.onerror = () => reject(new Error("画像を縮小できませんでした。"));
+        image.src = dataUrl;
+      });
+    }
+
     function generatedKeeperThumbnail(item, title, body) {
       const label = item?.kind === "Question Seed" ? "QUESTION" : "AI LOG";
       const headline = (title || "TANQ Keeper").slice(0, 34);
@@ -1083,20 +1106,25 @@
       const file = $("#keeper-edit-photo")?.files?.[0] || null;
       let imagePatch = {};
       if (file) {
+        const imageDataUrl = await readFileAsDataUrl(file);
         imagePatch = {
-          image_data_url: await readFileAsDataUrl(file),
+          image_data_url: await compressImageDataUrl(imageDataUrl),
           file_name: file.name
         };
       } else if (generateThumbnail) {
         const thumbnail = await generateKeeperThumbnail(item, title, body);
         imagePatch = {
-          thumbnail_data_url: thumbnail.url,
+          thumbnail_data_url: await compressImageDataUrl(thumbnail.url),
           thumbnail_generated_at: new Date().toISOString(),
           thumbnail_source: thumbnail.source
         };
       }
       const raw = updateKeeperRaw(item, keeperEditPatch(item, title, body, imagePatch));
-      saveState();
+      try {
+        saveState();
+      } catch (error) {
+        throw new Error("画像が大きすぎてブラウザ保存容量を超えました。別の指示文で再生成するか、小さい写真を選んでください。");
+      }
       try {
         await saveFirebaseRecord(keeperPublicCollection(item), keeperPublicRecord({ ...item, title, body }, raw));
       } catch (error) {
