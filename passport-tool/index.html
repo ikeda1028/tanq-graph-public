@@ -192,6 +192,7 @@
             </div>
             <div class="actions">
               <button class="primary" id="inbox-save-tanq-id" type="button">IDを保存</button>
+              <button class="secondary" id="inbox-import-core-inquiries" type="button">TANQ Coreから読み込む</button>
               <button class="secondary" id="inbox-import-firestore" type="button">Firestoreから読み込む</button>
               <button class="secondary" id="inbox-import-api" type="button">Keeper APIから読み込む</button>
               <button class="primary" id="organize-keeper-inbox" type="button">AIでInbox整理</button>
@@ -715,7 +716,7 @@
     }
 
     function keeperInboxRows() {
-      const keeperQuests = state.quests.filter((quest) => quest.source_tool === "TANQ Keeper" || quest.owner_person_id || quest.tanq_user_id);
+      const keeperQuests = state.quests.filter((quest) => quest.source_tool === "TANQ Keeper" || quest.source_tool === "TANQ Core" || quest.owner_person_id || quest.tanq_user_id);
       const keeperLogs = state.coachLogs.filter((log) => log.source_tool === "TANQ Keeper" || log.owner_person_id || log.tanq_user_id);
       return [
         ...keeperQuests.map((quest) => ({
@@ -1163,6 +1164,7 @@
     $("#save-tanq-id").addEventListener("click", () => saveTanqId("sync"));
     $("#inbox-save-tanq-id").addEventListener("click", () => saveTanqId("inbox"));
     $("#import-core-inquiries").addEventListener("click", importCoreInquiries);
+    $("#inbox-import-core-inquiries").addEventListener("click", importCoreInquiries);
     $("#import-keeper-firestore").addEventListener("click", () => importKeeperFromFirestore("sync"));
     $("#inbox-import-firestore").addEventListener("click", () => importKeeperFromFirestore("inbox"));
     $("#import-keeper-api").addEventListener("click", () => importKeeperFromApi("sync"));
