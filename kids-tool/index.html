@@ -152,6 +152,7 @@
       font-size: 12px;
     }
     .actions, .voice-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
     .primary, .secondary {
       border: 1px solid transparent;
       border-radius: 8px;
@@ -222,6 +223,49 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--surface);
+    }
+    .table-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .table-tabs button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+    }
+    .table-tabs button.active {
+      color: #fffdf8;
+      border-color: var(--green);
+      background: var(--green);
+    }
+    .record-row {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--ink);
+      background: var(--surface);
+      text-align: left;
+      cursor: pointer;
+      display: grid;
+      gap: 6px;
+    }
+    .record-row.active {
+      border-color: rgba(36,107,85,.55);
+      background: linear-gradient(90deg, rgba(36,107,85,.1), var(--surface));
+    }
+    .raw-json {
+      margin: 0;
+      max-height: 320px;
+      overflow: auto;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: #f5efe2;
+      background: #26241f;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.55;
     }
     .action-card {
       min-height: 90px;
@@ -341,6 +385,21 @@
       </section>
 
       <section class="panel full">
+        <div class="section-head">
+          <div>
+            <h2>保存テーブル詳細</h2>
+            <p class="lead">Kids Toolに保存されている各テーブルの中身を確認します。</p>
+          </div>
+          <span class="badge green" id="table-count-badge">0件</span>
+        </div>
+        <div class="table-tabs" id="table-tabs"></div>
+        <div class="detail-grid">
+          <div class="detail-list" id="table-record-list"></div>
+          <div class="detail-card" id="table-record-detail"></div>
+        </div>
+      </section>
+
+      <section class="panel full">
         <div class="badge-row">
           <span class="badge green">AI探究ナビ</span>
           <span class="badge gold">Safety first</span>
@@ -415,7 +474,15 @@
       execution: ["やってみる", "", "観察、制作、発表の準備をする。"],
       submit_business: ["見せる", "green", "家族、先生、友だちに見せて記録する。"]
     };
+    const tableLabels = {
+      questions: ["ふしぎ", "gold"],
+      tasks: ["たんけんメモ", "green"],
+      materials: ["写真・資料", ""],
+      feedback: ["コメント", "red"]
+    };
     let selectedStage = "question";
+    let selectedTable = "questions";
+    let selectedRecordId = "";
     const seed = {
       identity: {
         mode: "guest",
@@ -1123,6 +1190,107 @@
       });
     }
 
+    function tableRecords(tableName) {
+      if (tableName === "questions") {
+        return (state.questions || [])
+          .filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん")
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      }
+      if (tableName === "tasks") {
+        return (state.tasks || [])
+          .filter((item) => item.audience === "kids")
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      }
+      if (tableName === "materials") {
+        return (state.materials || [])
+          .filter((item) => item.audience === "kids")
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      }
+      if (tableName === "feedback") {
+        return (state.feedback || [])
+          .filter((item) => item.audience === "kids")
+          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+      }
+      return [];
+    }
+
+    function recordTitle(tableName, record = {}) {
+      if (tableName === "questions") return record.text || "ふしぎ";
+      if (tableName === "tasks") return record.title || stageLabels[record.stage]?.[0] || "たんけんメモ";
+      if (tableName === "materials") return record.title || record.kind || "写真・資料";
+      if (tableName === "feedback") return record.reviewer || "コメント";
+      return record.id || "レコード";
+    }
+
+    function recordSummary(tableName, record = {}) {
+      if (tableName === "questions") return [record.trigger, record.reason, record.next_action ? `つぎ: ${record.next_action}` : ""].filter(Boolean).join(" / ");
+      if (tableName === "tasks") return [stageLabels[record.stage]?.[0], record.summary].filter(Boolean).join(" / ");
+      if (tableName === "materials") return [record.kind, record.text || record.url].filter(Boolean).join(" / ");
+      if (tableName === "feedback") return record.text || "";
+      return "";
+    }
+
+    function recordImage(record = {}) {
+      return record.image_data_url || record.photo_observation?.image_data_url || "";
+    }
+
+    function renderTableDetails() {
+      const tableEntries = Object.entries(tableLabels);
+      $("#table-tabs").innerHTML = tableEntries.map(([key, [label, tone]]) => {
+        const count = tableRecords(key).length;
+        return `<button class="${selectedTable === key ? "active" : ""}" data-table-name="${key}" type="button">
+          ${escapeHtml(label)} ${count}
+        </button>`;
+      }).join("");
+
+      document.querySelectorAll("[data-table-name]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedTable = button.dataset.tableName;
+          selectedRecordId = "";
+          renderTableDetails();
+        });
+      });
+
+      const records = tableRecords(selectedTable);
+      const [label, tone] = tableLabels[selectedTable] || ["テーブル", ""];
+      $("#table-count-badge").textContent = `${records.length}件`;
+      if (!selectedRecordId || !records.some((item) => item.id === selectedRecordId)) {
+        selectedRecordId = records[0]?.id || "";
+      }
+      $("#table-record-list").innerHTML = records.length
+        ? records.map((record) => `<button class="record-row ${record.id === selectedRecordId ? "active" : ""}" data-record-id="${escapeHtml(record.id)}" type="button">
+          <span class="badge ${tone}">${escapeHtml(label)}</span>
+          <strong>${escapeHtml(recordTitle(selectedTable, record))}</strong>
+          <small>${escapeHtml(recordSummary(selectedTable, record) || record.id)}</small>
+        </button>`).join("")
+        : `<div class="detail-card">${badge(label, tone)}<strong>まだ保存データはありません</strong><small>このテーブルに記録するとここに表示されます。</small></div>`;
+
+      document.querySelectorAll("[data-record-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedRecordId = button.dataset.recordId;
+          renderTableDetails();
+        });
+      });
+
+      const selected = records.find((record) => record.id === selectedRecordId);
+      if (!selected) {
+        $("#table-record-detail").innerHTML = `${badge(label, tone)}<strong>レコード未選択</strong><small>左の一覧から選んでください。</small>`;
+        return;
+      }
+      const image = recordImage(selected);
+      $("#table-record-detail").innerHTML = `
+        <div class="badge-row">
+          ${badge(label, tone)}
+          ${selected.created_at ? badge(new Date(selected.created_at).toLocaleString("ja-JP")) : ""}
+        </div>
+        <strong>${escapeHtml(recordTitle(selectedTable, selected))}</strong>
+        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(recordTitle(selectedTable, selected))}">` : ""}
+        <small>${escapeHtml(recordSummary(selectedTable, selected) || "概要なし")}</small>
+        ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
+        <pre class="raw-json">${escapeHtml(JSON.stringify(selected, null, 2))}</pre>
+      `;
+    }
+
     function renderIdentity() {
       const identity = state.identity || seed.identity;
       $("#identity-label").textContent = identity.tanq_id
@@ -1136,6 +1304,7 @@
       renderSteps();
       renderStepDetail();
       renderLog();
+      renderTableDetails();
       $("#kids-age").value = state.identity?.age || "";
       $("#kids-months").value = state.identity?.months || "";
       $("#ai-endpoint").value = localStorage.getItem(aiEndpointKey) || window.TANQ_KIDS_AI_ENDPOINT || "";
