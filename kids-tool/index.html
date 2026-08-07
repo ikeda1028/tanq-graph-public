@@ -220,9 +220,25 @@
       overflow: hidden;
       color: var(--green);
       background: var(--surface);
-      font-size: 11px;
-      font-weight: 700;
+      position: relative;
       cursor: pointer;
+    }
+    .photo-icon.no-photo::before {
+      content: "";
+      width: 22px;
+      height: 16px;
+      border: 2px solid currentColor;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .photo-icon.no-photo::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      border: 2px solid currentColor;
+      border-radius: 999px;
+      box-sizing: border-box;
     }
     .photo-icon img {
       width: 100%;
@@ -1236,7 +1252,7 @@
         return `<div class="step ${count ? "done" : ""} ${selectedStage === stage ? "active" : ""}" data-stage-detail="${stage}" role="button" tabindex="0">
           <div class="step-top">
             ${badge(String(count), count ? tone : "")}
-            ${photoSrc ? `<span class="photo-icon" data-stage-photo="${stage}" title="写真とコメント詳細を見る"><img src="${escapeHtml(photoSrc)}" alt="${escapeHtml(label)}の写真"></span>` : `<span class="photo-icon" data-stage-photo="${stage}" title="詳細を見る">写真</span>`}
+            ${photoSrc ? `<span class="photo-icon" data-stage-photo="${stage}" title="写真とコメント詳細を見る"><img src="${escapeHtml(photoSrc)}" alt="${escapeHtml(label)}の写真"></span>` : `<span class="photo-icon no-photo" data-stage-photo="${stage}" title="写真とコメント詳細を見る" aria-label="写真とコメント詳細を見る"></span>`}
           </div>
           <strong>${escapeHtml(label)}</strong>
           <small>${escapeHtml(description)}</small>
