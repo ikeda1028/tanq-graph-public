@@ -112,6 +112,10 @@
     .inbox-item.ai { border-color: rgba(47,95,143,.28); }
     .inbox-head { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
     .inbox-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+    .keeper-media { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+    .keeper-media img { width: 100%; max-height: 220px; object-fit: cover; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .keeper-edit-form { display: grid; gap: 10px; padding: 12px; border: 1px solid rgba(37,107,87,.24); border-radius: 8px; background: rgba(37,107,87,.06); }
+    .keeper-edit-form input[type="file"] { padding: 10px; background: var(--panel); }
     @media (max-width: 1080px) {
       .shell, .hero { grid-template-columns: 1fr; }
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -939,6 +943,100 @@
       return state.coachLogs.find((log) => log.id === item.raw.id);
     }
 
+    function keeperImage(raw = {}) {
+      return raw.image_data_url || raw.thumbnail_data_url || raw.photo_observation?.image_data_url || "";
+    }
+
+    function keeperTitleValue(item) {
+      return item?.raw?.question || item?.raw?.title || item?.title || "";
+    }
+
+    function keeperBodyValue(item) {
+      return item?.raw?.trigger || item?.raw?.prompt || item?.raw?.summary || item?.body || "";
+    }
+
+    function readFileAsDataUrl(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(reader.error || new Error("写真の読み込みに失敗しました。"));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function generatedKeeperThumbnail(item, title, body) {
+      const label = item?.kind === "Question Seed" ? "QUESTION" : "AI LOG";
+      const headline = (title || "TANQ Keeper").slice(0, 34);
+      const summary = (body || item?.domain || "TANQ Passport").slice(0, 46);
+      const color = item?.kind === "Question Seed" ? "#256b57" : "#2f5f8f";
+      const accent = item?.kind === "Question Seed" ? "#a97825" : "#a34b38";
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="960" height="540" viewBox="0 0 960 540">
+        <rect width="960" height="540" fill="#fffdf7"/>
+        <rect x="48" y="48" width="864" height="444" rx="28" fill="#f5efe2" stroke="${color}" stroke-width="3"/>
+        <circle cx="132" cy="136" r="44" fill="${color}" opacity=".16"/>
+        <rect x="98" y="102" width="68" height="68" rx="18" fill="${color}"/>
+        <text x="132" y="146" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#fffdf7" font-weight="700">T</text>
+        <text x="206" y="122" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="${accent}" font-weight="700" letter-spacing="4">${label}</text>
+        <text x="96" y="254" font-family="system-ui, -apple-system, sans-serif" font-size="48" fill="#25231f" font-weight="700">${escapeHtml(headline)}</text>
+        <text x="96" y="324" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#6f685f">${escapeHtml(summary)}</text>
+        <text x="96" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="22" fill="${color}" font-weight="700">TANQ Passport</text>
+      </svg>`;
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    }
+
+    function keeperEditPatch(item, title, body, imagePatch = {}) {
+      if (item.kind === "Question Seed") {
+        return {
+          ...imagePatch,
+          question: title,
+          title,
+          trigger: body,
+          summary: body,
+          photo_observation: {
+            ...(item.raw.photo_observation || {}),
+            ...(imagePatch.image_data_url ? { image_data_url: imagePatch.image_data_url, file_name: imagePatch.file_name || item.raw.photo_observation?.file_name } : {})
+          }
+        };
+      }
+      return {
+        ...imagePatch,
+        title,
+        prompt: body,
+        summary: body
+      };
+    }
+
+    async function saveKeeperEdit(generateThumbnail = false) {
+      const item = selectedKeeperItem();
+      if (!item) return;
+      const title = $("#keeper-edit-title")?.value.trim() || keeperTitleValue(item);
+      const body = $("#keeper-edit-body")?.value.trim() || "";
+      const file = $("#keeper-edit-photo")?.files?.[0] || null;
+      let imagePatch = {};
+      if (file) {
+        imagePatch = {
+          image_data_url: await readFileAsDataUrl(file),
+          file_name: file.name
+        };
+      } else if (generateThumbnail) {
+        imagePatch = {
+          thumbnail_data_url: generatedKeeperThumbnail(item, title, body),
+          thumbnail_generated_at: new Date().toISOString()
+        };
+      }
+      const raw = updateKeeperRaw(item, keeperEditPatch(item, title, body, imagePatch));
+      saveState();
+      try {
+        await saveFirebaseRecord(keeperPublicCollection(item), keeperPublicRecord({ ...item, title, body }, raw));
+      } catch (error) {
+        setKeeperStatus(`保存しましたが、Firestore同期に失敗しました: ${error.message}`);
+        renderKeeperInbox();
+        return;
+      }
+      renderKeeperInbox();
+      setKeeperStatus(generateThumbnail ? "AI風サムネを生成して保存しました。" : "ChatGPT保存を更新しました。");
+    }
+
     function keeperPublicRecord(item, raw) {
       const tanqUserId = state.linkage.tanqUserId || raw.owner_person_id || raw.tanq_user_id || "";
       const isPublic = raw.public_board === true || raw.public_visibility === "public";
@@ -993,6 +1091,7 @@
       $("#keeper-detail-title").textContent = item.title || "ChatGPT保存詳細";
       $("#keeper-detail-badge").textContent = isPublic ? "公開中" : "非公開";
       $("#keeper-detail-badge").className = `badge ${isPublic ? "green" : "gold"}`;
+      const image = keeperImage(item.raw);
       $("#keeper-detail-body").innerHTML = `
         <div class="inbox-meta">
           <span class="badge ${item.tone === "green" ? "green" : ""}">${escapeHtml(item.kind)}</span>
@@ -1002,13 +1101,40 @@
         </div>
         <strong>${escapeHtml(item.title)}</strong>
         <small>${escapeHtml(item.body || "本文なし")}</small>
+        ${image ? `<div class="keeper-media"><img src="${escapeHtml(image)}" alt="${escapeHtml(item.title || "ChatGPT保存サムネ")}"></div>` : ""}
         <div class="actions">
           <button class="${isPublic ? "secondary" : "primary"}" data-keeper-public-id="${escapeHtml(item.id)}" type="button">${isPublic ? "探究ボードから下げる" : "探究ボードへ公開"}</button>
+          <button class="secondary" data-keeper-generate-thumbnail type="button">AIサムネ生成</button>
           <a class="secondary" href="../inquiry-board/" target="_blank" rel="noopener">探究ボードを見る</a>
         </div>
+        <form class="keeper-edit-form" id="keeper-edit-form">
+          <strong>この保存を編集</strong>
+          <label>タイトル・問い<input id="keeper-edit-title" value="${escapeHtml(keeperTitleValue(item))}"></label>
+          <label>コメント・本文<textarea id="keeper-edit-body">${escapeHtml(keeperBodyValue(item))}</textarea></label>
+          <label>写真を投稿・入れ直す<input id="keeper-edit-photo" type="file" accept="image/*"></label>
+          <button class="primary" type="submit">変更を保存</button>
+          <small id="keeper-edit-status">写真を選ぶと、この保存に画像データとして追加されます。</small>
+        </form>
         <pre class="raw-json">${escapeHtml(JSON.stringify(item.raw, null, 2))}</pre>
       `;
       document.querySelector("[data-keeper-public-id]")?.addEventListener("click", () => toggleKeeperPublic(item.id));
+      document.querySelector("[data-keeper-generate-thumbnail]")?.addEventListener("click", async () => {
+        $("#keeper-edit-status").textContent = "AI風サムネを生成中...";
+        try {
+          await saveKeeperEdit(true);
+        } catch (error) {
+          $("#keeper-edit-status").textContent = `生成できませんでした: ${error.message}`;
+        }
+      });
+      $("#keeper-edit-form")?.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        $("#keeper-edit-status").textContent = "保存中...";
+        try {
+          await saveKeeperEdit(false);
+        } catch (error) {
+          $("#keeper-edit-status").textContent = `保存できませんでした: ${error.message}`;
+        }
+      });
     }
 
     function classifyKeeperItem(item) {
