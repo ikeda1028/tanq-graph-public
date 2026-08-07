@@ -204,7 +204,8 @@
             <div class="mini-grid">
               <label>TANQ ID / owner_person_id<input id="inbox-tanq-user-id" placeholder="例: person_12345"></label>
               <label>Keeper API Bundle URL<input id="inbox-keeper-api-url" value="https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle"></label>
-              <label>AIサムネ生成API URL<input id="keeper-thumbnail-endpoint" placeholder="https://.../api/thumbnail"></label>
+              <label>AIサムネ生成API URL<input id="keeper-thumbnail-endpoint" value="https://tanq-graph-ai-api.tanq-graph.workers.dev/api/thumbnail"></label>
+              <label>AIサムネAPI Token 任意<input id="keeper-thumbnail-token" type="password" placeholder="必要な場合のみ"></label>
             </div>
             <div class="actions">
               <button class="primary" id="inbox-save-tanq-id" type="button">IDを保存</button>
@@ -359,6 +360,8 @@
     const coreSessionKey = "tanq-graph-core-session";
     const storageKey = "tanq-passport-state";
     const keeperThumbnailEndpointKey = "tanq-passport-keeper-thumbnail-endpoint";
+    const keeperThumbnailTokenKey = "tanq-passport-keeper-thumbnail-token";
+    const defaultKeeperThumbnailEndpoint = "https://tanq-graph-ai-api.tanq-graph.workers.dev/api/thumbnail";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
     let firebaseApi = null;
@@ -1008,16 +1011,19 @@
     }
 
     async function generateKeeperThumbnail(item, title, body) {
-      const endpoint = localStorage.getItem(keeperThumbnailEndpointKey)?.trim();
+      const endpoint = localStorage.getItem(keeperThumbnailEndpointKey)?.trim() || defaultKeeperThumbnailEndpoint;
       if (!endpoint) {
         return {
           url: generatedKeeperThumbnail(item, title, body),
           source: "local-fallback"
         };
       }
+      const token = localStorage.getItem(keeperThumbnailTokenKey)?.trim();
+      const headers = { "content-type": "application/json" };
+      if (token) headers.authorization = `Bearer ${token}`;
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers,
         body: JSON.stringify({
           mode: "keeper_thumbnail",
           title,
@@ -1431,7 +1437,8 @@
       $("#keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
       $("#inbox-tanq-user-id").value = state.linkage.tanqUserId || "";
       $("#inbox-keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
-      $("#keeper-thumbnail-endpoint").value = localStorage.getItem(keeperThumbnailEndpointKey) || "";
+      $("#keeper-thumbnail-endpoint").value = localStorage.getItem(keeperThumbnailEndpointKey) || defaultKeeperThumbnailEndpoint;
+      $("#keeper-thumbnail-token").value = localStorage.getItem(keeperThumbnailTokenKey) || "";
       $("#session-label").textContent = state.linkage.tanqUserId ? `${state.linkage.tanqUserId} / TANQ Passport` : "TANQ Passport / Local draft";
       setKeeperStatus(state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携");
       renderCoachOutput();
@@ -1599,7 +1606,8 @@
     $("#inbox-save-tanq-id").addEventListener("click", () => saveTanqId("inbox"));
     $("#save-keeper-thumbnail-endpoint").addEventListener("click", () => {
       localStorage.setItem(keeperThumbnailEndpointKey, $("#keeper-thumbnail-endpoint").value.trim());
-      setKeeperStatus("AIサムネ生成API URLを保存しました。未設定の場合は仮サムネを生成します。");
+      localStorage.setItem(keeperThumbnailTokenKey, $("#keeper-thumbnail-token").value.trim());
+      setKeeperStatus("AIサムネ生成API設定を保存しました。");
     });
     $("#import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
     $("#inbox-import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
