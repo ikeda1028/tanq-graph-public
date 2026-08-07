@@ -258,7 +258,10 @@
             </div>
           </div>
           <div class="panel half">
-            <h2>Imported Career</h2>
+            <div class="section-head">
+              <h2>Imported Career</h2>
+              <button class="secondary" id="import-core-career" type="button">TANQ Coreから読み込む</button>
+            </div>
             <div class="timeline" id="imported-career-list"></div>
           </div>
           <div class="panel half">
@@ -372,6 +375,8 @@
   <script>
     const storageKey = "proofolio-encore-state";
     const identitySessionKey = "tanq-graph-identity-session";
+    const coreBaseUrl = "https://tanq-graph-ai-api.tanq-graph.workers.dev";
+    const coreSessionKey = "tanq-graph-core-session";
     const $ = (selector) => document.querySelector(selector);
     const seedState = {
       experience: [
@@ -481,6 +486,13 @@
 
     function captureIdentityFromUrl() {
       const params = new URLSearchParams(location.search);
+      const coreSession = params.get("coreSession");
+      if (coreSession) {
+        sessionStorage.setItem(coreSessionKey, coreSession);
+        params.delete("coreSession");
+        params.delete("coreSessionExpiresAt");
+        history.replaceState(null, "", `${location.pathname}${params.toString() ? `?${params}` : ""}${location.hash}`);
+      }
       const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
       const session = {
         tanq_id: tanqIdValue,
@@ -497,6 +509,23 @@
     function scopedStorageKey(identity = captureIdentityFromUrl()) {
       const scope = identity.tanq_id || identity.email || identity.guest_session_id || "anonymous";
       return `${storageKey}:${encodeURIComponent(String(scope).trim().toLowerCase())}`;
+    }
+
+    function readCoreSessionToken() {
+      return sessionStorage.getItem(coreSessionKey) || "";
+    }
+
+    function tanqCoreOAuthUrl() {
+      const url = new URL(`${coreBaseUrl}/oauth/start`);
+      const returnTo = new URL(location.href);
+      returnTo.searchParams.delete("coreSession");
+      returnTo.searchParams.delete("coreSessionExpiresAt");
+      url.searchParams.set("provider", "google");
+      url.searchParams.set("client", "tanq-graph-public");
+      url.searchParams.set("mode", "login");
+      url.searchParams.set("service", "proofolio-encore");
+      url.searchParams.set("returnTo", returnTo.toString());
+      return url.toString();
     }
 
     function withIdentityUrl(target, extra = {}) {
@@ -684,6 +713,81 @@
           created_at: new Date().toISOString()
         };
       });
+    }
+
+    function mergeById(existing = [], incoming = []) {
+      const map = new Map(existing.map((item) => [item.id, item]));
+      incoming.forEach((item) => map.set(item.id, { ...(map.get(item.id) || {}), ...item }));
+      return [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function careerFromCoreInquiry(inquiry) {
+      const evidence = Array.isArray(inquiry.evidence) ? inquiry.evidence : [];
+      const evidenceSummary = evidence.slice(0, 3).map((item) => item.title || item.summary).filter(Boolean).join(" / ");
+      return {
+        id: `core_career_${inquiry.id}`,
+        source: "TANQ Core",
+        type: "inquiry_career_asset",
+        title: inquiry.title || inquiry.centralQuestion || "TANQ Coreの探究記録",
+        summary: [
+          inquiry.centralQuestion ? `問い: ${inquiry.centralQuestion}` : "",
+          evidenceSummary ? `証拠: ${evidenceSummary}` : ""
+        ].filter(Boolean).join(" / ") || "TANQ Coreから読み込んだ探究記録です。",
+        source_url: "",
+        trust: evidence.some((item) => item.reliability === "high") ? 4 : evidence.length ? 3 : 2,
+        core_inquiry_id: inquiry.id,
+        owner_person_id: inquiry.ownerId || state.identity?.tanq_id || null,
+        created_at: inquiry.updatedAt || inquiry.createdAt || inquiry.created_at || new Date().toISOString()
+      };
+    }
+
+    function experienceFromCoreCareer(record) {
+      return {
+        id: `exp_${record.id}`,
+        title: record.title,
+        role: "TANQ Core Import",
+        summary: record.summary,
+        knowledge: "TANQ Coreの探究記録を、Encoreで再編集できるキャリア材料として取り込みました。",
+        source_record_id: record.id,
+        owner_person_id: record.owner_person_id || state.identity?.tanq_id || null,
+        created_at: record.created_at
+      };
+    }
+
+    async function importCoreCareer(options = {}) {
+      const token = readCoreSessionToken();
+      if (!token) {
+        $("#save-status").textContent = "Core読み込みにはGoogle OAuthが必要です";
+        if (options.allowRedirect) window.location.href = tanqCoreOAuthUrl();
+        return;
+      }
+      $("#save-status").textContent = "TANQ Coreからキャリア材料を読み込み中...";
+      try {
+        const response = await fetch(`${coreBaseUrl}/api/core/inquiries`, {
+          credentials: "include",
+          headers: { authorization: `Bearer ${token}` }
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.success) throw new Error(payload.error?.message || `HTTP ${response.status}`);
+        const inquiries = payload.data?.inquiries || [];
+        const careers = inquiries.map(careerFromCoreInquiry);
+        const experiences = careers.map(experienceFromCoreCareer);
+        state.importedCareer = mergeById(state.importedCareer || [], careers);
+        state.experience = mergeById(state.experience || [], experiences);
+        state.identity = {
+          ...(state.identity || {}),
+          tanq_id: payload.data?.user?.tanqId || state.identity?.tanq_id || null,
+          email: payload.data?.user?.email || state.identity?.email || "",
+          profile_name: payload.data?.user?.displayName || state.identity?.profile_name || "",
+          interface: "encore"
+        };
+        state.entryProfile = null;
+        saveState();
+        render();
+        $("#save-status").textContent = `Coreから${inquiries.length}件読み込みました`;
+      } catch (error) {
+        $("#save-status").textContent = `Core読み込みに失敗: ${error.message}`;
+      }
     }
 
     function generateRoleCandidates() {
@@ -912,6 +1016,7 @@
       saveState();
       render();
     });
+    $("#import-core-career").addEventListener("click", () => importCoreCareer({ allowRedirect: true }));
     $("#generate-roles").addEventListener("click", generateRoleCandidates);
     $("#build-entry-profile").addEventListener("click", buildEntryProfile);
     $("#add-agent").addEventListener("click", () => {
@@ -943,6 +1048,7 @@
     });
     if (!state.roles.length) generateRoleCandidates();
     if (!state.seeds.length) generateInnovationSeeds();
+    importCoreCareer();
     saveState();
     render();
   </script>
