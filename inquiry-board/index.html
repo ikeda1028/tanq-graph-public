@@ -76,6 +76,16 @@
     .theme-card { padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; }
     .theme-main, .comment-box, .comments { display: grid; gap: 12px; align-content: start; }
     .theme-title { font-size: 24px; line-height: 1.35; }
+    .theme-thumb {
+      width: 100%;
+      max-height: 260px;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      object-fit: cover;
+      background: #f0e8d9;
+      display: block;
+    }
     .meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .meta {
       border: 1px solid var(--line);
@@ -143,6 +153,7 @@
         owner_label: "TANQ Core",
         maturity: "seed",
         public_board: true,
+        thumbnail_data_url: "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='960'%20height='540'%20viewBox='0%200%20960%20540'%3E%3Crect%20width='960'%20height='540'%20fill='%23fffdf7'/%3E%3Crect%20x='56'%20y='56'%20width='848'%20height='428'%20rx='32'%20fill='%23eef3ed'%20stroke='%2328775d'%20stroke-width='3'/%3E%3Ccircle%20cx='176'%20cy='176'%20r='64'%20fill='%23c38c2a'/%3E%3Ccircle%20cx='152'%20cy='164'%20r='12'%20fill='%23fffdf7'/%3E%3Ccircle%20cx='200'%20cy='164'%20r='12'%20fill='%23fffdf7'/%3E%3Ccircle%20cx='176'%20cy='204'%20r='8'%20fill='%23fffdf7'/%3E%3Ctext%20x='292'%20y='182'%20font-family='system-ui,sans-serif'%20font-size='34'%20font-weight='700'%20fill='%2325231f'%3E%E5%85%AC%E9%96%8B%E6%8E%A2%E7%A9%B6%E3%83%9C%E3%83%BC%E3%83%89%3C/text%3E%3Ctext%20x='292'%20y='248'%20font-family='system-ui,sans-serif'%20font-size='48'%20font-weight='700'%20fill='%2328775d'%3ETANQ%20Inquiry%3C/text%3E%3Ctext%20x='292'%20y='318'%20font-family='system-ui,sans-serif'%20font-size='28'%20fill='%236f685f'%3E%E5%95%8F%E3%81%84%E3%81%AE%E3%82%B5%E3%83%A0%E3%83%8D%E3%82%92%E8%A1%A8%E7%A4%BA%3C/text%3E%3C/svg%3E",
         created_at: "2026-08-07T00:00:00+09:00"
       }
     ];
@@ -214,6 +225,32 @@
       return theme.summary || theme.reason || theme.trigger || theme.next_action || "この探究テーマにはまだ説明がありません。";
     }
 
+    function safeImageUrl(value = "") {
+      const url = String(value || "").trim();
+      if (!url) return "";
+      if (url.startsWith("data:image/")) return url;
+      if (/^https?:\/\//i.test(url)) return url;
+      return "";
+    }
+
+    function themeThumbnail(theme = {}) {
+      return safeImageUrl(theme.thumbnail_data_url)
+        || safeImageUrl(theme.image_data_url)
+        || safeImageUrl(theme.thumbnail_url)
+        || safeImageUrl(theme.image_url)
+        || safeImageUrl(theme.imageUrl)
+        || safeImageUrl(theme.cover_image_url)
+        || safeImageUrl(theme.coverImageUrl)
+        || safeImageUrl(theme.photo_observation?.image_data_url)
+        || safeImageUrl(theme.photo?.image_data_url)
+        || safeImageUrl(theme.media?.image_data_url)
+        || safeImageUrl(theme.media?.thumbnail_data_url)
+        || safeImageUrl(theme.images?.[0]?.data_url)
+        || safeImageUrl(theme.images?.[0]?.image_data_url)
+        || safeImageUrl(theme.images?.[0]?.url)
+        || "";
+    }
+
     function sourceLabel(theme = {}) {
       return {
         questions: "問い",
@@ -263,8 +300,10 @@
       const visible = sortThemes(themes);
       $("#board").innerHTML = visible.length ? visible.map((theme) => {
         const list = themeComments(theme.id);
+        const thumb = themeThumbnail(theme);
         return `<article class="theme-card">
           <div class="theme-main">
+            ${thumb ? `<img class="theme-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(themeTitle(theme))}のサムネ">` : ""}
             <div class="badge-row">
               ${badge(sourceLabel(theme), "green")}
               ${badge(theme.domain || "探究テーマ")}
