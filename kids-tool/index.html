@@ -266,6 +266,13 @@
       border-radius: 8px;
       background: var(--surface);
     }
+    .missing-photo-note {
+      padding: 10px;
+      border: 1px dashed rgba(164,116,34,.45);
+      border-radius: 8px;
+      color: var(--gold);
+      background: rgba(164,116,34,.08);
+    }
     .table-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
     .table-tabs button {
       border: 1px solid var(--line);
@@ -1121,8 +1128,10 @@
         chunks.push(`<div class="detail-card">
           ${badge("写真のみたて", "green")}
           <strong>${escapeHtml(photo.ai_title || "写真メモ")}</strong>
+          ${photo.image_data_url ? `<img src="${escapeHtml(photo.image_data_url)}" alt="${escapeHtml(photo.ai_title || "写真メモ")}">` : ""}
           <small>${escapeHtml(photo.ai_summary || "AIのみたては未登録です。")}</small>
           ${photo.file_name ? `<small>ファイル: ${escapeHtml(photo.file_name)}</small>` : ""}
+          ${photo.file_name && !photo.image_data_url ? missingPhotoNote(photo.file_name) : ""}
         </div>`);
       }
       if (materials.length) {
@@ -1131,6 +1140,7 @@
           ${materials.map((item) => `<div>
             <strong>${escapeHtml(item.title || item.kind || "資料")}</strong>
             ${recordImage(item) ? `<img src="${escapeHtml(recordImage(item))}" alt="${escapeHtml(item.title || "写真")}">` : ""}
+            ${!recordImage(item) && item.file_name ? missingPhotoNote(item.file_name) : ""}
             <small>${escapeHtml(item.text || item.url || "本文なし")}</small>
           </div>`).join("")}
         </div>`);
@@ -1231,6 +1241,7 @@
           </div>
           <strong>${escapeHtml(item.title || "たんけん")}</strong>
           ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title || "たんけん写真")}">` : ""}
+          ${!item.image && item.photo?.file_name ? missingPhotoNote(item.photo.file_name) : ""}
           ${item.photo?.ai_title || item.photo?.ai_summary ? `<small>${escapeHtml([item.photo.ai_title, item.photo.ai_summary].filter(Boolean).join("。"))}</small>` : ""}
           <small>${escapeHtml(item.text || "メモなし")}</small>
           ${selectedStage === "question" ? questionDetailExtras(item.raw || item) : ""}
@@ -1354,6 +1365,17 @@
       return record.image_data_url || record.photo_observation?.image_data_url || "";
     }
 
+    function currentPhotoImageDataUrl() {
+      const preview = $("#photo-preview");
+      if (photoDraft?.imageDataUrl) return photoDraft.imageDataUrl;
+      if (!preview.hidden && preview.src && preview.src.startsWith("data:image/")) return preview.src;
+      return null;
+    }
+
+    function missingPhotoNote(filename = "") {
+      return `<small class="missing-photo-note">写真ファイル「${escapeHtml(filename || "未設定")}」の名前は残っていますが、画像データは保存されていません。もう一度写真を入れて保存すると表示できます。</small>`;
+    }
+
     function renderTableDetails() {
       const tableEntries = Object.entries(tableLabels);
       $("#table-tabs").innerHTML = tableEntries.map(([key, [label, tone]]) => {
@@ -1405,6 +1427,8 @@
         </div>
         <strong>${escapeHtml(recordTitle(selectedTable, selected))}</strong>
         ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(recordTitle(selectedTable, selected))}">` : ""}
+        ${!image && selected.photo_observation?.file_name ? missingPhotoNote(selected.photo_observation.file_name) : ""}
+        ${!image && selected.file_name ? missingPhotoNote(selected.file_name) : ""}
         <small>${escapeHtml(recordSummary(selectedTable, selected) || "概要なし")}</small>
         ${selectedTable === "questions" ? questionDetailExtras(selected) : ""}
         ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
@@ -1451,16 +1475,19 @@
     $("#photo-input").addEventListener("change", () => {
       const file = $("#photo-input").files?.[0];
       if (!file) return;
+      const prompt = photoPrompt(file.name);
+      photoDraft = { name: file.name, type: file.type, aiTitle: prompt.title, aiSummary: prompt.summary, imageDataUrl: null };
+      renderAiPrompt(prompt);
       const reader = new FileReader();
       reader.onload = () => {
-        $("#photo-preview").src = reader.result;
+        photoDraft.imageDataUrl = String(reader.result || "");
+        $("#photo-preview").src = photoDraft.imageDataUrl;
         $("#photo-preview").hidden = false;
-        if (photoDraft) photoDraft.imageDataUrl = reader.result;
+      };
+      reader.onerror = () => {
+        $("#ai-summary").textContent = "写真の読み込みに失敗しました。もう一度選び直してください。";
       };
       reader.readAsDataURL(file);
-      const prompt = photoPrompt(file.name);
-      photoDraft = { name: file.name, type: file.type, aiTitle: prompt.title, aiSummary: prompt.summary };
-      renderAiPrompt(prompt);
     });
 
     $("#voice-wonder").addEventListener("click", startVoiceInput);
@@ -1509,6 +1536,11 @@
       const text = $("#wonder-text").value.trim();
       if (!text) return;
       const photoGeo = buildGeo($("#photo-location").value, $("#photo-location-note").value);
+      const photoImageDataUrl = currentPhotoImageDataUrl();
+      if (photoDraft && !photoImageDataUrl) {
+        $("#ai-summary").textContent = "写真を読み込み中です。少し待ってから保存してください。";
+        return;
+      }
       const question = {
         id: "q_kids_" + Date.now(),
         text,
@@ -1524,10 +1556,10 @@
           file_name: photoDraft.name,
           ai_title: photoDraft.aiTitle,
           ai_summary: photoDraft.aiSummary,
-          image_data_url: photoDraft.imageDataUrl || ($("#photo-preview").hidden ? null : $("#photo-preview").src),
+          image_data_url: photoImageDataUrl,
           geo: photoGeo
         } : null,
-        image_data_url: photoDraft ? photoDraft.imageDataUrl || ($("#photo-preview").hidden ? null : $("#photo-preview").src) : null,
+        image_data_url: photoDraft ? photoImageDataUrl : null,
         geo: photoGeo,
         created_at: new Date().toISOString()
       };
@@ -1537,11 +1569,12 @@
           id: "mat_kids_photo_" + Date.now(),
           title: "しゃしんから見つけたふしぎ",
           kind: "Kids写真",
+          file_name: photoDraft.name,
           url: "",
           text: `${photoDraft.aiTitle}\n${photoDraft.aiSummary}`,
           audience: "kids",
           geo: photoGeo,
-          image_data_url: photoDraft.imageDataUrl || ($("#photo-preview").hidden ? null : $("#photo-preview").src),
+          image_data_url: photoImageDataUrl,
           source_question_id: question.id,
           created_at: new Date().toISOString()
         });
