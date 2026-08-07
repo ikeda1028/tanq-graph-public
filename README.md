@@ -141,6 +141,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /tanq_public_comments/{docId} {
+      allow read, write: if true;
+    }
+
     match /tanq_innovation_seeds/{docId} {
       allow read, write: if true;
     }
@@ -176,6 +180,7 @@ service cloud.firestore {
 
 - TANQ Graph: `https://ikeda1028.github.io/tanq-graph-public/`
 - TANQ Project Tool: `https://ikeda1028.github.io/tanq-graph-public/project-tool/`
+- 公開探究ボード: `https://ikeda1028.github.io/tanq-graph-public/inquiry-board/`
 - Proofolio Encore Tool: `https://ikeda1028.github.io/tanq-graph-public/encore-tool/`
 - TANQ Firestore Admin: `https://ikeda1028.github.io/tanq-graph-public/db-admin/`
 - TANQ AI Navigator Studio: `https://ikeda1028.github.io/tanq-graph-public/coach-admin/`

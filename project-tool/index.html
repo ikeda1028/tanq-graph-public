@@ -2103,14 +2103,42 @@
           ${badge(question.domain || "領域未設定")}
           ${badge(maturity.label, maturity.tone)}
           ${question.promoted ? badge("Project化済み", "green") : badge("Project未作成", "gold")}
+          ${question.public_board ? badge("公開ボード掲載中", "green") : badge("非公開", "gold")}
         </div>
         <strong>${escapeHtml(question.text || "問い")}</strong>
         <small>きっかけ: ${escapeHtml(question.trigger || "未登録")}</small>
         <small>理由: ${escapeHtml(question.reason || "未登録")}</small>
         <small>次の一手: ${escapeHtml(question.next_action || "未設定")}</small>
         ${question.promoted_project_id ? `<small>Project ID: ${escapeHtml(question.promoted_project_id)}</small>` : ""}
+        <div class="actions">
+          <button class="${question.public_board ? "secondary" : "primary"}" data-public-question-id="${escapeHtml(question.id)}" type="button">${question.public_board ? "公開ボードから下げる" : "公開ボードへ出す"}</button>
+          <a class="secondary" href="../inquiry-board/" target="_blank" rel="noopener">探究ボードを見る</a>
+        </div>
         <pre class="raw-json">${escapeHtml(JSON.stringify(questionGraphRecord(question), null, 2))}</pre>
       `;
+      document.querySelector("[data-public-question-id]")?.addEventListener("click", () => togglePublicQuestion(question.id));
+    }
+
+    async function togglePublicQuestion(id) {
+      const question = (state.questions || []).find((item) => item.id === id);
+      if (!question) return;
+      const nextPublic = !question.public_board;
+      state.questions = (state.questions || []).map((item) => item.id === id ? {
+        ...item,
+        public_board: nextPublic,
+        public_visibility: nextPublic ? "public" : "private",
+        public_updated_at: new Date().toISOString()
+      } : item);
+      const updated = state.questions.find((item) => item.id === id);
+      saveState(state);
+      await saveFirebaseRecord("tanq_question_seeds", {
+        ...questionGraphRecord(updated),
+        public_board: nextPublic,
+        public_visibility: nextPublic ? "public" : "private",
+        public_updated_at: new Date().toISOString()
+      });
+      renderQuestions();
+      setStatus(nextPublic ? "published to inquiry board" : "removed from inquiry board");
     }
 
     function renderQuestions() {
@@ -2123,6 +2151,7 @@
             <small>${escapeHtml(question.domain)}</small>
             ${badge(maturity.label, maturity.tone)}
             ${question.promoted ? badge("Project化済み", "green") : ""}
+            ${question.public_board ? badge("公開中", "green") : ""}
           </div>
           <strong>${escapeHtml(question.text)}<br>
             <small>${escapeHtml(question.trigger || "きっかけ未登録")}</small><br>
