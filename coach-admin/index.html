@@ -128,7 +128,10 @@
     .locked .editor select,
     .locked .editor button:not(#admin-login):not(#admin-logout),
     .locked #new-coach-panel input,
-    .locked #new-coach-panel button { opacity: .55; pointer-events: none; }
+    .locked #new-coach-panel button,
+    .locked #diagnosis-panel input,
+    .locked #diagnosis-panel textarea,
+    .locked #diagnosis-panel button { opacity: .55; pointer-events: none; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .question-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; background: rgba(45,95,138,.07); }
@@ -164,6 +167,7 @@
         <div class="actions">
           <a class="button" href="../kids-tool/" target="_blank" rel="noopener">Kids Tool</a>
           <a class="button" href="../project-tool/" target="_blank" rel="noopener">Project Tool</a>
+          <a class="button" href="../inquiry-board/" target="_blank" rel="noopener">探究ボード</a>
         </div>
       </div>
       <div>
@@ -236,6 +240,31 @@
       </div>
     </div>
 
+    <section id="diagnosis-panel" style="margin-top:16px">
+      <div class="topbar">
+        <div>
+          <h2>公開探究ボード AI診断</h2>
+          <small>類似課題数と実現可能性の診断基準を管理します。</small>
+        </div>
+        <span class="badge green">Inquiry Board</span>
+      </div>
+      <div class="grid-2">
+        <label>診断APIエンドポイント<input id="diagnosis-endpoint" placeholder="例: https://.../api/inquiry-diagnosis"></label>
+        <label>モデルメモ<input id="diagnosis-model" placeholder="例: gpt-4.1-mini"></label>
+      </div>
+      <label>重視する観点<textarea id="diagnosis-focus"></textarea></label>
+      <div class="grid-2">
+        <label>高評価条件<textarea id="diagnosis-high"></textarea></label>
+        <label>注意条件<textarea id="diagnosis-risk"></textarea></label>
+      </div>
+      <label>診断コメントの方針<textarea id="diagnosis-tone"></textarea></label>
+      <div class="actions">
+        <button class="primary" id="save-diagnosis" type="button">診断設定を保存</button>
+        <button id="copy-diagnosis-json" type="button">診断JSONコピー</button>
+      </div>
+      <small class="muted" id="diagnosis-status">探究ボードはこの設定を読み、本物のAI診断へ切り替えます。</small>
+    </section>
+
     <section style="margin-top:16px">
       <h2>Preview</h2>
       <div class="grid-2">
@@ -262,6 +291,7 @@
   <script>
     const coachConfigKey = "tanq-ai-coach-configs";
     const adminSessionKey = "tanq-navigator-admin-session";
+    const diagnosisConfigKey = "tanq-inquiry-board-diagnosis-config";
     const $ = (selector) => document.querySelector(selector);
     const labels = {
       kids: "TANQ Pass Kids",
@@ -318,6 +348,15 @@
     let selected = "kids";
     let coaches = readCoaches();
     let adminSession = readAdminSession();
+    const defaultDiagnosisConfig = {
+      endpoint: window.TANQ_INQUIRY_DIAGNOSIS_ENDPOINT || "",
+      model: "gpt-4.1-mini",
+      focus: "問いの明確さ、検証可能性、社会性、必要な支援の具体性、次の一手を重視する。",
+      high: "小さく試せる次の行動、協力者の入り口、観察できる成果、支援募集の具体性がある場合は高く評価する。",
+      risk: "課題が大きすぎる、対象者や検証方法が曖昧、法務・医療・金融など専門判断が必要な場合は慎重に評価する。",
+      tone: "短く、前向きに、ただし根拠なく成功を断定しない。支援者が次に何をすればよいかが分かる言葉にする。"
+    };
+    let diagnosisConfig = readDiagnosisConfig();
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
@@ -345,6 +384,18 @@
         return null;
       }
       return null;
+    }
+
+    function readDiagnosisConfig() {
+      try {
+        return { ...defaultDiagnosisConfig, ...(JSON.parse(localStorage.getItem(diagnosisConfigKey) || "{}") || {}) };
+      } catch {
+        return { ...defaultDiagnosisConfig };
+      }
+    }
+
+    function saveDiagnosisConfig() {
+      localStorage.setItem(diagnosisConfigKey, JSON.stringify(diagnosisConfig));
     }
 
     function canEdit() {
@@ -441,6 +492,27 @@
       syncAdminLock();
       renderList();
       loadEditor();
+      loadDiagnosisEditor();
+    }
+
+    function loadDiagnosisEditor() {
+      $("#diagnosis-endpoint").value = diagnosisConfig.endpoint || "";
+      $("#diagnosis-model").value = diagnosisConfig.model || "";
+      $("#diagnosis-focus").value = diagnosisConfig.focus || "";
+      $("#diagnosis-high").value = diagnosisConfig.high || "";
+      $("#diagnosis-risk").value = diagnosisConfig.risk || "";
+      $("#diagnosis-tone").value = diagnosisConfig.tone || "";
+    }
+
+    function readDiagnosisEditor() {
+      return {
+        endpoint: $("#diagnosis-endpoint").value.trim(),
+        model: $("#diagnosis-model").value.trim(),
+        focus: $("#diagnosis-focus").value.trim(),
+        high: $("#diagnosis-high").value.trim(),
+        risk: $("#diagnosis-risk").value.trim(),
+        tone: $("#diagnosis-tone").value.trim()
+      };
     }
 
     $("#save-coach").addEventListener("click", () => {
@@ -516,6 +588,20 @@
       await navigator.clipboard.writeText(text);
       $("#copy-coach-json").textContent = "コピーしました";
       setTimeout(() => $("#copy-coach-json").textContent = "JSONコピー", 1200);
+    });
+
+    $("#save-diagnosis").addEventListener("click", () => {
+      if (!canEdit()) return setAdminStatus("管理ログイン後に診断設定を保存できます。");
+      diagnosisConfig = readDiagnosisEditor();
+      saveDiagnosisConfig();
+      $("#diagnosis-status").textContent = "公開探究ボードのAI診断設定を保存しました。";
+    });
+
+    $("#copy-diagnosis-json").addEventListener("click", async () => {
+      const text = JSON.stringify(readDiagnosisEditor(), null, 2);
+      await navigator.clipboard.writeText(text);
+      $("#copy-diagnosis-json").textContent = "コピーしました";
+      setTimeout(() => $("#copy-diagnosis-json").textContent = "診断JSONコピー", 1200);
     });
 
     ["coach-name", "coach-role", "coach-tone", "coach-structural", "coach-generative", "coach-safety", "coach-endpoint", "coach-model"].forEach((id) => {

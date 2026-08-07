@@ -111,6 +111,7 @@
       gap: 8px;
     }
     .ai-diagnosis strong { font-size: 18px; }
+    .ai-list { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
     .meter {
       height: 10px;
       border-radius: 999px;
@@ -149,6 +150,7 @@
       <div class="actions">
         <a class="button" href="../">TANQ Graph</a>
         <a class="button" href="../project-tool/">Project Tool</a>
+        <a class="button" href="../coach-admin/">AI診断設定</a>
       </div>
     </div>
     <h1>公開探究ボード</h1>
@@ -175,6 +177,7 @@
     const firebaseSdkVersion = "12.16.0";
     const localCommentsKey = "tanq-public-inquiry-comments";
     const localSupportsKey = "tanq-public-inquiry-supports";
+    const diagnosisConfigKey = "tanq-inquiry-board-diagnosis-config";
     const defaultSupportNeeds = ["応援マーク", "資金", "メンター", "IT支援", "法律", "マーケティング"];
     const demoThemes = [
       {
@@ -197,6 +200,8 @@
     let themes = [];
     let comments = [];
     let supports = [];
+    let diagnosisByThemeId = {};
+    const diagnosisLoading = new Set();
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
@@ -333,6 +338,23 @@
       return clean.length ? clean.slice(0, 8) : defaultSupportNeeds;
     }
 
+    function readDiagnosisConfig() {
+      const fallbackEndpoint = localStorage.getItem("tanq-encore-ai-endpoint")?.replace(/\/api\/encore-coach\/?$/, "/api/inquiry-diagnosis") || "";
+      try {
+        return {
+          endpoint: window.TANQ_INQUIRY_DIAGNOSIS_ENDPOINT || fallbackEndpoint,
+          model: "gpt-4.1-mini",
+          focus: "問いの明確さ、検証可能性、社会性、必要な支援の具体性、次の一手を重視する。",
+          high: "小さく試せる次の行動、協力者の入り口、観察できる成果、支援募集の具体性がある場合は高く評価する。",
+          risk: "課題が大きすぎる、対象者や検証方法が曖昧、法務・医療・金融など専門判断が必要な場合は慎重に評価する。",
+          tone: "短く、前向きに、ただし根拠なく成功を断定しない。",
+          ...(JSON.parse(localStorage.getItem(diagnosisConfigKey) || "{}") || {})
+        };
+      } catch {
+        return { endpoint: window.TANQ_INQUIRY_DIAGNOSIS_ENDPOINT || fallbackEndpoint };
+      }
+    }
+
     function themeText(theme = {}) {
       return [themeTitle(theme), themeSummary(theme), theme.trigger, theme.next_action, theme.domain].filter(Boolean).join(" ");
     }
@@ -384,6 +406,88 @@
       return { score, level, reason };
     }
 
+    function fallbackDiagnosis(theme, commentList, supportList, similarCount) {
+      const base = feasibilityDiagnosis(theme, commentList, supportList, similarCount);
+      return {
+        source: "local",
+        similar_count: similarCount,
+        feasibility_score: base.score,
+        feasibility_level: base.level,
+        diagnosis: base.reason,
+        strengths: [],
+        risks: [],
+        next_actions: [],
+        recommended_supports: supportNeeds(theme).slice(0, 4)
+      };
+    }
+
+    function normalizedAiDiagnosis(data, fallback) {
+      const score = Math.max(5, Math.min(96, Math.round(Number(data.feasibility_score || data.score || fallback.feasibility_score))));
+      return {
+        source: "ai",
+        similar_count: Number(data.similar_count ?? fallback.similar_count),
+        feasibility_score: score,
+        feasibility_level: data.feasibility_level || data.level || (score >= 75 ? "高い" : score >= 55 ? "中程度" : "要検討"),
+        diagnosis: data.diagnosis || data.reason || fallback.diagnosis,
+        strengths: Array.isArray(data.strengths) ? data.strengths.slice(0, 3) : [],
+        risks: Array.isArray(data.risks) ? data.risks.slice(0, 3) : [],
+        next_actions: Array.isArray(data.next_actions) ? data.next_actions.slice(0, 3) : [],
+        recommended_supports: Array.isArray(data.recommended_supports) ? data.recommended_supports.slice(0, 4) : fallback.recommended_supports
+      };
+    }
+
+    function compactTheme(theme) {
+      return {
+        id: theme.id,
+        title: themeTitle(theme),
+        summary: themeSummary(theme),
+        domain: theme.domain || "",
+        trigger: theme.trigger || "",
+        next_action: theme.next_action || "",
+        support_needs: supportNeeds(theme),
+        source: sourceLabel(theme)
+      };
+    }
+
+    async function requestAiDiagnosis(theme, visible) {
+      const config = readDiagnosisConfig();
+      const endpoint = config.endpoint || "";
+      if (!endpoint || diagnosisByThemeId[theme.id] || diagnosisLoading.has(theme.id)) return;
+      diagnosisLoading.add(theme.id);
+      const list = themeComments(theme.id);
+      const supportList = themeSupports(theme.id);
+      const similar = similarThemes(theme, visible);
+      const fallback = fallbackDiagnosis(theme, list, supportList, similar.length);
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            mode: "inquiry_board_diagnosis",
+            criteria: {
+              focus: config.focus,
+              high: config.high,
+              risk: config.risk,
+              tone: config.tone
+            },
+            theme: compactTheme(theme),
+            similar_count: similar.length,
+            similar: similar.slice(0, 8).map(({ item }) => compactTheme(item)),
+            comments: list.slice(0, 8),
+            supports: supportList.slice(0, 8)
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) throw new Error(data.error || "AI diagnosis failed.");
+        diagnosisByThemeId[theme.id] = normalizedAiDiagnosis(data, fallback);
+      } catch (error) {
+        diagnosisByThemeId[theme.id] = { ...fallback, source: "fallback", diagnosis: `${fallback.diagnosis} AI診断APIには接続できなかったため、簡易診断を表示しています。` };
+      } finally {
+        diagnosisLoading.delete(theme.id);
+        render();
+      }
+    }
+
     function averageRating(items) {
       const ratings = items.map((item) => Number(item.rating)).filter(Boolean);
       if (!ratings.length) return "-";
@@ -414,7 +518,8 @@
         const supportList = themeSupports(theme.id);
         const needs = supportNeeds(theme);
         const similarCount = similarThemes(theme, visible).length;
-        const diagnosis = feasibilityDiagnosis(theme, list, supportList, similarCount);
+        const diagnosis = diagnosisByThemeId[theme.id] || fallbackDiagnosis(theme, list, supportList, similarCount);
+        const score = diagnosis.feasibility_score;
         const thumb = themeThumbnail(theme);
         return `<article class="theme-card">
           <div class="theme-main">
@@ -438,10 +543,13 @@
               <div class="badge-row">${needs.map((item) => badge(item, item === "資金" ? "gold" : "green")).join("")}</div>
             </div>
             <div class="ai-diagnosis">
-              <div class="badge-row">${badge("AI診断", "green")}${badge(`類似課題 ${similarCount}件`)}${badge(`実現可能性 ${diagnosis.level}`, diagnosis.score >= 75 ? "green" : diagnosis.score >= 55 ? "gold" : "red")}</div>
-              <strong>${diagnosis.score}%</strong>
-              <div class="meter"><span style="width:${diagnosis.score}%"></span></div>
-              <p>${escapeHtml(diagnosis.reason)}</p>
+              <div class="badge-row">${badge(diagnosis.source === "ai" ? "AI診断" : diagnosisLoading.has(theme.id) ? "AI診断中" : "簡易診断", "green")}${badge(`類似課題 ${diagnosis.similar_count}件`)}${badge(`実現可能性 ${diagnosis.feasibility_level}`, score >= 75 ? "green" : score >= 55 ? "gold" : "red")}</div>
+              <strong>${score}%</strong>
+              <div class="meter"><span style="width:${score}%"></span></div>
+              <p>${escapeHtml(diagnosis.diagnosis)}</p>
+              ${diagnosis.strengths?.length ? `<ul class="ai-list">${diagnosis.strengths.map((item) => `<li>強み: ${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+              ${diagnosis.risks?.length ? `<ul class="ai-list">${diagnosis.risks.map((item) => `<li>注意: ${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+              ${diagnosis.next_actions?.length ? `<ul class="ai-list">${diagnosis.next_actions.map((item) => `<li>次: ${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
             </div>
             <div class="comments">
               <strong>支援の申し込み</strong>
@@ -493,6 +601,7 @@
       document.querySelectorAll("[data-support-theme-id]").forEach((form) => {
         form.addEventListener("submit", submitSupport);
       });
+      visible.slice(0, 20).forEach((theme) => requestAiDiagnosis(theme, visible));
     }
 
     async function submitComment(event) {

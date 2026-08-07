@@ -118,6 +118,49 @@ export function buildEncorePrompt(input) {
   ].join("\n");
 }
 
+export function buildInquiryDiagnosisPrompt(input) {
+  const theme = input.theme || {};
+  const criteria = input.criteria || {};
+  const similar = input.similar || [];
+  const comments = input.comments || [];
+  const supports = input.supports || [];
+  const criteriaText = [
+    `重視する観点: ${criteria.focus || "問いの明確さ、検証可能性、社会性、必要な支援の具体性、次の一手"}`,
+    `高評価条件: ${criteria.high || "小さく試せる次の行動、協力者の入り口、観察できる成果があること"}`,
+    `注意条件: ${criteria.risk || "課題が大きすぎる、対象者や検証方法が曖昧、法務・医療・金融など専門判断が必要な場合は慎重にする"}`,
+    `コメント方針: ${criteria.tone || "短く、前向きに、ただし根拠なく成功を断定しない"}`
+  ].join("\n");
+
+  return [
+    "あなたはTANQ公開探究ボードのAI診断員です。",
+    "公開された探究テーマを、閲覧者と支援者が判断しやすいように診断します。",
+    "診断は教育・探究支援の観点で行い、投資助言、法律助言、医療助言、合否判定のような断定は避けてください。",
+    "類似課題数は入力されたsimilar_countを採用し、勝手に増減させないでください。",
+    "実現可能性は、テーマがすぐ成功する確率ではなく、小さく検証を始められる度合いとして評価してください。",
+    "",
+    "管理者が設定した診断基準:",
+    criteriaText,
+    "",
+    "必ず次のJSONだけを返してください。Markdownは使わないでください。",
+    JSON.stringify({
+      similar_count: 0,
+      feasibility_score: 72,
+      feasibility_level: "高い/中程度/要検討",
+      diagnosis: "診断理由を80字程度で説明",
+      strengths: ["強みを2つ"],
+      risks: ["注意点を2つ"],
+      next_actions: ["次に試すことを2つ"],
+      recommended_supports: ["必要な支援種別を最大4つ"]
+    }),
+    "",
+    `similar_count: ${Number(input.similar_count || similar.length || 0)}`,
+    `探究テーマ: ${JSON.stringify(theme)}`,
+    `類似テーマ: ${JSON.stringify(similar.slice(0, 8))}`,
+    `評価コメント: ${JSON.stringify(comments.slice(0, 8))}`,
+    `支援申し込み: ${JSON.stringify(supports.slice(0, 8))}`
+  ].join("\n");
+}
+
 export async function askOpenAi({ input, prompt, imageDataUrl, temperature = 0.5 }) {
   const openaiApiKey = process.env.OPENAI_API_KEY || "";
   if (!openaiApiKey) {
