@@ -288,8 +288,6 @@
         <button data-tab="views">Kids / Passport / Proofolio</button>
         <a href="passport-tool/" target="_blank" rel="noopener">TANQ Passport</a>
         <a href="encore-tool/" target="_blank" rel="noopener">Proofolio Encore</a>
-        <a href="db-admin/" target="_blank" rel="noopener">DB Admin</a>
-        <a href="coach-admin/" target="_blank" rel="noopener">AI Navigator Studio</a>
       </nav>
       <div class="session-box">
         <small id="entry-session-label">未選択</small>
@@ -312,14 +310,12 @@
             <a class="secondary" href="kids-tool/" target="_blank" rel="noopener">Kids Toolを見る</a>
             <a class="secondary" href="passport-tool/" target="_blank" rel="noopener">TANQ Passportを開く</a>
             <a class="secondary" href="encore-tool/" target="_blank" rel="noopener">Proofolio Encoreを開く</a>
-            <a class="secondary" href="db-admin/" target="_blank" rel="noopener">DB Adminを開く</a>
-            <a class="secondary" href="coach-admin/" target="_blank" rel="noopener">AI Navigator Studioを開く</a>
           </div>
         </div>
         <div class="interfaces">
           <a class="card interface-card service-card" data-interface-card="kids" href="kids-tool/" aria-label="TANQ Pass Kidsを開く"><span class="interface-icon kids-icon"></span><strong>TANQ Pass Kids</strong><small>幼児・小学生向け。あそび、発見、作品、保護者・先生の見守り。</small></a>
           <a class="card interface-card service-card" data-interface-card="passport" href="passport-tool/" aria-label="TANQ Passportを開く"><span class="interface-icon passport-icon"></span><strong>TANQ Passport</strong><small>中高生向け。探究の旅、クエスト、バッジ、進路ポートフォリオ。</small></a>
-          <a class="card core-card service-card" href="https://tanq-graph-ai-api.tanq-graph.workers.dev/core" aria-label="TANQ Graph Coreを見る"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>OAuthで確認した本人IDの実データを見る。</small></a>
+          <a class="card core-card service-card" href="https://tanq-graph-ai-api.tanq-graph.workers.dev/" aria-label="TANQ Graphを開く"><div class="core-mark"><span>CORE</span></div><strong>TANQ Graph Core</strong><small>TANQ Graphの入口を開く。</small></a>
           <a class="card interface-card service-card" data-interface-card="proofolio" href="project-tool/?interface=proofolio" aria-label="Proofolioを開く"><span class="interface-icon proofolio-icon"></span><strong>Proofolio</strong><small>社会人向け。実績、人的資本、資格、DAO貢献、キャリア証明。</small></a>
           <a class="card interface-card service-card" data-interface-card="encore" href="encore-tool/" aria-label="Proofolio Encoreを開く"><span class="interface-icon encore-icon"></span><strong>Proofolio Encore</strong><small>45歳以降向け。経験を再編集し、次の役割・顧問・地域実装へ接続。</small></a>
         </div>
@@ -330,7 +326,6 @@
             <p id="ai-connection-message">AIバックエンド接続を確認中です。</p>
             <div class="badge-row">
               <span class="badge" id="ai-connection-badge">checking</span>
-              <a class="badge green" href="coach-admin/" target="_blank" rel="noopener">AI Navigator Studio</a>
               <a class="badge gold" href="kids-tool/" target="_blank" rel="noopener">Kids AI</a>
               <a class="badge red" href="encore-tool/" target="_blank" rel="noopener">Encore AI</a>
             </div>
@@ -643,6 +638,14 @@
 
       <section id="admin" class="tab">
         <div class="grid">
+          <div class="panel full">
+            <h2>管理ページ</h2>
+            <small>ユーザーが通常利用しない管理機能はここにまとめます。最終版ではOAuthの管理者権限で編集可否を制御します。</small>
+            <div class="actions" style="margin-top:12px">
+              <a class="secondary" href="coach-admin/" target="_blank" rel="noopener">AI Navigator Studio</a>
+              <a class="secondary" href="db-admin/" target="_blank" rel="noopener">DB Admin</a>
+            </div>
+          </div>
           <div class="panel half">
             <h2>登録団体管理</h2>
             <div class="form-grid">

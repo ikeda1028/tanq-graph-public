@@ -122,7 +122,15 @@
     }
     .primary { border-color: transparent; color: #fffdf8; background: var(--green); }
     .danger { color: var(--red); }
+    .muted { color: var(--muted); }
+    .locked .editor input,
+    .locked .editor textarea,
+    .locked .editor select,
+    .locked .editor button:not(#admin-login):not(#admin-logout),
+    .locked #new-coach-panel input,
+    .locked #new-coach-panel button { opacity: .55; pointer-events: none; }
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
     .question-box { border: 1px solid var(--line); border-radius: 8px; padding: 12px; display: grid; gap: 8px; background: rgba(45,95,138,.07); }
     pre {
       margin: 0;
@@ -165,10 +173,36 @@
       <p class="lead">TANQのAIは一人の万能キャラクターではなく、年齢、経験、探究段階、社会実装の深さに合わせて役割を変えます。ここで各インターフェイスのAI探究ナビゲーター人格、問いの型、安全境界、API接続先を管理します。</p>
     </header>
 
-    <div class="layout">
+    <section style="margin-bottom:16px">
+      <div class="topbar">
+        <div>
+          <h2>Admin Access</h2>
+          <small id="admin-status">編集するには管理ログインが必要です。</small>
+        </div>
+        <div class="actions">
+          <input id="admin-code" placeholder="管理コード">
+          <button class="primary" id="admin-login" type="button">管理ログイン</button>
+          <button id="admin-logout" type="button">ログアウト</button>
+        </div>
+      </div>
+      <small class="muted">公開デモでは団体ログイン済み、または管理コードで編集できます。本番ではOAuthのadmin権限に置き換えます。</small>
+    </section>
+
+    <div class="layout" id="studio-layout">
       <section>
-        <h2>Navigator Lineup</h2>
+        <div class="topbar">
+          <h2>Navigator Lineup</h2>
+          <span class="badge" id="lineup-count">0</span>
+        </div>
         <div class="coach-list" id="coach-list"></div>
+        <div class="question-box" id="new-coach-panel">
+          <h3>ナビゲーターを追加</h3>
+          <div class="grid-2">
+            <label>ID<input id="new-coach-id" placeholder="例: miura-city"></label>
+            <label>表示名<input id="new-coach-label" placeholder="例: 三浦まちづくりNavigator"></label>
+          </div>
+          <button class="primary" id="add-coach" type="button">追加</button>
+        </div>
       </section>
 
       <div class="editor">
@@ -194,8 +228,10 @@
         </div>
         <div class="actions">
           <button class="primary" id="save-coach" type="button">保存</button>
+          <button id="duplicate-coach" type="button">複製</button>
           <button id="copy-coach-json" type="button">JSONコピー</button>
           <button class="danger" id="reset-coach" type="button">初期値に戻す</button>
+          <button class="danger" id="delete-coach" type="button">削除</button>
         </div>
       </div>
     </div>
@@ -225,6 +261,7 @@
 
   <script>
     const coachConfigKey = "tanq-ai-coach-configs";
+    const adminSessionKey = "tanq-navigator-admin-session";
     const $ = (selector) => document.querySelector(selector);
     const labels = {
       kids: "TANQ Pass Kids",
@@ -234,6 +271,7 @@
     };
     const defaultCoaches = {
       kids: {
+        label: "TANQ Pass Kids",
         name: "Mite Navigator",
         role: "写真から発見を見つけ、年齢/月齢に合わせて問いを育てるAI探究ナビゲーター",
         tone: "やさしい、短い、安心できる、断定しすぎない",
@@ -244,6 +282,7 @@
         model: "gpt-4.1-mini"
       },
       passport: {
+        label: "TANQ Passport",
         name: "Quest Navigator",
         role: "中高生の問いを探究プロジェクト、仮説、進路証跡へ案内するAI探究ナビゲーター",
         tone: "伴走型、少し挑戦的、根拠を求める",
@@ -254,6 +293,7 @@
         model: "gpt-4.1-mini"
       },
       proofolio: {
+        label: "Proofolio",
         name: "Value Navigator",
         role: "社会人の経験、成果、人的資本、事業価値を構造化するAI探究ナビゲーター",
         tone: "実務的、客観的、価値仮説を明確にする",
@@ -264,6 +304,7 @@
         model: "gpt-4.1-mini"
       },
       encore: {
+        label: "Proofolio Encore",
         name: "Encore Navigator",
         role: "45歳以降の経験を次の役割、顧問価値、地域実装へ再編集するAI探究ナビゲーター",
         tone: "敬意ある、落ち着いた、経験の価値を見える化する",
@@ -276,6 +317,7 @@
     };
     let selected = "kids";
     let coaches = readCoaches();
+    let adminSession = readAdminSession();
 
     function escapeHtml(value = "") {
       return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
@@ -293,8 +335,50 @@
       localStorage.setItem(coachConfigKey, JSON.stringify(coaches));
     }
 
+    function readAdminSession() {
+      try {
+        const direct = JSON.parse(localStorage.getItem(adminSessionKey) || "null");
+        if (direct?.role === "admin") return direct;
+        const entry = JSON.parse(localStorage.getItem("tanq-graph-entry-session") || "null");
+        if (entry?.role === "organization") return { role: "admin", source: "organization", name: entry.name, orgId: entry.orgId };
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    function canEdit() {
+      return Boolean(adminSession?.role === "admin");
+    }
+
+    function setAdminStatus(message) {
+      $("#admin-status").textContent = message;
+    }
+
+    function syncAdminLock() {
+      document.body.classList.toggle("locked", !canEdit());
+      $("#admin-code").style.display = canEdit() ? "none" : "";
+      $("#admin-login").style.display = canEdit() ? "none" : "";
+      $("#admin-logout").style.display = canEdit() ? "" : "none";
+      setAdminStatus(canEdit()
+        ? `管理編集モード: ${adminSession.name || adminSession.source || "admin"}`
+        : "編集するには管理ログインが必要です。閲覧はできます。");
+    }
+
+    function adminCode() {
+      return window.TANQ_NAVIGATOR_ADMIN_CODE || localStorage.getItem("tanq-navigator-admin-code") || "tanq-admin";
+    }
+
+    function coachLabel(id) {
+      return coaches[id]?.label || labels[id] || id;
+    }
+
     function coachIcon(id) {
-      return id === "kids" ? "KC" : id === "passport" ? "QM" : id === "proofolio" ? "VA" : "EN";
+      if (id === "kids") return "KC";
+      if (id === "passport") return "QM";
+      if (id === "proofolio") return "VA";
+      if (id === "encore") return "EN";
+      return id.slice(0, 2).toUpperCase();
     }
 
     function toneClass(id) {
@@ -302,10 +386,11 @@
     }
 
     function renderList() {
+      $("#lineup-count").textContent = `${Object.keys(coaches).length} items`;
       $("#coach-list").innerHTML = Object.entries(coaches).map(([id, coach]) => `<button class="card ${id === selected ? "active" : ""}" data-coach="${id}" type="button">
         <span class="icon ${toneClass(id)}">${coachIcon(id)}</span>
         <strong>${escapeHtml(coach.name)}</strong>
-        <small>${escapeHtml(labels[id] || id)}</small>
+        <small>${escapeHtml(coachLabel(id))}</small>
         <small>${escapeHtml(coach.role)}</small>
       </button>`).join("");
       document.querySelectorAll("[data-coach]").forEach((button) => {
@@ -318,11 +403,11 @@
 
     function loadEditor() {
       const coach = coaches[selected];
-      $("#target-label").textContent = labels[selected] || selected;
+      $("#target-label").textContent = coachLabel(selected);
       $("#coach-id-label").textContent = selected;
       $("#editor-title").textContent = coach.name;
       $("#coach-name").value = coach.name || "";
-      $("#coach-audience").innerHTML = Object.entries(labels).map(([id, label]) => `<option value="${id}">${label}</option>`).join("");
+      $("#coach-audience").innerHTML = Object.keys(coaches).map((id) => `<option value="${id}">${escapeHtml(coachLabel(id))}</option>`).join("");
       $("#coach-audience").value = selected;
       $("#coach-role").value = coach.role || "";
       $("#coach-tone").value = coach.tone || "";
@@ -335,10 +420,12 @@
       $("#preview-generative").textContent = coach.generative || "";
       $("#preview-safety").textContent = coach.safety || "";
       $("#json-preview").textContent = JSON.stringify({ [selected]: coach }, null, 2);
+      $("#delete-coach").disabled = Boolean(defaultCoaches[selected]);
     }
 
     function readEditor() {
       return {
+        label: coachLabel(selected),
         name: $("#coach-name").value.trim(),
         role: $("#coach-role").value.trim(),
         tone: $("#coach-tone").value.trim(),
@@ -351,11 +438,13 @@
     }
 
     function render() {
+      syncAdminLock();
       renderList();
       loadEditor();
     }
 
     $("#save-coach").addEventListener("click", () => {
+      if (!canEdit()) return setAdminStatus("管理ログイン後に保存できます。");
       const target = $("#coach-audience").value;
       coaches[target] = readEditor();
       if (target !== selected) {
@@ -366,10 +455,60 @@
       render();
     });
 
+    $("#add-coach").addEventListener("click", () => {
+      if (!canEdit()) return setAdminStatus("管理ログイン後に追加できます。");
+      const id = $("#new-coach-id").value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-|-$/g, "");
+      if (!id) return setAdminStatus("追加するナビゲーターIDを入力してください。");
+      if (coaches[id]) return setAdminStatus("同じIDのナビゲーターが既にあります。");
+      const label = $("#new-coach-label").value.trim() || id;
+      coaches[id] = {
+        label,
+        name: label,
+        role: "新しい対象者や用途に合わせて、問い・証拠・次の行動を整理するAI探究ナビゲーター",
+        tone: "相手に合わせて、短く、具体的に、保存前の確認を促す",
+        structural: "背景、問い、仮説、証拠、検証方法、次の行動に分ける",
+        generative: "小さな実験、発表、協働、社会実装へ広げる",
+        safety: "個人情報、機密情報、医療・法律・金融判断は専門家確認を促す",
+        endpoint: window.TANQ_ENCORE_AI_ENDPOINT || "",
+        model: "gpt-4o-mini"
+      };
+      selected = id;
+      $("#new-coach-id").value = "";
+      $("#new-coach-label").value = "";
+      saveCoaches();
+      render();
+      setAdminStatus(`${label} を追加しました。`);
+    });
+
+    $("#duplicate-coach").addEventListener("click", () => {
+      if (!canEdit()) return setAdminStatus("管理ログイン後に複製できます。");
+      const id = `${selected}-copy-${Date.now().toString().slice(-4)}`;
+      coaches[id] = { ...structuredClone(coaches[selected]), label: `${coachLabel(selected)} Copy`, name: `${coaches[selected].name} Copy` };
+      selected = id;
+      saveCoaches();
+      render();
+      setAdminStatus("ナビゲーターを複製しました。");
+    });
+
     $("#reset-coach").addEventListener("click", () => {
+      if (!canEdit()) return setAdminStatus("管理ログイン後に初期化できます。");
+      if (!defaultCoaches[selected]) {
+        setAdminStatus("追加したナビゲーターは削除で管理してください。");
+        return;
+      }
       coaches[selected] = structuredClone(defaultCoaches[selected]);
       saveCoaches();
       render();
+    });
+
+    $("#delete-coach").addEventListener("click", () => {
+      if (!canEdit()) return setAdminStatus("管理ログイン後に削除できます。");
+      if (defaultCoaches[selected]) return setAdminStatus("標準ナビゲーターは削除できません。初期値に戻すを使ってください。");
+      delete coaches[selected];
+      selected = Object.keys(coaches)[0] || "kids";
+      saveCoaches();
+      render();
+      setAdminStatus("追加ナビゲーターを削除しました。");
     });
 
     $("#copy-coach-json").addEventListener("click", async () => {
@@ -381,9 +520,27 @@
 
     ["coach-name", "coach-role", "coach-tone", "coach-structural", "coach-generative", "coach-safety", "coach-endpoint", "coach-model"].forEach((id) => {
       $(`#${id}`).addEventListener("input", () => {
+        if (!canEdit()) return;
         coaches[selected] = readEditor();
         loadEditor();
       });
+    });
+
+    $("#admin-login").addEventListener("click", () => {
+      if ($("#admin-code").value.trim() !== adminCode()) {
+        setAdminStatus("管理コードが違います。");
+        return;
+      }
+      adminSession = { role: "admin", source: "navigator-admin", name: "Navigator Admin", started_at: new Date().toISOString() };
+      localStorage.setItem(adminSessionKey, JSON.stringify(adminSession));
+      $("#admin-code").value = "";
+      render();
+    });
+
+    $("#admin-logout").addEventListener("click", () => {
+      localStorage.removeItem(adminSessionKey);
+      adminSession = null;
+      render();
     });
 
     render();
