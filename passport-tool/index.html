@@ -204,9 +204,11 @@
             <div class="mini-grid">
               <label>TANQ ID / owner_person_id<input id="inbox-tanq-user-id" placeholder="例: person_12345"></label>
               <label>Keeper API Bundle URL<input id="inbox-keeper-api-url" value="https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle"></label>
+              <label>AIサムネ生成API URL<input id="keeper-thumbnail-endpoint" placeholder="https://.../api/thumbnail"></label>
             </div>
             <div class="actions">
               <button class="primary" id="inbox-save-tanq-id" type="button">IDを保存</button>
+              <button class="secondary" id="save-keeper-thumbnail-endpoint" type="button">サムネAPIを保存</button>
               <button class="secondary" id="inbox-import-core-inquiries" type="button">TANQ Coreから読み込む</button>
               <button class="secondary" id="inbox-import-firestore" type="button">Firestoreから読み込む</button>
               <button class="secondary" id="inbox-import-api" type="button">Keeper APIから読み込む</button>
@@ -356,6 +358,7 @@
     const coreBaseUrl = "https://tanq-graph-ai-api.tanq-graph.workers.dev";
     const coreSessionKey = "tanq-graph-core-session";
     const storageKey = "tanq-passport-state";
+    const keeperThumbnailEndpointKey = "tanq-passport-keeper-thumbnail-endpoint";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
     let firebaseApi = null;
@@ -984,6 +987,62 @@
       return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 
+    function thumbnailUrlFromResponse(json) {
+      return json?.image_data_url
+        || json?.thumbnail_data_url
+        || json?.imageUrl
+        || json?.image_url
+        || json?.url
+        || json?.data?.image_data_url
+        || json?.data?.thumbnail_data_url
+        || json?.data?.imageUrl
+        || json?.data?.image_url
+        || json?.data?.url
+        || json?.output?.image_data_url
+        || json?.output?.thumbnail_data_url
+        || json?.output?.url
+        || json?.images?.[0]?.data_url
+        || json?.images?.[0]?.image_data_url
+        || json?.images?.[0]?.url
+        || "";
+    }
+
+    async function generateKeeperThumbnail(item, title, body) {
+      const endpoint = localStorage.getItem(keeperThumbnailEndpointKey)?.trim();
+      if (!endpoint) {
+        return {
+          url: generatedKeeperThumbnail(item, title, body),
+          source: "local-fallback"
+        };
+      }
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          mode: "keeper_thumbnail",
+          title,
+          body,
+          kind: item.kind,
+          domain: item.domain || item.raw?.domain || "",
+          source: "TANQ Passport",
+          tanqId: state.linkage.tanqUserId || "",
+          raw: item.raw
+        })
+      });
+      if (!response.ok) {
+        throw new Error(`AIサムネAPIが ${response.status} を返しました。`);
+      }
+      const json = await response.json();
+      const url = thumbnailUrlFromResponse(json);
+      if (!url) {
+        throw new Error("AIサムネAPIの返答に画像URLまたはdata URLがありません。");
+      }
+      return {
+        url,
+        source: endpoint
+      };
+    }
+
     function keeperEditPatch(item, title, body, imagePatch = {}) {
       if (item.kind === "Question Seed") {
         return {
@@ -1019,9 +1078,11 @@
           file_name: file.name
         };
       } else if (generateThumbnail) {
+        const thumbnail = await generateKeeperThumbnail(item, title, body);
         imagePatch = {
-          thumbnail_data_url: generatedKeeperThumbnail(item, title, body),
-          thumbnail_generated_at: new Date().toISOString()
+          thumbnail_data_url: thumbnail.url,
+          thumbnail_generated_at: new Date().toISOString(),
+          thumbnail_source: thumbnail.source
         };
       }
       const raw = updateKeeperRaw(item, keeperEditPatch(item, title, body, imagePatch));
@@ -1034,7 +1095,7 @@
         return;
       }
       renderKeeperInbox();
-      setKeeperStatus(generateThumbnail ? "AI風サムネを生成して保存しました。" : "ChatGPT保存を更新しました。");
+      setKeeperStatus(generateThumbnail ? "AIサムネを生成して保存しました。" : "ChatGPT保存を更新しました。");
     }
 
     function keeperPublicRecord(item, raw) {
@@ -1119,7 +1180,7 @@
       `;
       document.querySelector("[data-keeper-public-id]")?.addEventListener("click", () => toggleKeeperPublic(item.id));
       document.querySelector("[data-keeper-generate-thumbnail]")?.addEventListener("click", async () => {
-        $("#keeper-edit-status").textContent = "AI風サムネを生成中...";
+        $("#keeper-edit-status").textContent = "AIサムネを生成中...";
         try {
           await saveKeeperEdit(true);
         } catch (error) {
@@ -1370,6 +1431,7 @@
       $("#keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
       $("#inbox-tanq-user-id").value = state.linkage.tanqUserId || "";
       $("#inbox-keeper-api-url").value = state.linkage.keeperApiUrl || "https://tanqappapi-wptfddk2ua-an.a.run.app/api/graph-bundle";
+      $("#keeper-thumbnail-endpoint").value = localStorage.getItem(keeperThumbnailEndpointKey) || "";
       $("#session-label").textContent = state.linkage.tanqUserId ? `${state.linkage.tanqUserId} / TANQ Passport` : "TANQ Passport / Local draft";
       setKeeperStatus(state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携");
       renderCoachOutput();
@@ -1535,6 +1597,10 @@
 
     $("#save-tanq-id").addEventListener("click", () => saveTanqId("sync"));
     $("#inbox-save-tanq-id").addEventListener("click", () => saveTanqId("inbox"));
+    $("#save-keeper-thumbnail-endpoint").addEventListener("click", () => {
+      localStorage.setItem(keeperThumbnailEndpointKey, $("#keeper-thumbnail-endpoint").value.trim());
+      setKeeperStatus("AIサムネ生成API URLを保存しました。未設定の場合は仮サムネを生成します。");
+    });
     $("#import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
     $("#inbox-import-core-inquiries").addEventListener("click", () => importCoreInquiries({ allowRedirect: true }));
     $("#import-keeper-firestore").addEventListener("click", () => importKeeperFromFirestore("sync"));
