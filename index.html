@@ -868,6 +868,7 @@
     ];
     const $ = (selector) => document.querySelector(selector);
     const identitySessionKey = "tanq-graph-identity-session";
+    const coreSessionKey = "tanq-graph-core-session";
 
     function normalizeInterfaceKey(value = "") {
       const key = String(value || "").trim().toLowerCase();
@@ -886,12 +887,30 @@
       returnTo.searchParams.delete("name");
       returnTo.searchParams.delete("displayName");
       returnTo.searchParams.delete("sessionId");
+      returnTo.searchParams.delete("coreSession");
+      returnTo.searchParams.delete("coreSessionExpiresAt");
       url.searchParams.set("provider", "google");
       url.searchParams.set("client", "tanq-graph-public");
       url.searchParams.set("mode", "login");
       url.searchParams.set("service", "tanq-graph-public");
       url.searchParams.set("returnTo", returnTo.toString());
       return url.toString();
+    }
+
+    function captureCoreSessionFromUrl() {
+      const params = new URLSearchParams(location.search);
+      const token = params.get("coreSession");
+      if (!token) return sessionStorage.getItem(coreSessionKey) || "";
+      sessionStorage.setItem(coreSessionKey, token);
+      params.delete("coreSession");
+      params.delete("coreSessionExpiresAt");
+      const query = params.toString();
+      history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash}`);
+      return token;
+    }
+
+    function readCoreSessionToken() {
+      return sessionStorage.getItem(coreSessionKey) || "";
     }
 
     function readIdentitySession() {
@@ -1805,7 +1824,7 @@
     function coreTimelineLoginItem(message = "Google OAuthでログインすると、ChatGPT Actionsから保存した探究記録を表示します。") {
       return `<div class="timeline-item">
         <small>Core</small>
-        <strong>${escapeHtml(message)}<br><small><a href="${coreBaseUrl}/core" target="_blank" rel="noopener">TANQ Graph Coreを開く</a></small></strong>
+        <strong>${escapeHtml(message)}<br><small><a href="${tanqOAuthStartUrl()}">Google OAuthで読み込む</a> / <a href="${coreBaseUrl}/core" target="_blank" rel="noopener">Coreを直接開く</a></small></strong>
         ${badge("Login")}
       </div>`;
     }
@@ -1815,7 +1834,11 @@
       if (!timeline) return;
       timeline.innerHTML = coreTimelineLoginItem("実Coreタイムラインを読み込み中です。");
       try {
-        const response = await fetch(`${coreBaseUrl}/api/core/inquiries`, { credentials: "include" });
+        const token = readCoreSessionToken();
+        const response = await fetch(`${coreBaseUrl}/api/core/inquiries`, {
+          credentials: "include",
+          headers: token ? { authorization: `Bearer ${token}` } : {}
+        });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok || !payload.success) {
           timeline.innerHTML = coreTimelineLoginItem(payload.error?.message || "ログインが必要です。");
@@ -3121,6 +3144,7 @@
     });
 
     async function boot() {
+      captureCoreSessionFromUrl();
       const capturedIdentity = captureIdentityFromUrl();
       state = await api("/api/state");
       entrySession = syncEntrySessionWithIdentity(capturedIdentity) || readEntrySession();
