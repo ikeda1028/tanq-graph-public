@@ -384,8 +384,6 @@
           </div>
         </div>
         <div class="actions">
-          <button class="secondary" id="open-project-tool" type="button">Project Toolへ</button>
-          <button class="secondary" id="copy-kids-payload" type="button">JSONをコピー</button>
           <small id="kids-save-status">Local only</small>
         </div>
       </div>
@@ -464,21 +462,6 @@
       </section>
 
       <section class="panel full">
-        <div class="section-head">
-          <div>
-            <h2>保存テーブル詳細</h2>
-            <p class="lead">Kids Toolに保存されている各テーブルの中身を確認します。</p>
-          </div>
-          <span class="badge green" id="table-count-badge">0件</span>
-        </div>
-        <div class="table-tabs" id="table-tabs"></div>
-        <div class="detail-grid">
-          <div class="detail-list" id="table-record-list"></div>
-          <div class="detail-card" id="table-record-detail"></div>
-        </div>
-      </section>
-
-      <section class="panel full">
         <div class="badge-row">
           <span class="badge green">AI探究ナビ</span>
           <span class="badge gold">Safety first</span>
@@ -553,16 +536,8 @@
       execution: ["やってみる", "", "観察、制作、発表の準備をする。"],
       submit_business: ["見せる", "green", "家族、先生、友だちに見せて記録する。"]
     };
-    const tableLabels = {
-      questions: ["ふしぎ", "gold"],
-      tasks: ["たんけんメモ", "green"],
-      materials: ["写真・資料", ""],
-      feedback: ["コメント", "red"]
-    };
     let selectedStage = "question";
     let selectedStepRecordId = "";
-    let selectedTable = "questions";
-    let selectedRecordId = "";
     const seed = {
       identity: {
         mode: "guest",
@@ -1598,46 +1573,6 @@
       });
     }
 
-    function tableRecords(tableName) {
-      if (tableName === "questions") {
-        return (state.questions || [])
-          .filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん")
-          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-      }
-      if (tableName === "tasks") {
-        return (state.tasks || [])
-          .filter((item) => item.audience === "kids")
-          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-      }
-      if (tableName === "materials") {
-        return (state.materials || [])
-          .filter((item) => item.audience === "kids")
-          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-      }
-      if (tableName === "feedback") {
-        return (state.feedback || [])
-          .filter((item) => item.audience === "kids")
-          .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-      }
-      return [];
-    }
-
-    function recordTitle(tableName, record = {}) {
-      if (tableName === "questions") return record.text || "ふしぎ";
-      if (tableName === "tasks") return record.title || stageLabels[record.stage]?.[0] || "たんけんメモ";
-      if (tableName === "materials") return record.title || record.kind || "写真・資料";
-      if (tableName === "feedback") return record.reviewer || "コメント";
-      return record.id || "レコード";
-    }
-
-    function recordSummary(tableName, record = {}) {
-      if (tableName === "questions") return [record.trigger, record.reason, record.next_action ? `つぎ: ${record.next_action}` : ""].filter(Boolean).join(" / ");
-      if (tableName === "tasks") return [stageLabels[record.stage]?.[0], record.summary].filter(Boolean).join(" / ");
-      if (tableName === "materials") return [record.kind, record.text || record.url].filter(Boolean).join(" / ");
-      if (tableName === "feedback") return record.text || "";
-      return "";
-    }
-
     function recordImage(record = {}) {
       return record.image_data_url
         || record.imageDataUrl
@@ -1657,69 +1592,6 @@
 
     function missingPhotoNote(filename = "") {
       return `<small class="missing-photo-note">写真ファイル「${escapeHtml(filename || "未設定")}」の名前は残っていますが、画像データは保存されていません。もう一度写真を入れて保存すると表示できます。</small>`;
-    }
-
-    function tableStateKey(tableName) {
-      if (tableName === "questions") return "questions";
-      if (tableName === "tasks") return "tasks";
-      if (tableName === "materials") return "materials";
-      if (tableName === "feedback") return "feedback";
-      return "";
-    }
-
-    function updateTableRecord(tableName, id, patch) {
-      const key = tableStateKey(tableName);
-      if (!key || !id) return null;
-      let updated = null;
-      state[key] = (state[key] || []).map((record) => {
-        if (record.id !== id) return record;
-        updated = { ...record, ...patch, updated_at: new Date().toISOString() };
-        return updated;
-      });
-      return updated;
-    }
-
-    function editTitleLabel(tableName) {
-      if (tableName === "questions") return "ふしぎ";
-      if (tableName === "feedback") return "コメントした人";
-      if (tableName === "materials") return "資料名";
-      return "タイトル";
-    }
-
-    function editBodyLabel(tableName) {
-      if (tableName === "questions") return "きっかけ・メモ";
-      if (tableName === "feedback") return "コメント";
-      if (tableName === "materials") return "説明";
-      return "メモ";
-    }
-
-    function editableBodyValue(tableName, record = {}) {
-      if (tableName === "questions") return record.trigger || "";
-      if (tableName === "tasks") return record.summary || "";
-      if (tableName === "materials") return record.text || "";
-      if (tableName === "feedback") return record.text || "";
-      return "";
-    }
-
-    function editPatchFromValues(tableName, record, title, body, imagePatch = {}) {
-      const common = {
-        ...imagePatch
-      };
-      if (tableName === "questions") {
-        return {
-          ...common,
-          text: title,
-          trigger: body,
-          photo_observation: {
-            ...(record.photo_observation || {}),
-            ...(imagePatch.image_data_url ? { image_data_url: imagePatch.image_data_url, file_name: imagePatch.file_name || record.photo_observation?.file_name } : {})
-          }
-        };
-      }
-      if (tableName === "tasks") return { ...common, title, summary: body };
-      if (tableName === "materials") return { ...common, title, text: body };
-      if (tableName === "feedback") return { ...common, reviewer: title, text: body };
-      return common;
     }
 
     function imageDataUrlFromBitmap(bitmap, maxWidth = 720, maxHeight = 720, quality = 0.68) {
@@ -1773,106 +1645,6 @@
       return await compressImageFile(file) || await rawFileAsDataUrl(file);
     }
 
-    async function saveSelectedTableRecord() {
-      const records = tableRecords(selectedTable);
-      const selected = records.find((record) => record.id === selectedRecordId);
-      if (!selected) return;
-      const title = $("#record-edit-title")?.value.trim() || recordTitle(selectedTable, selected);
-      const body = $("#record-edit-body")?.value.trim() || "";
-      const file = $("#record-edit-photo")?.files?.[0] || null;
-      let imagePatch = {};
-      if (file) {
-        imagePatch = {
-          image_data_url: await readFileAsDataUrl(file),
-          file_name: file.name
-        };
-      }
-      const updated = updateTableRecord(selectedTable, selected.id, editPatchFromValues(selectedTable, selected, title, body, imagePatch));
-      if (!saveState()) return;
-      await syncCloudRecord(selectedTable, updated);
-      render();
-      selectedTable = selectedTable || "questions";
-      selectedRecordId = selected.id;
-      renderTableDetails();
-    }
-
-    function renderTableDetails() {
-      const tableEntries = Object.entries(tableLabels);
-      $("#table-tabs").innerHTML = tableEntries.map(([key, [label, tone]]) => {
-        const count = tableRecords(key).length;
-        return `<button class="${selectedTable === key ? "active" : ""}" data-table-name="${key}" type="button">
-          ${escapeHtml(label)} ${count}
-        </button>`;
-      }).join("");
-
-      document.querySelectorAll("[data-table-name]").forEach((button) => {
-        button.addEventListener("click", () => {
-          selectedTable = button.dataset.tableName;
-          selectedRecordId = "";
-          renderTableDetails();
-        });
-      });
-
-      const records = tableRecords(selectedTable);
-      const [label, tone] = tableLabels[selectedTable] || ["テーブル", ""];
-      $("#table-count-badge").textContent = `${records.length}件`;
-      if (!selectedRecordId || !records.some((item) => item.id === selectedRecordId)) {
-        selectedRecordId = records[0]?.id || "";
-      }
-      $("#table-record-list").innerHTML = records.length
-        ? records.map((record) => `<button class="record-row ${record.id === selectedRecordId ? "active" : ""}" data-record-id="${escapeHtml(record.id)}" type="button">
-          <span class="badge ${tone}">${escapeHtml(label)}</span>
-          <strong>${escapeHtml(recordTitle(selectedTable, record))}</strong>
-          <small>${escapeHtml(recordSummary(selectedTable, record) || record.id)}</small>
-        </button>`).join("")
-        : `<div class="detail-card">${badge(label, tone)}<strong>まだ保存データはありません</strong><small>このテーブルに記録するとここに表示されます。</small></div>`;
-
-      document.querySelectorAll("[data-record-id]").forEach((button) => {
-        button.addEventListener("click", () => {
-          selectedRecordId = button.dataset.recordId;
-          renderTableDetails();
-        });
-      });
-
-      const selected = records.find((record) => record.id === selectedRecordId);
-      if (!selected) {
-        $("#table-record-detail").innerHTML = `${badge(label, tone)}<strong>レコード未選択</strong><small>左の一覧から選んでください。</small>`;
-        return;
-      }
-      const image = recordImage(selected);
-      $("#table-record-detail").innerHTML = `
-        <div class="badge-row">
-          ${badge(label, tone)}
-          ${selected.created_at ? badge(new Date(selected.created_at).toLocaleString("ja-JP")) : ""}
-        </div>
-        <strong>${escapeHtml(recordTitle(selectedTable, selected))}</strong>
-        ${image ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(recordTitle(selectedTable, selected))}">` : ""}
-        ${!image && selected.photo_observation?.file_name ? missingPhotoNote(selected.photo_observation.file_name) : ""}
-        ${!image && selected.file_name ? missingPhotoNote(selected.file_name) : ""}
-        <small>${escapeHtml(recordSummary(selectedTable, selected) || "概要なし")}</small>
-        ${selectedTable === "questions" ? questionDetailExtras(selected, { showPhoto: false, showRelatedImages: false }) : ""}
-        ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
-        <form class="record-edit-form" id="record-edit-form">
-          <strong>この記録を編集</strong>
-          <label>${escapeHtml(editTitleLabel(selectedTable))}<input id="record-edit-title" value="${escapeHtml(recordTitle(selectedTable, selected))}"></label>
-          <label>${escapeHtml(editBodyLabel(selectedTable))}<textarea id="record-edit-body">${escapeHtml(editableBodyValue(selectedTable, selected))}</textarea></label>
-          <label>写真を入れ直す<input id="record-edit-photo" type="file" accept="image/*"></label>
-          <button class="primary" type="submit">変更を保存</button>
-          <small id="record-edit-status">保存すると、このテーブルの記録と詳細表示に反映されます。</small>
-        </form>
-        <pre class="raw-json">${escapeHtml(JSON.stringify(selected, null, 2))}</pre>
-      `;
-      $("#record-edit-form")?.addEventListener("submit", async (event) => {
-        event.preventDefault();
-        $("#record-edit-status").textContent = "保存中...";
-        try {
-          await saveSelectedTableRecord();
-        } catch (error) {
-          $("#record-edit-status").textContent = `保存できませんでした: ${error.message}`;
-        }
-      });
-    }
-
     function renderIdentity() {
       const identity = state.identity || seed.identity;
       $("#identity-label").textContent = identity.tanq_id
@@ -1887,7 +1659,6 @@
       renderSteps();
       renderStepDetail();
       renderLog();
-      renderTableDetails();
       $("#kids-age").value = state.identity?.age || "";
       $("#kids-months").value = state.identity?.months || "";
       $("#ai-endpoint").value = localStorage.getItem(aiEndpointKey) || window.TANQ_KIDS_AI_ENDPOINT || "";
@@ -1904,10 +1675,6 @@
         feedback: state.feedback.filter((item) => item.audience === "kids")
       };
     }
-
-    $("#open-project-tool").addEventListener("click", () => {
-      window.open(projectToolUrl(), "_blank", "noopener");
-    });
 
     $("#photo-button").addEventListener("click", () => $("#photo-input").click());
     $("#photo-input").addEventListener("change", () => {
@@ -2121,10 +1888,6 @@
         }
         render();
       });
-    });
-
-    $("#copy-kids-payload").addEventListener("click", async () => {
-      await navigator.clipboard.writeText(JSON.stringify(kidsPayload(), null, 2));
     });
 
     async function initializeKidsTool() {
