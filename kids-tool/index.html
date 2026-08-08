@@ -1129,6 +1129,7 @@
     function questionDetailExtras(question = {}) {
       const { materials, tasks, feedback } = linkedQuestionRecords(question);
       const photo = question.photo_observation || {};
+      const photoImage = recordImage(question);
       const chunks = [];
       chunks.push(`<div class="detail-card">
         ${badge("ふしぎID", "gold")}
@@ -1136,14 +1137,14 @@
         <small>入力: ${escapeHtml(question.input_mode || "text")}</small>
         ${question.promoted ? `<small>Project化: ${escapeHtml(question.promoted_project_id || "済み")}</small>` : "<small>Project化: まだ</small>"}
       </div>`);
-      if (photo.file_name || photo.ai_title || photo.ai_summary) {
+      if (photo.file_name || photo.ai_title || photo.ai_summary || photoImage) {
         chunks.push(`<div class="detail-card">
           ${badge("写真のみたて", "green")}
           <strong>${escapeHtml(photo.ai_title || "写真メモ")}</strong>
-          ${photo.image_data_url ? `<img src="${escapeHtml(photo.image_data_url)}" alt="${escapeHtml(photo.ai_title || "写真メモ")}">` : ""}
+          ${photoImage ? `<img src="${escapeHtml(photoImage)}" alt="${escapeHtml(photo.ai_title || "ふしぎの写真")}">` : ""}
           <small>${escapeHtml(photo.ai_summary || "AIのみたては未登録です。")}</small>
           ${photo.file_name ? `<small>ファイル: ${escapeHtml(photo.file_name)}</small>` : ""}
-          ${photo.file_name && !photo.image_data_url ? missingPhotoNote(photo.file_name) : ""}
+          ${photo.file_name && !photoImage ? missingPhotoNote(photo.file_name) : ""}
         </div>`);
       }
       if (materials.length) {
@@ -1183,7 +1184,7 @@
             text: [item.trigger ? `みつけたところ: ${item.trigger}` : "", item.reason ? `理由: ${item.reason}` : "", item.next_action ? `つぎ: ${item.next_action}` : ""].filter(Boolean).join("\n"),
             tone: "gold",
             geo: item.geo || item.photo_observation?.geo,
-            image: item.image_data_url || item.photo_observation?.image_data_url,
+            image: recordImage(item),
             photo: item.photo_observation,
             raw: item,
             created_at: item.created_at
@@ -1207,7 +1208,7 @@
             text: item.text || item.url || "",
             tone: "",
             geo: item.geo,
-            image: item.image_data_url,
+            image: recordImage(item),
             created_at: item.created_at
           }))
         ].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
@@ -1374,7 +1375,13 @@
     }
 
     function recordImage(record = {}) {
-      return record.image_data_url || record.photo_observation?.image_data_url || "";
+      return record.image_data_url
+        || record.imageDataUrl
+        || record.photo_observation?.image_data_url
+        || record.photo_observation?.imageDataUrl
+        || record.photo?.image_data_url
+        || record.photo?.imageDataUrl
+        || "";
     }
 
     function currentPhotoImageDataUrl() {
