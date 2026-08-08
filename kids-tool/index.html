@@ -266,6 +266,22 @@
       border-radius: 8px;
       background: var(--surface);
     }
+    .log-card {
+      overflow: hidden;
+      text-align: left;
+    }
+    .log-card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(36,107,85,.12), rgba(164,116,34,.08));
+    }
+    .log-card.no-photo {
+      min-height: 150px;
+      align-content: center;
+    }
     .missing-photo-note {
       padding: 10px;
       border: 1px dashed rgba(164,116,34,.45);
@@ -433,6 +449,7 @@
 
       <section class="panel full">
         <h2>たんけんステップ</h2>
+        <div class="detail-card" id="level-guide"></div>
         <div class="steps" id="kids-steps"></div>
       </section>
 
@@ -543,6 +560,7 @@
       feedback: ["コメント", "red"]
     };
     let selectedStage = "question";
+    let selectedStepRecordId = "";
     let selectedTable = "questions";
     let selectedRecordId = "";
     const seed = {
@@ -1301,6 +1319,46 @@
       return (state.tasks || []).filter((task) => task.stage === stage && task.audience === "kids").length;
     }
 
+    function levelInfo() {
+      const hasQuestion = stageCount("question") > 0;
+      const hasThinking = stageCount("ideation") + stageCount("hypothesis") + stageCount("master_plan") > 0;
+      const hasAction = stageCount("execution") > 0;
+      const hasFeedback = stageCount("submit_business") > 0;
+      if (!hasQuestion) {
+        return { level: "L0", title: "まだスタート前", next: "写真やことばで、まず「ふしぎ」を1つ残します。", stage: "question" };
+      }
+      if (!hasThinking) {
+        return { level: "L1", title: "ふしぎを見つけた", next: "次は「やってみたい」「予想」「計画」のどれかを1つ残します。", stage: "ideation" };
+      }
+      if (!hasAction) {
+        return { level: "L2", title: "考えを出した", next: "次は「やってみる」に、観察・制作・試したことを残します。", stage: "execution" };
+      }
+      if (!hasFeedback) {
+        return { level: "L3", title: "やってみた", next: "次は「見せる」に、先生・家族・友だちのコメントを残します。", stage: "submit_business" };
+      }
+      return { level: "L4", title: "見せてふりかえった", next: "さらに写真・メモ・コメントを増やすと、探究ボードやProject Toolへつなげやすくなります。", stage: "question" };
+    }
+
+    function renderLevelGuide() {
+      const info = levelInfo();
+      $("#level-guide").innerHTML = `
+        <div class="badge-row">
+          ${badge(info.level, "green")}
+          ${badge("レベルの上げ方", "gold")}
+        </div>
+        <strong>${escapeHtml(info.title)}</strong>
+        <small>${escapeHtml(info.next)}</small>
+        <button class="secondary" id="level-next-stage" type="button">次にやるステップを見る</button>
+      `;
+      $("#level-next-stage")?.addEventListener("click", () => {
+        selectedStage = info.stage;
+        selectedStepRecordId = "";
+        renderSteps();
+        renderStepDetail();
+        $("#step-detail-title").scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+
     function linkedQuestionRecords(question = {}) {
       const materials = (state.materials || []).filter((item) => item.audience === "kids" && item.source_question_id === question.id);
       const tasks = (state.tasks || []).filter((item) => item.audience === "kids" && item.source_question_id === question.id);
@@ -1426,25 +1484,42 @@
     function renderStepDetail() {
       const [label, tone, description] = stageLabels[selectedStage] || stageLabels.question;
       const records = stageRecords(selectedStage);
+      if (!selectedStepRecordId || !records.some((item) => item.id === selectedStepRecordId)) {
+        selectedStepRecordId = records[0]?.id || "";
+      }
+      const selected = records.find((item) => item.id === selectedStepRecordId);
       $("#step-detail-title").textContent = `${label}の詳細`;
       $("#step-detail-summary").textContent = records.length
-        ? `${records.length}件の写真・コメント・メモがあります。`
+        ? `${records.length}件の写真・コメント・メモがあります。テーブルを押すと詳細が切り替わります。`
         : description;
       $("#step-detail-list").innerHTML = records.length
-        ? records.map((item) => `<article class="detail-card">
-          <div class="badge-row">
+        ? `<div class="detail-list">
+          ${records.map((item) => `<button class="record-row ${item.id === selectedStepRecordId ? "active" : ""}" data-step-record-id="${escapeHtml(item.id)}" type="button">
             ${badge(item.label || label, item.tone || tone)}
-            ${item.created_at ? badge(new Date(item.created_at).toLocaleDateString("ja-JP")) : ""}
+            <strong>${escapeHtml(item.title || "たんけん")}</strong>
+            <small>${escapeHtml(item.text || item.id || "メモなし")}</small>
+          </button>`).join("")}
+        </div>
+        ${selected ? `<article class="detail-card">
+          <div class="badge-row">
+            ${badge(selected.label || label, selected.tone || tone)}
+            ${selected.created_at ? badge(new Date(selected.created_at).toLocaleDateString("ja-JP")) : ""}
           </div>
-          <strong>${escapeHtml(item.title || "たんけん")}</strong>
-          ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title || "たんけん写真")}">` : ""}
-          ${!item.image && item.photo?.file_name ? missingPhotoNote(item.photo.file_name) : ""}
-          ${item.photo?.ai_title || item.photo?.ai_summary ? `<small>${escapeHtml([item.photo.ai_title, item.photo.ai_summary].filter(Boolean).join("。"))}</small>` : ""}
-          <small>${escapeHtml(item.text || "メモなし")}</small>
-          ${selectedStage === "question" ? questionDetailExtras(item.raw || item, { showPhoto: false, showRelatedImages: false }) : ""}
-          ${item.geo?.label ? `<a class="map-link" href="${escapeHtml(item.geo.map_url || googleMapsUrl(item.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(item.geo.label)}</a>` : ""}
-        </article>`).join("")
+          <strong>${escapeHtml(selected.title || "たんけん")}</strong>
+          ${selected.image ? `<img src="${escapeHtml(selected.image)}" alt="${escapeHtml(selected.title || "たんけん写真")}">` : ""}
+          ${!selected.image && selected.photo?.file_name ? missingPhotoNote(selected.photo.file_name) : ""}
+          ${selected.photo?.ai_title || selected.photo?.ai_summary ? `<small>${escapeHtml([selected.photo.ai_title, selected.photo.ai_summary].filter(Boolean).join("。"))}</small>` : ""}
+          <small>${escapeHtml(selected.text || "メモなし")}</small>
+          ${selectedStage === "question" ? questionDetailExtras(selected.raw || selected, { showPhoto: false, showRelatedImages: false }) : ""}
+          ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
+        </article>` : ""}`
         : `<article class="detail-card">${badge(label, tone)}<strong>まだ記録はありません</strong><small>${escapeHtml(description)}</small></article>`;
+      document.querySelectorAll("[data-step-record-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedStepRecordId = button.dataset.stepRecordId;
+          renderStepDetail();
+        });
+      });
     }
 
     function stagePhotoPreview(stage) {
@@ -1469,6 +1544,7 @@
       document.querySelectorAll("[data-stage-detail]").forEach((button) => {
         button.addEventListener("click", () => {
           selectedStage = button.dataset.stageDetail;
+          selectedStepRecordId = "";
           renderSteps();
           renderStepDetail();
         });
@@ -1476,6 +1552,7 @@
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
           selectedStage = button.dataset.stageDetail;
+          selectedStepRecordId = "";
           renderSteps();
           renderStepDetail();
           $("#step-detail-title").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1485,6 +1562,7 @@
         button.addEventListener("click", (event) => {
           event.stopPropagation();
           selectedStage = button.dataset.stagePhoto;
+          selectedStepRecordId = "";
           renderSteps();
           renderStepDetail();
           $("#step-detail-title").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1494,13 +1572,14 @@
 
     function renderLog() {
       const rows = [
-        ...(state.questions || []).filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん").slice(0, 3).map((item) => ({ label: "ふしぎ", title: item.text, text: item.trigger || item.next_action || "", tone: "gold", geo: item.geo, stage: "question" })),
-        ...(state.tasks || []).filter((item) => item.audience === "kids").slice(0, 3).map((item) => ({ label: stageLabels[item.stage]?.[0] || "たんけん", title: item.title, text: item.summary || "", tone: stageLabels[item.stage]?.[1] || "", geo: item.geo, stage: item.stage })),
-        ...(state.materials || []).filter((item) => item.audience === "kids").slice(0, 3).map((item) => ({ label: "やってみた", title: item.title, text: item.text || "", tone: "", geo: item.geo, stage: "execution" })),
-        ...(state.feedback || []).filter((item) => item.audience === "kids").slice(0, 3).map((item) => ({ label: "見せた", title: item.reviewer || "コメント", text: item.text || "", tone: "red", geo: item.geo, stage: "submit_business" }))
-      ].slice(0, 9);
+        ...(state.questions || []).filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん").map((item) => ({ id: item.id, label: "ふしぎ", title: item.text, text: item.trigger || item.next_action || "", tone: "gold", geo: item.geo, stage: "question", image: recordImage(item), created_at: item.created_at })),
+        ...(state.tasks || []).filter((item) => item.audience === "kids").map((item) => ({ id: item.id, label: stageLabels[item.stage]?.[0] || "たんけん", title: item.title, text: item.summary || "", tone: stageLabels[item.stage]?.[1] || "", geo: item.geo, stage: item.stage, image: recordImage(item), created_at: item.created_at })),
+        ...(state.materials || []).filter((item) => item.audience === "kids").map((item) => ({ id: item.id, label: "写真・資料", title: item.title, text: item.text || "", tone: "", geo: item.geo, stage: "execution", image: recordImage(item), created_at: item.created_at })),
+        ...(state.feedback || []).filter((item) => item.audience === "kids").map((item) => ({ id: item.id, label: "見せた", title: item.reviewer || "コメント", text: item.text || "", tone: "red", geo: item.geo, stage: "submit_business", image: recordImage(item), created_at: item.created_at }))
+      ].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || ""))).slice(0, 9);
       $("#kids-log").innerHTML = rows.length
-        ? rows.map((item) => `<button class="card" data-log-stage="${escapeHtml(item.stage)}" type="button">
+        ? rows.map((item) => `<button class="card log-card ${item.image ? "has-photo" : "no-photo"}" data-log-stage="${escapeHtml(item.stage)}" data-log-record-id="${escapeHtml(item.id || "")}" type="button">
+          ${item.image ? `<img src="${escapeHtml(item.image)}" alt="${escapeHtml(item.title || "たんけん写真")}">` : ""}
           ${badge(item.label, item.tone)}
           <strong>${escapeHtml(item.title || "たんけん")}</strong>
           <small>${escapeHtml(item.text || "メモなし")}</small>
@@ -1511,6 +1590,7 @@
         button.addEventListener("click", (event) => {
           if (event.target.closest("a")) return;
           selectedStage = button.dataset.logStage || "question";
+          selectedStepRecordId = button.dataset.logRecordId || "";
           renderSteps();
           renderStepDetail();
           $("#step-detail-title").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1803,6 +1883,7 @@
     function render() {
       state = readState();
       renderIdentity();
+      renderLevelGuide();
       renderSteps();
       renderStepDetail();
       renderLog();
