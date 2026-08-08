@@ -370,6 +370,7 @@
         <div class="actions">
           <button class="secondary" id="open-project-tool" type="button">Project Toolへ</button>
           <button class="secondary" id="copy-kids-payload" type="button">JSONをコピー</button>
+          <small id="kids-save-status">Local only</small>
         </div>
       </div>
       <div>
@@ -572,9 +573,12 @@
     const identitySessionKey = "tanq-graph-identity-session";
     const aiEndpointKey = "tanq-kids-ai-endpoint";
     const coachConfigKey = "tanq-ai-coach-configs";
+    const firebaseSdkVersion = "12.16.0";
     let state = readState();
     let photoDraft = null;
     let currentGeo = null;
+    let firebaseDb = null;
+    let firebaseApi = null;
 
     const defaultCoachConfigs = {
       kids: {
@@ -617,6 +621,168 @@
 
     function badge(text, tone = "") {
       return `<span class="badge ${tone}">${escapeHtml(text)}</span>`;
+    }
+
+    function setSaveStatus(message) {
+      const target = $("#kids-save-status");
+      if (target) target.textContent = message;
+    }
+
+    function cleanForFirestore(value) {
+      if (Array.isArray(value)) return value.map(cleanForFirestore).filter((item) => item !== undefined);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value)
+            .filter(([, item]) => item !== undefined)
+            .map(([key, item]) => [key, cleanForFirestore(item)])
+        );
+      }
+      return value;
+    }
+
+    async function connectFirebase() {
+      const config = window.TANQ_FIREBASE_CONFIG || null;
+      if (!config?.projectId || !config?.apiKey || !config?.appId) {
+        setSaveStatus("Local only");
+        return null;
+      }
+      try {
+        const appModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-app.js`);
+        const firestoreModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-firestore.js`);
+        const app = appModule.getApps().length ? appModule.getApp() : appModule.initializeApp(config);
+        firebaseDb = firestoreModule.getFirestore(app);
+        firebaseApi = firestoreModule;
+        setSaveStatus(`Firestore: ${config.projectId}`);
+      } catch (error) {
+        setSaveStatus(`Firestore未接続: ${error.message}`);
+      }
+      return firebaseDb;
+    }
+
+    async function saveFirebaseRecord(collectionName, record) {
+      if (!firebaseDb || !firebaseApi || !record?.id) return null;
+      const { doc, setDoc, serverTimestamp } = firebaseApi;
+      await setDoc(doc(firebaseDb, collectionName, record.id), {
+        ...cleanForFirestore({ ...record, updated_at: new Date().toISOString() }),
+        synced_at: serverTimestamp()
+      }, { merge: true });
+      return record;
+    }
+
+    async function loadFirebaseCollectionByOwner(collectionName, ownerPersonId, maxItems = 50) {
+      if (!firebaseDb || !firebaseApi || !ownerPersonId) return [];
+      const { collection, getDocs, query, where, limit } = firebaseApi;
+      const snapshot = await getDocs(query(collection(firebaseDb, collectionName), where("owner_person_id", "==", ownerPersonId), limit(maxItems)));
+      return snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function mergeById(existing = [], incoming = []) {
+      const map = new Map(existing.map((item) => [item.id, item]));
+      incoming.forEach((item) => map.set(item.id, { ...(map.get(item.id) || {}), ...item }));
+      return [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function ownerPersonId() {
+      return state.identity?.tanq_id || state.identity?.email || state.identity?.guest_session_id || "";
+    }
+
+    function cloudRecordBase(record = {}) {
+      const owner = ownerPersonId();
+      return {
+        ...record,
+        owner_person_id: owner,
+        tanq_user_id: owner,
+        owner_person_name: state.identity?.profile_name || "",
+        audience: "kids",
+        source_tool: "TANQ Pass Kids"
+      };
+    }
+
+    function questionCloudRecord(question = {}) {
+      return cloudRecordBase({
+        ...question,
+        title: question.text || question.title || "Kidsふしぎ",
+        question: question.text || question.question || "",
+        stage: "question",
+        kind: "Question Seed"
+      });
+    }
+
+    function taskCloudRecord(task = {}) {
+      return cloudRecordBase({
+        ...task,
+        title: task.title || "Kidsたんけんメモ",
+        kind: "Kids Activity"
+      });
+    }
+
+    function materialCloudRecord(material = {}) {
+      return cloudRecordBase({
+        ...material,
+        title: material.title || "Kids写真・資料",
+        kind: material.kind || "Kids Material"
+      });
+    }
+
+    function feedbackCloudRecord(feedback = {}) {
+      return cloudRecordBase({
+        ...feedback,
+        title: feedback.reviewer || "Kidsコメント",
+        kind: "Kids Feedback"
+      });
+    }
+
+    async function syncCloudRecord(tableName, record) {
+      try {
+        if (tableName === "questions") await saveFirebaseRecord("tanq_question_seeds", questionCloudRecord(record));
+        if (tableName === "tasks") await saveFirebaseRecord("tanq_activity_logs", taskCloudRecord(record));
+        if (tableName === "materials") await saveFirebaseRecord("tanq_materials", materialCloudRecord(record));
+        if (tableName === "feedback") await saveFirebaseRecord("tanq_feedback", feedbackCloudRecord(record));
+        if (firebaseDb) setSaveStatus("Firestoreへ保存しました");
+      } catch (error) {
+        setSaveStatus(`Firestore保存待ち: ${error.message}`);
+      }
+    }
+
+    async function loadCloudKidsData() {
+      const owner = ownerPersonId();
+      if (!owner) return;
+      try {
+        const [questions, tasks, materials, feedback] = await Promise.all([
+          loadFirebaseCollectionByOwner("tanq_question_seeds", owner),
+          loadFirebaseCollectionByOwner("tanq_activity_logs", owner),
+          loadFirebaseCollectionByOwner("tanq_materials", owner),
+          loadFirebaseCollectionByOwner("tanq_feedback", owner)
+        ]);
+        state.questions = mergeById(state.questions, questions.filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん"));
+        state.tasks = mergeById(state.tasks, tasks.filter((item) => item.audience === "kids"));
+        state.materials = mergeById(state.materials, materials.filter((item) => item.audience === "kids"));
+        state.feedback = mergeById(state.feedback, feedback.filter((item) => item.audience === "kids"));
+        saveState();
+        setSaveStatus("Firestoreから読み込みました");
+      } catch (error) {
+        setSaveStatus(`Firestore読み込み待ち: ${error.message}`);
+      }
+    }
+
+    async function syncAllLocalKidsData() {
+      if (!firebaseDb || !ownerPersonId()) return;
+      const queues = [
+        ["questions", state.questions || []],
+        ["tasks", state.tasks || []],
+        ["materials", state.materials || []],
+        ["feedback", state.feedback || []]
+      ];
+      let count = 0;
+      for (const [tableName, records] of queues) {
+        for (const record of records.filter((item) => item.audience === "kids" || item.domain === "Kidsたんけん")) {
+          await syncCloudRecord(tableName, record);
+          count += 1;
+        }
+      }
+      if (count) setSaveStatus(`ローカル保存 ${count}件をFirestoreへ同期しました`);
     }
 
     function readIdentitySession() {
@@ -702,7 +868,21 @@
     function saveState() {
       state.identity = { ...state.identity, interface: "kids", entry: state.identity.entry || "kids" };
       state.project = { ...state.project, owner: "TANQ Pass Kids" };
-      localStorage.setItem(scopedStorageKey(state.identity || {}), JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+      try {
+        localStorage.setItem(scopedStorageKey(state.identity || {}), JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+        setSaveStatus(firebaseDb ? "Local + Firestore ready" : "Local saved");
+        return true;
+      } catch (error) {
+        const message = error?.name === "QuotaExceededError"
+          ? "保存容量がいっぱいです。写真を小さくしてもう一度保存してください。"
+          : `保存できませんでした: ${error?.message || error}`;
+        const statusTargets = ["#ai-summary", "#record-edit-status", "#voice-status"];
+        statusTargets.forEach((selector) => {
+          const target = $(selector);
+          if (target) target.textContent = message;
+        });
+        return false;
+      }
     }
 
     function coachConfigs() {
@@ -1101,7 +1281,7 @@
 
     function addTask(stage, title, summary) {
       const question = latestQuestion();
-      state.tasks.unshift({
+      const task = {
         id: "task_kids_" + Date.now(),
         title,
         stage,
@@ -1109,7 +1289,9 @@
         source_question_id: question?.id || null,
         audience: "kids",
         created_at: new Date().toISOString()
-      });
+      };
+      state.tasks.unshift(task);
+      return task;
     }
 
     function stageCount(stage) {
@@ -1458,13 +1640,55 @@
       return common;
     }
 
-    function readFileAsDataUrl(file) {
+    function imageDataUrlFromBitmap(bitmap, maxWidth = 720, maxHeight = 720, quality = 0.68) {
+      const ratio = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
+      const width = Math.max(1, Math.round(bitmap.width * ratio));
+      const height = Math.max(1, Math.round(bitmap.height * ratio));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      return canvas.toDataURL("image/jpeg", quality);
+    }
+
+    function loadImageElement(dataUrl) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = () => reject(new Error("写真の変換に失敗しました。"));
+        image.src = dataUrl;
+      });
+    }
+
+    async function compressImageFile(file) {
+      if (!file?.type?.startsWith("image/")) return null;
+      try {
+        if ("createImageBitmap" in window) {
+          const bitmap = await createImageBitmap(file);
+          const dataUrl = imageDataUrlFromBitmap(bitmap);
+          bitmap.close?.();
+          return dataUrl;
+        }
+      } catch {
+        // Fall back to FileReader + Image below.
+      }
+      const original = await rawFileAsDataUrl(file);
+      const image = await loadImageElement(original);
+      return imageDataUrlFromBitmap(image);
+    }
+
+    function rawFileAsDataUrl(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result || ""));
         reader.onerror = () => reject(reader.error || new Error("写真の読み込みに失敗しました。"));
         reader.readAsDataURL(file);
       });
+    }
+
+    async function readFileAsDataUrl(file) {
+      return await compressImageFile(file) || await rawFileAsDataUrl(file);
     }
 
     async function saveSelectedTableRecord() {
@@ -1481,8 +1705,9 @@
           file_name: file.name
         };
       }
-      updateTableRecord(selectedTable, selected.id, editPatchFromValues(selectedTable, selected, title, body, imagePatch));
-      saveState();
+      const updated = updateTableRecord(selectedTable, selected.id, editPatchFromValues(selectedTable, selected, title, body, imagePatch));
+      if (!saveState()) return;
+      await syncCloudRecord(selectedTable, updated);
       render();
       selectedTable = selectedTable || "questions";
       selectedRecordId = selected.id;
@@ -1608,16 +1833,15 @@
       const prompt = photoPrompt(file.name);
       photoDraft = { name: file.name, type: file.type, aiTitle: prompt.title, aiSummary: prompt.summary, imageDataUrl: null };
       renderAiPrompt(prompt);
-      const reader = new FileReader();
-      reader.onload = () => {
-        photoDraft.imageDataUrl = String(reader.result || "");
+      $("#ai-summary").textContent = "写真を保存用に小さくしています...";
+      readFileAsDataUrl(file).then((dataUrl) => {
+        photoDraft.imageDataUrl = dataUrl;
         $("#photo-preview").src = photoDraft.imageDataUrl;
         $("#photo-preview").hidden = false;
-      };
-      reader.onerror = () => {
+        $("#ai-summary").textContent = `${prompt.summary} 写真は保存しやすいサイズに変換しました。`;
+      }).catch(() => {
         $("#ai-summary").textContent = "写真の読み込みに失敗しました。もう一度選び直してください。";
-      };
-      reader.readAsDataURL(file);
+      });
     });
 
     $("#voice-wonder").addEventListener("click", startVoiceInput);
@@ -1662,7 +1886,7 @@
       updateMapPreview(locationText);
     });
 
-    $("#add-wonder").addEventListener("click", () => {
+    $("#add-wonder").addEventListener("click", async () => {
       const text = $("#wonder-text").value.trim();
       if (!text) return;
       const photoGeo = buildGeo($("#photo-location").value, $("#photo-location-note").value);
@@ -1694,8 +1918,9 @@
         created_at: new Date().toISOString()
       };
       state.questions = [question, ...(state.questions || [])];
+      let photoMaterial = null;
       if (photoDraft) {
-        state.materials.unshift({
+        photoMaterial = {
           id: "mat_kids_photo_" + Date.now(),
           title: "しゃしんから見つけたふしぎ",
           kind: "Kids写真",
@@ -1707,17 +1932,22 @@
           image_data_url: photoImageDataUrl,
           source_question_id: question.id,
           created_at: new Date().toISOString()
+        };
+        state.materials.unshift({
+          ...photoMaterial
         });
       }
+      if (!saveState()) return;
+      await syncCloudRecord("questions", question);
+      if (photoMaterial) await syncCloudRecord("materials", photoMaterial);
       $("#wonder-text").value = "";
       $("#wonder-place").value = "";
       $("#next-action").value = "";
       $("#photo-location-note").value = "";
-      saveState();
       render();
     });
 
-    $("#promote-wonder").addEventListener("click", () => {
+    $("#promote-wonder").addEventListener("click", async () => {
       const question = latestQuestion();
       if (!question) return;
       state.project = {
@@ -1728,40 +1958,43 @@
         hypothesis: "ふしぎを、写真・観察・人に聞くことからたんけんにする。"
       };
       state.questions = state.questions.map((item) => item.id === question.id ? { ...item, promoted: true, promoted_project_id: state.project.id, promoted_at: new Date().toISOString() } : item);
-      addTask("ideation", "ふしぎをたんけんにする", question.next_action || question.reason || "つぎに調べることを決める。");
-      saveState();
+      const task = addTask("ideation", "ふしぎをたんけんにする", question.next_action || question.reason || "つぎに調べることを決める。");
+      if (!saveState()) return;
+      await syncCloudRecord("questions", { ...question, promoted: true, promoted_project_id: state.project.id });
+      await syncCloudRecord("tasks", task);
       render();
       window.open(projectToolUrl(), "_blank", "noopener");
     });
 
     document.querySelectorAll("[data-action]").forEach((button) => {
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         const action = button.dataset.action;
         const now = new Date().toISOString();
+        const cloudQueue = [];
         if (action === "idea") {
           const text = $("#idea-text").value.trim();
           if (!text) return;
-          addTask("ideation", "やってみたい", text);
+          cloudQueue.push(["tasks", addTask("ideation", "やってみたい", text)]);
           $("#idea-text").value = "";
         }
         if (action === "prediction") {
           const text = $("#prediction-text").value.trim();
           if (!text) return;
-          addTask("hypothesis", "よそう", text);
+          cloudQueue.push(["tasks", addTask("hypothesis", "よそう", text)]);
           $("#prediction-text").value = "";
         }
         if (action === "plan") {
           const text = $("#plan-text").value.trim();
           if (!text) return;
-          addTask("master_plan", "けいかく", text);
+          cloudQueue.push(["tasks", addTask("master_plan", "けいかく", text)]);
           $("#plan-text").value = "";
         }
         if (action === "activity") {
           const text = $("#activity-text").value.trim();
           if (!text) return;
           const geo = buildGeo($("#photo-location").value, $("#photo-location-note").value);
-          addTask("execution", "やってみた", text);
-          state.materials.unshift({
+          cloudQueue.push(["tasks", addTask("execution", "やってみた", text)]);
+          const material = {
             id: "mat_kids_" + Date.now(),
             title: "やってみた記録",
             kind: "Kids作品・観察",
@@ -1770,7 +2003,9 @@
             audience: "kids",
             geo,
             created_at: now
-          });
+          };
+          state.materials.unshift(material);
+          cloudQueue.push(["materials", material]);
           $("#activity-text").value = "";
         }
         if (action === "share") {
@@ -1778,7 +2013,7 @@
           if (!text) return;
           const shareLocation = $("#share-location").value.trim() || $("#photo-location").value.trim();
           const geo = buildGeo(shareLocation, "見せる場所");
-          state.feedback.unshift({
+          const feedback = {
             id: "fb_kids_" + Date.now(),
             reviewer: "先生・家族・友だち",
             level: "2",
@@ -1787,7 +2022,9 @@
             geo,
             map_url: geo?.map_url || "",
             created_at: now
-          });
+          };
+          state.feedback.unshift(feedback);
+          cloudQueue.push(["feedback", feedback]);
           if (shareLocation) updateMapPreview(shareLocation);
           $("#share-text").value = "";
         }
@@ -1795,7 +2032,10 @@
           window.open(projectToolUrl(), "_blank", "noopener");
           return;
         }
-        saveState();
+        if (!saveState()) return;
+        for (const [tableName, record] of cloudQueue) {
+          await syncCloudRecord(tableName, record);
+        }
         render();
       });
     });
@@ -1804,8 +2044,17 @@
       await navigator.clipboard.writeText(JSON.stringify(kidsPayload(), null, 2));
     });
 
-    saveState();
-    render();
+    async function initializeKidsTool() {
+      saveState();
+      render();
+      await connectFirebase();
+      await syncAllLocalKidsData();
+      await loadCloudKidsData();
+      saveState();
+      render();
+    }
+
+    initializeKidsTool();
   </script>
 </body>
 </html>
