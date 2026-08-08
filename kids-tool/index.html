@@ -1308,7 +1308,9 @@
       return { materials, tasks, feedback };
     }
 
-    function questionDetailExtras(question = {}) {
+    function questionDetailExtras(question = {}, options = {}) {
+      const showPhoto = options.showPhoto !== false;
+      const showRelatedImages = options.showRelatedImages !== false;
       const { materials, tasks, feedback } = linkedQuestionRecords(question);
       const photo = question.photo_observation || {};
       const photoImage = recordImage(question);
@@ -1323,7 +1325,7 @@
         chunks.push(`<div class="detail-card">
           ${badge("写真のみたて", "green")}
           <strong>${escapeHtml(photo.ai_title || "写真メモ")}</strong>
-          ${photoImage ? `<img src="${escapeHtml(photoImage)}" alt="${escapeHtml(photo.ai_title || "ふしぎの写真")}">` : ""}
+          ${showPhoto && photoImage ? `<img src="${escapeHtml(photoImage)}" alt="${escapeHtml(photo.ai_title || "ふしぎの写真")}">` : ""}
           <small>${escapeHtml(photo.ai_summary || "AIのみたては未登録です。")}</small>
           ${photo.file_name ? `<small>ファイル: ${escapeHtml(photo.file_name)}</small>` : ""}
           ${photo.file_name && !photoImage ? missingPhotoNote(photo.file_name) : ""}
@@ -1334,7 +1336,7 @@
           ${badge("関連する写真・資料")}
           ${materials.map((item) => `<div>
             <strong>${escapeHtml(item.title || item.kind || "資料")}</strong>
-            ${recordImage(item) ? `<img src="${escapeHtml(recordImage(item))}" alt="${escapeHtml(item.title || "写真")}">` : ""}
+            ${showRelatedImages && recordImage(item) ? `<img src="${escapeHtml(recordImage(item))}" alt="${escapeHtml(item.title || "写真")}">` : ""}
             ${!recordImage(item) && item.file_name ? missingPhotoNote(item.file_name) : ""}
             <small>${escapeHtml(item.text || item.url || "本文なし")}</small>
           </div>`).join("")}
@@ -1439,7 +1441,7 @@
           ${!item.image && item.photo?.file_name ? missingPhotoNote(item.photo.file_name) : ""}
           ${item.photo?.ai_title || item.photo?.ai_summary ? `<small>${escapeHtml([item.photo.ai_title, item.photo.ai_summary].filter(Boolean).join("。"))}</small>` : ""}
           <small>${escapeHtml(item.text || "メモなし")}</small>
-          ${selectedStage === "question" ? questionDetailExtras(item.raw || item) : ""}
+          ${selectedStage === "question" ? questionDetailExtras(item.raw || item, { showPhoto: false, showRelatedImages: false }) : ""}
           ${item.geo?.label ? `<a class="map-link" href="${escapeHtml(item.geo.map_url || googleMapsUrl(item.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(item.geo.label)}</a>` : ""}
         </article>`).join("")
         : `<article class="detail-card">${badge(label, tone)}<strong>まだ記録はありません</strong><small>${escapeHtml(description)}</small></article>`;
@@ -1768,7 +1770,7 @@
         ${!image && selected.photo_observation?.file_name ? missingPhotoNote(selected.photo_observation.file_name) : ""}
         ${!image && selected.file_name ? missingPhotoNote(selected.file_name) : ""}
         <small>${escapeHtml(recordSummary(selectedTable, selected) || "概要なし")}</small>
-        ${selectedTable === "questions" ? questionDetailExtras(selected) : ""}
+        ${selectedTable === "questions" ? questionDetailExtras(selected, { showPhoto: false, showRelatedImages: false }) : ""}
         ${selected.geo?.label ? `<a class="map-link" href="${escapeHtml(selected.geo.map_url || googleMapsUrl(selected.geo.label))}" target="_blank" rel="noopener">地図で見る: ${escapeHtml(selected.geo.label)}</a>` : ""}
         <form class="record-edit-form" id="record-edit-form">
           <strong>この記録を編集</strong>
