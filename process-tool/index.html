@@ -329,12 +329,37 @@
       return readIdentitySession();
     }
 
+    function readEntrySession() {
+      try {
+        return JSON.parse(localStorage.getItem("tanq-graph-entry-session") || "null") || {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function looksLikeEmail(value = "") {
+      return String(value || "").includes("@");
+    }
+
+    function resolvedTanqIdFromUrl(params) {
+      const previous = readIdentitySession();
+      const entry = readEntrySession();
+      const rawTanqId = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || "";
+      const emailValue = params.get("email") || params.get("ownerId") || (looksLikeEmail(rawTanqId) ? rawTanqId : "");
+      if (rawTanqId && !looksLikeEmail(rawTanqId)) return rawTanqId;
+      if (previous.tanq_id && !looksLikeEmail(previous.tanq_id) && (!emailValue || previous.email === emailValue)) return previous.tanq_id;
+      if (entry.personId && !looksLikeEmail(entry.personId) && (!emailValue || entry.email === emailValue)) return entry.personId;
+      return "";
+    }
+
     function captureIdentityFromUrl() {
       const params = new URLSearchParams(location.search);
-      const tanqIdValue = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || params.get("email");
+      const rawTanqId = params.get("tanqId") || params.get("tanq_id") || params.get("ownerId") || "";
+      const emailValue = params.get("email") || params.get("ownerId") || (looksLikeEmail(rawTanqId) ? rawTanqId : "");
+      const tanqIdValue = resolvedTanqIdFromUrl(params);
       const session = {
         tanq_id: tanqIdValue,
-        email: params.get("email") || params.get("ownerId"),
+        email: emailValue,
         profile_name: params.get("name") || params.get("displayName"),
         guest_session_id: params.get("sessionId"),
         client: params.get("client"),
@@ -347,6 +372,16 @@
     function scopedStorageKey(identity = captureIdentityFromUrl()) {
       const scope = identity.tanq_id || identity.email || identity.guest_session_id || "anonymous";
       return `${storageKey}:${encodeURIComponent(String(scope).trim().toLowerCase())}`;
+    }
+
+    function scopedStorageAliases(identity = captureIdentityFromUrl()) {
+      const values = [
+        identity.tanq_id,
+        identity.email,
+        identity.guest_session_id,
+        readEntrySession().personId
+      ].filter(Boolean);
+      return [...new Set(values.map((value) => `${storageKey}:${encodeURIComponent(String(value).trim().toLowerCase())}`))];
     }
 
     function withIdentityUrl(target, extra = {}) {
@@ -378,7 +413,7 @@
       try {
         const session = captureIdentityFromUrl();
         const hasIdentity = Boolean(session.tanq_id || session.email || session.guest_session_id);
-        const raw = localStorage.getItem(scopedStorageKey(session)) || (!hasIdentity ? localStorage.getItem(storageKey) : null);
+        const raw = scopedStorageAliases(session).map((key) => localStorage.getItem(key)).find(Boolean) || (!hasIdentity ? localStorage.getItem(storageKey) : null);
         const saved = JSON.parse(raw || "null") || seed;
         return {
           ...seed,
