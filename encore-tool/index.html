@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Proofolio Encore</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,300..600,0..1,-50..200&display=swap" rel="stylesheet">
   <script src="../firebase-config.js?v=encore-20260725"></script>
   <style>
     :root {
@@ -112,6 +115,113 @@
     .primary { border-color: transparent; color: #fffdf8; background: var(--green); }
     .secondary { border-color: var(--line); background: var(--panel); }
     .navigator-box { padding: 16px; display: grid; gap: 12px; border-color: rgba(47,95,143,.32); background: linear-gradient(180deg, rgba(47,95,143,.08), var(--panel)); line-height: 1.7; }
+    .material-symbols-outlined {
+      font-family: "Material Symbols Outlined";
+      font-weight: normal;
+      font-style: normal;
+      font-size: 28px;
+      line-height: 1;
+      letter-spacing: 0;
+      text-transform: none;
+      display: inline-block;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: "liga";
+      -webkit-font-smoothing: antialiased;
+    }
+    .encore-journey {
+      margin: 0 0 16px;
+      padding: 18px 20px 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,253,248,.86);
+      box-shadow: 0 14px 34px rgba(54,45,30,.08);
+    }
+    .encore-journey-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .encore-journey-head p {
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    .encore-journey-title {
+      display: grid;
+      gap: 4px;
+    }
+    .encore-journey-title small {
+      color: var(--red);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .18em;
+    }
+    .encore-rail {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .encore-rail::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      top: 34px;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(163,75,56,.36), rgba(169,120,37,.34), rgba(37,107,87,.42), rgba(47,95,143,.36));
+    }
+    .encore-step {
+      position: relative;
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 6px;
+      color: var(--ink);
+      background: transparent;
+      cursor: pointer;
+      text-align: center;
+    }
+    .encore-step-icon {
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 72px;
+      height: 72px;
+      border: 3px solid rgba(216,207,189,.9);
+      border-radius: 22px;
+      color: var(--muted);
+      background: var(--panel);
+      box-shadow: 0 10px 24px rgba(54,45,30,.08);
+      transition: transform .18s ease, border-color .18s ease, color .18s ease, background .18s ease;
+    }
+    .encore-step strong {
+      font-size: 14px;
+    }
+    .encore-step small {
+      color: var(--muted);
+      line-height: 1.45;
+      max-width: 132px;
+    }
+    .encore-step:hover .encore-step-icon,
+    .encore-step:focus-visible .encore-step-icon {
+      transform: translateY(-3px);
+      border-color: rgba(37,107,87,.62);
+      color: var(--green);
+      background: rgba(37,107,87,.08);
+    }
+    .encore-step.active .encore-step-icon {
+      border-color: rgba(163,75,56,.82);
+      color: #fffdf8;
+      background: linear-gradient(135deg, var(--red), var(--gold));
+    }
     pre { margin: 0; max-height: 360px; overflow: auto; border-radius: 8px; padding: 14px; background: #22231f; color: #fffdf8; white-space: pre-wrap; font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     @media (max-width: 1080px) {
       .shell, .hero { grid-template-columns: 1fr; }
@@ -120,6 +230,13 @@
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .grid, .metrics, .mini-grid, .mini-grid.three { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half, .third { grid-column: auto; }
+      .encore-journey-head { display: grid; }
+      .encore-rail { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .encore-rail::before { display: none; }
+    }
+    @media (max-width: 640px) {
+      .encore-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .encore-step-icon { width: 62px; height: 62px; border-radius: 18px; }
     }
   </style>
 </head>
@@ -169,6 +286,48 @@
           <div class="node n3"><strong>Role</strong><small>顧問・PM・講師</small></div>
           <div class="node n4"><strong>Seed</strong><small>事業・PPP・共創</small></div>
           <div class="node n5"><strong>Encore Graph</strong><small>再編集された価値</small></div>
+        </div>
+      </section>
+
+      <section class="encore-journey" aria-label="Proofolio Encore Journey">
+        <div class="encore-journey-head">
+          <div class="encore-journey-title">
+            <small>ENCORE JOURNEY</small>
+            <h2>経験を次の役割へつなぐ流れ</h2>
+          </div>
+          <p>実績を並べるだけで終わらせず、証跡・人脈・役割候補・事業の芽へ順に変換します。各ステップを押すと、対応する作業画面へ移動します。</p>
+        </div>
+        <div class="encore-rail">
+          <button class="encore-step active" data-tab-jump="experience" type="button">
+            <span class="encore-step-icon"><span class="material-symbols-outlined" aria-hidden="true">history_edu</span></span>
+            <strong>経験</strong>
+            <small>実績と暗黙知を残す</small>
+          </button>
+          <button class="encore-step" data-tab-jump="proof" type="button">
+            <span class="encore-step-icon"><span class="material-symbols-outlined" aria-hidden="true">verified</span></span>
+            <strong>証跡</strong>
+            <small>信頼できる根拠にする</small>
+          </button>
+          <button class="encore-step" data-tab-jump="roles" type="button">
+            <span class="encore-step-icon"><span class="material-symbols-outlined" aria-hidden="true">badge</span></span>
+            <strong>役割</strong>
+            <small>顧問・PM・講師へ翻訳</small>
+          </button>
+          <button class="encore-step" data-tab-jump="social" type="button">
+            <span class="encore-step-icon"><span class="material-symbols-outlined" aria-hidden="true">diversity_3</span></span>
+            <strong>人脈</strong>
+            <small>紹介と協働の入口を作る</small>
+          </button>
+          <button class="encore-step" data-tab-jump="seeds" type="button">
+            <span class="encore-step-icon"><span class="material-symbols-outlined" aria-hidden="true">rocket_launch</span></span>
+            <strong>Seed</strong>
+            <small>事業・地域実装へ育てる</small>
+          </button>
+          <button class="encore-step" data-tab-jump="navigator" type="button">
+            <span class="encore-step-icon"><span class="material-symbols-outlined" aria-hidden="true">psychology</span></span>
+            <strong>AI整理</strong>
+            <small>次の一手を相談する</small>
+          </button>
         </div>
       </section>
 
@@ -558,6 +717,7 @@
     function setActiveTab(tabId) {
       document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabId));
       document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+      document.querySelectorAll(".encore-step").forEach((item) => item.classList.toggle("active", item.dataset.tabJump === tabId));
     }
 
     function trustBadge(value) {
