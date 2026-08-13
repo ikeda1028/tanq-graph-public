@@ -584,12 +584,95 @@
       border-color: rgba(36,107,85,.55);
       background: linear-gradient(180deg, rgba(36,107,85,.1), var(--surface));
     }
+    .proofolio-journey {
+      display: grid;
+      gap: 18px;
+      margin: 0 0 18px;
+      padding: 20px 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255,253,248,.92);
+      box-shadow: 0 14px 34px rgba(54,45,30,.08);
+    }
+    .proofolio-journey[hidden] { display: none !important; }
+    .proofolio-journey-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .proofolio-journey-head p {
+      max-width: 680px;
+      color: var(--muted);
+      line-height: 1.65;
+      margin: 0;
+    }
+    .proofolio-journey-title {
+      display: grid;
+      gap: 4px;
+    }
+    .proofolio-journey-title small {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .22em;
+    }
+    .proofolio-journey-title h2 {
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1.1;
+    }
+    .proofolio-journey-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .proofolio-step {
+      min-height: 136px;
+      display: grid;
+      gap: 12px;
+      align-content: space-between;
+      border: 1px solid rgba(36,107,85,.22);
+      border-radius: 8px;
+      padding: 16px;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease, background .18s ease;
+    }
+    .proofolio-step:hover,
+    .proofolio-step:focus-visible {
+      transform: translateY(-2px);
+      border-color: rgba(36,107,85,.7);
+      box-shadow: 0 12px 24px rgba(36,107,85,.1);
+    }
+    .proofolio-step.active {
+      border-color: var(--green);
+      background: linear-gradient(180deg, rgba(36,107,85,.1), var(--surface));
+    }
+    .proofolio-step small {
+      color: #aaa59a;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+    .proofolio-step strong {
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 1.1;
+    }
+    .proofolio-step span {
+      color: var(--green);
+      font-weight: 700;
+      font-size: 14px;
+    }
     @media (max-width: 980px) {
       .shell { grid-template-columns: 1fr; }
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       main { padding: 20px; }
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log, .innovation-grid, .score-grid, .formation-grid, .innovation-path, .detail-grid { grid-template-columns: 1fr; }
+      .grid, .cards, .form-grid, .stage-board, .tool-grid, .connection-map, .kids-hero, .kids-photo-panel, .kids-actions, .kids-map, .kids-log, .innovation-grid, .score-grid, .formation-grid, .innovation-path, .detail-grid, .proofolio-journey-grid { grid-template-columns: 1fr; }
+      .proofolio-journey-head { display: grid; }
       .identity-flow { grid-template-columns: 1fr; }
       .full, .wide, .narrow, .half { grid-column: auto; }
       .timeline-item, .question-card { grid-template-columns: 1fr; }
@@ -629,6 +712,26 @@
       </div>
     </aside>
     <main>
+      <section class="proofolio-journey" id="proofolio-journey" hidden aria-label="Proofolio Innovation Journey">
+        <div class="proofolio-journey-head">
+          <div class="proofolio-journey-title">
+            <small>INNOVATION JOURNEY</small>
+            <h2>AI対話から社会実装へ進む</h2>
+          </div>
+          <p>Proofolioでは、会話から生まれた関心を問い、仮説、根拠、実験、プロジェクトへ段階的に育てます。各ステップを押すと対応する画面へ移動します。</p>
+        </div>
+        <div class="proofolio-journey-grid">
+          <button class="proofolio-step active" data-proofolio-step="questions" type="button"><small>01</small><strong>Conversation</strong><span>L1</span></button>
+          <button class="proofolio-step" data-proofolio-step="questions" type="button"><small>02</small><strong>Interest</strong><span>L1</span></button>
+          <button class="proofolio-step" data-proofolio-step="questions" type="button"><small>03</small><strong>Question</strong><span>L2</span></button>
+          <button class="proofolio-step" data-proofolio-step="workspace" type="button"><small>04</small><strong>Hypothesis</strong><span>L3</span></button>
+          <button class="proofolio-step" data-proofolio-step="materials" type="button"><small>05</small><strong>Intelligence</strong><span>L4</span></button>
+          <button class="proofolio-step" data-proofolio-step="board" type="button"><small>06</small><strong>Experiment</strong><span>L5</span></button>
+          <button class="proofolio-step" data-proofolio-step="workspace" type="button"><small>07</small><strong>Project</strong><span>L6</span></button>
+          <button class="proofolio-step" data-proofolio-step="innovation" type="button"><small>08</small><strong>Impact</strong><span>L6</span></button>
+        </div>
+      </section>
+
       <section class="hero">
         <p class="eyebrow">Inquiry project workspace</p>
         <h1>問いが生まれ、プロジェクトになる前から記録する</h1>
@@ -2878,6 +2981,36 @@
       $("#task-stage").value = processStages.includes(current) ? current : "question";
     }
 
+    function activeTabId() {
+      return document.querySelector(".tab.active")?.id || "questions";
+    }
+
+    function activateTab(tabId) {
+      document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item.dataset.tab === tabId));
+      document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === tabId));
+      let matched = false;
+      document.querySelectorAll("[data-proofolio-step]").forEach((item) => {
+        const isActive = item.dataset.proofolioStep === tabId && !matched;
+        item.classList.toggle("active", isActive);
+        if (isActive) matched = true;
+      });
+    }
+
+    function renderProofolioJourney() {
+      const panel = $("#proofolio-journey");
+      if (!panel) return;
+      const interfaceKey = state.identity?.interface || normalizeInterfaceKey(state.project?.owner) || inferInterfaceByAge(state.identity?.age);
+      const shouldShow = interfaceKey === "proofolio" || state.project?.owner === "Proofolio";
+      panel.hidden = !shouldShow;
+      if (!shouldShow) return;
+      let matched = false;
+      document.querySelectorAll("[data-proofolio-step]").forEach((item) => {
+        const isActive = item.dataset.proofolioStep === activeTabId() && !matched;
+        item.classList.toggle("active", isActive);
+        if (isActive) matched = true;
+      });
+    }
+
     function render() {
       configureInterfaceNavigation();
       renderIdentity();
@@ -2890,6 +3023,7 @@
       renderExternalTools();
       renderExperienceGraph();
       renderInnovationEngine();
+      renderProofolioJourney();
       renderPayload();
       attachPublicRecordButtons();
     }
@@ -2961,8 +3095,13 @@
 
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
-        document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
-        document.querySelectorAll(".tab").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.tab));
+        activateTab(button.dataset.tab);
+      });
+    });
+    document.querySelectorAll("[data-proofolio-step]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activateTab(button.dataset.proofolioStep);
+        document.querySelectorAll("[data-proofolio-step]").forEach((item) => item.classList.toggle("active", item === button));
       });
     });
     $("#open-kids-tool").addEventListener("click", openKidsTool);
