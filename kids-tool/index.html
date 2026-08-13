@@ -391,7 +391,7 @@
         <p class="eyebrow">Kids / Question Seed</p>
         <h1>しゃしんから、ふしぎをのこす</h1>
       </div>
-      <p class="lead">写真を撮る、AIの問いかけを見る、声でメモする、場所を地図に残す。低年齢向けの探究入口をProject Toolから独立させました。</p>
+      <p class="lead">写真を撮る、AIの問いかけを見る、声でメモする、場所を地図に残す。低年齢向けの探究入口をKidsだけで使える形にしました。</p>
     </header>
 
     <div class="grid">
@@ -439,7 +439,7 @@
             </div>
             <div class="actions">
               <button class="primary" id="add-wonder" type="button">ふしぎをのこす</button>
-              <button class="secondary" id="promote-wonder" type="button">たんけんにする</button>
+              <button class="secondary" id="promote-wonder" type="button">Kidsボードに掲載</button>
             </div>
           </div>
         </div>
@@ -495,7 +495,7 @@
           <button class="action-card" data-action="plan" type="button"><span class="badge">1</span><strong>けいかく</strong><small>つぎの一歩</small></button>
           <button class="action-card" data-action="activity" type="button"><span class="badge">✓</span><strong>やってみた</strong><small>できたこと</small></button>
           <button class="action-card" data-action="share" type="button"><span class="badge red">*</span><strong>見せる</strong><small>地図とコメント</small></button>
-          <button class="action-card" data-action="project" type="button"><span class="badge green">P</span><strong>Project</strong><small>大きな探究へ</small></button>
+          <button class="action-card" data-action="kids-board" type="button"><span class="badge green">B</span><strong>Kidsボードに掲載</strong><small>みんなに見せる</small></button>
         </div>
       </section>
 
@@ -566,6 +566,7 @@
     const identitySessionKey = "tanq-graph-identity-session";
     const aiEndpointKey = "tanq-kids-ai-endpoint";
     const coachConfigKey = "tanq-ai-coach-configs";
+    const kidsBoardLocalKey = "tanq-kids-board-local-themes";
     const firebaseSdkVersion = "12.16.0";
     let state = readState();
     let photoDraft = null;
@@ -725,6 +726,66 @@
         title: feedback.reviewer || "Kidsコメント",
         kind: "Kids Feedback"
       });
+    }
+
+    function kidsBoardRecord(question = latestQuestion()) {
+      if (!question?.id) return null;
+      const linked = linkedQuestionRecords(question);
+      const firstMaterial = linked.materials?.[0] || {};
+      const image = recordImage(question) || recordImage(firstMaterial);
+      return cloudRecordBase({
+        ...question,
+        id: question.id,
+        title: question.text || question.title || "Kidsのふしぎ",
+        text: question.text || question.question || "",
+        question: question.text || question.question || "",
+        summary: question.reason || question.trigger || question.next_action || "Kidsのたんけんから生まれたふしぎです。",
+        domain: question.domain || "Kidsたんけん",
+        owner_label: state.identity?.profile_name || "TANQ Pass Kids",
+        board_type: "kids",
+        source_item_type: "kids-question",
+        public_board: true,
+        public_visibility: "public",
+        public_updated_at: new Date().toISOString(),
+        support_needs: ["応援マーク", "コメント", "一緒に調べる", "写真・資料"],
+        thumbnail_data_url: image || question.thumbnail_data_url || "",
+        related_count: (linked.materials?.length || 0) + (linked.tasks?.length || 0) + (linked.feedback?.length || 0),
+        tanq_id: ownerPersonId(),
+        tanq_user_id: ownerPersonId()
+      });
+    }
+
+    function saveLocalKidsBoardRecord(record) {
+      if (!record?.id) return;
+      try {
+        const current = JSON.parse(localStorage.getItem(kidsBoardLocalKey) || "[]");
+        const next = [record, ...current.filter((item) => item.id !== record.id)].slice(0, 100);
+        localStorage.setItem(kidsBoardLocalKey, JSON.stringify(next));
+      } catch (error) {
+        setSaveStatus(`Kidsボードのローカル控えを保存できませんでした: ${error.message}`);
+      }
+    }
+
+    async function publishLatestQuestionToKidsBoard() {
+      const question = latestQuestion();
+      if (!question) {
+        setSaveStatus("Kidsボードに載せるふしぎを先に保存してください。");
+        return;
+      }
+      const boardRecord = kidsBoardRecord(question);
+      state.questions = state.questions.map((item) => item.id === question.id ? {
+        ...item,
+        public_board: true,
+        public_visibility: "public",
+        board_type: "kids",
+        public_updated_at: boardRecord.public_updated_at
+      } : item);
+      if (!saveState()) return;
+      saveLocalKidsBoardRecord(boardRecord);
+      await saveFirebaseRecord("tanq_question_seeds", boardRecord);
+      setSaveStatus("Kidsボードに掲載しました");
+      render();
+      window.open("../kids-board/", "_blank", "noopener");
     }
 
     async function syncCloudRecord(tableName, record) {
@@ -888,12 +949,6 @@
 
     function currentCoachConfig() {
       return coachConfigs().kids || defaultCoachConfigs.kids;
-    }
-
-    function projectToolUrl() {
-      const path = window.location.pathname;
-      const target = path.includes("/tanq-graph-public/kids-tool/") ? "../project-tool/" : "../tanq-project-tool/index.html";
-      return withIdentityUrl(target, { interface: "kids" });
     }
 
     function googleMapsUrl(locationText = "") {
@@ -1311,7 +1366,7 @@
       if (!hasFeedback) {
         return { level: "L3", title: "やってみた", next: "次は「見せる」に、先生・家族・友だちのコメントを残します。", stage: "submit_business" };
       }
-      return { level: "L4", title: "見せてふりかえった", next: "さらに写真・メモ・コメントを増やすと、探究ボードやProject Toolへつなげやすくなります。", stage: "question" };
+      return { level: "L4", title: "見せてふりかえった", next: "さらに写真・メモ・コメントを増やすと、Kidsボードへ掲載しやすくなります。", stage: "question" };
     }
 
     function renderLevelGuide() {
@@ -1352,7 +1407,7 @@
         ${badge("ふしぎID", "gold")}
         <small>${escapeHtml(question.id || "未設定")}</small>
         <small>入力: ${escapeHtml(question.input_mode || "text")}</small>
-        ${question.promoted ? `<small>Project化: ${escapeHtml(question.promoted_project_id || "済み")}</small>` : "<small>Project化: まだ</small>"}
+        ${question.public_board ? "<small>Kidsボード: 掲載中</small>" : "<small>Kidsボード: 未掲載</small>"}
       </div>`);
       if (photo.file_name || photo.ai_title || photo.ai_summary || photoImage) {
         chunks.push(`<div class="detail-card">
@@ -1800,20 +1855,10 @@
     $("#promote-wonder").addEventListener("click", async () => {
       const question = latestQuestion();
       if (!question) return;
-      state.project = {
-        ...state.project,
-        owner: "TANQ Pass Kids",
-        name: question.text.length > 24 ? question.text.slice(0, 24) + "..." : question.text,
-        question: question.text,
-        hypothesis: "ふしぎを、写真・観察・人に聞くことからたんけんにする。"
-      };
-      state.questions = state.questions.map((item) => item.id === question.id ? { ...item, promoted: true, promoted_project_id: state.project.id, promoted_at: new Date().toISOString() } : item);
       const task = addTask("ideation", "ふしぎをたんけんにする", question.next_action || question.reason || "つぎに調べることを決める。");
       if (!saveState()) return;
-      await syncCloudRecord("questions", { ...question, promoted: true, promoted_project_id: state.project.id });
       await syncCloudRecord("tasks", task);
-      render();
-      window.open(projectToolUrl(), "_blank", "noopener");
+      await publishLatestQuestionToKidsBoard();
     });
 
     document.querySelectorAll("[data-action]").forEach((button) => {
@@ -1878,8 +1923,8 @@
           if (shareLocation) updateMapPreview(shareLocation);
           $("#share-text").value = "";
         }
-        if (action === "project") {
-          window.open(projectToolUrl(), "_blank", "noopener");
+        if (action === "kids-board") {
+          await publishLatestQuestionToKidsBoard();
           return;
         }
         if (!saveState()) return;

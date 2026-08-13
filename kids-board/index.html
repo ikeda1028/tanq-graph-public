@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TANQ Kids Board</title>
+  <script src="../firebase-config.js?v=inquiry-board-20260807"></script>
+  <style>
+    :root {
+      --bg: #f6f1e8;
+      --surface: #fffdf8;
+      --ink: #25231f;
+      --muted: #6f685f;
+      --line: #ddd2bf;
+      --green: #28775d;
+      --blue: #2d5f8a;
+      --gold: #a47422;
+      --red: #a64e3d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--green); font-weight: 700; }
+    header, main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header { padding: 34px 0 20px; display: grid; gap: 14px; }
+    .topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: clamp(38px, 8vw, 92px); line-height: .96; letter-spacing: 0; }
+    h2, h3, p { margin: 0; }
+    .lead { max-width: 780px; color: var(--muted); font-size: 18px; line-height: 1.8; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      width: max-content;
+      border-radius: 999px;
+      padding: 5px 10px;
+      color: var(--blue);
+      background: rgba(45,95,138,.12);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .badge.green { color: var(--green); background: rgba(40,119,93,.12); }
+    .badge.gold { color: var(--gold); background: rgba(164,116,34,.14); }
+    .badge.red { color: var(--red); background: rgba(166,78,61,.12); }
+    .actions, .badge-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .button, button, input, select, textarea {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+    }
+    .button, button {
+      min-height: 42px;
+      padding: 10px 14px;
+      color: var(--ink);
+      background: var(--surface);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button.primary, .button.primary { color: #fff; border-color: var(--green); background: var(--green); }
+    input, select, textarea { width: 100%; padding: 12px; background: #fffaf2; }
+    textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+    label { display: grid; gap: 6px; color: var(--muted); font-weight: 700; }
+    main { display: grid; gap: 16px; padding-bottom: 40px; }
+    .toolbar, .panel, .theme-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 12px 32px rgba(55,45,30,.06);
+    }
+    .toolbar { padding: 14px; display: grid; grid-template-columns: 1fr 220px auto; gap: 10px; align-items: end; }
+    .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+    .theme-card { padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; }
+    .theme-main, .comment-box, .comments, .side-stack { display: grid; gap: 12px; align-content: start; }
+    .theme-title { font-size: 24px; line-height: 1.35; }
+    .theme-thumb {
+      width: 100%;
+      max-height: 260px;
+      aspect-ratio: 16 / 9;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      object-fit: cover;
+      background: #f0e8d9;
+      display: block;
+    }
+    .meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .meta {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffaf2;
+    }
+    .meta small { display: block; color: var(--muted); }
+    .support-index {
+      border: 1px solid rgba(40,119,93,.24);
+      border-radius: 8px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(40,119,93,.08), #fffaf2);
+      display: grid;
+      gap: 10px;
+    }
+    .ai-diagnosis {
+      border: 1px solid rgba(45,95,138,.22);
+      border-radius: 8px;
+      padding: 12px;
+      background: linear-gradient(180deg, rgba(45,95,138,.08), #fffaf2);
+      display: grid;
+      gap: 8px;
+    }
+    .ai-diagnosis strong { font-size: 18px; }
+    .ai-list { margin: 0; padding-left: 18px; color: var(--muted); line-height: 1.6; }
+    .meter {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(45,95,138,.12);
+      overflow: hidden;
+    }
+    .meter span { display: block; height: 100%; background: var(--green); }
+    .support-item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffaf2;
+      display: grid;
+      gap: 6px;
+    }
+    .comment {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fffaf2;
+      display: grid;
+      gap: 6px;
+    }
+    .empty { padding: 26px; color: var(--muted); text-align: center; }
+    .status { color: var(--muted); }
+    @media (max-width: 860px) {
+      header, main { width: min(100% - 24px, 1180px); }
+      .toolbar, .theme-card, .meta-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="topline">
+      <span class="badge green">TANQ Kids Board</span>
+      <div class="actions">
+        <a class="button" href="../">TANQ Graph</a>
+        <a class="button" href="../kids-tool/">Kids Tool</a>
+        <a class="button" href="../coach-admin/">AI診断設定</a>
+      </div>
+    </div>
+    <h1>Kidsボード</h1>
+    <p class="lead">Kids Toolで「Kidsボードに掲載」にした、子どものふしぎだけを表示します。見た人は、応援マーク、コメント、一緒に調べる支援を残せます。</p>
+  </header>
+
+  <main>
+    <section class="toolbar">
+      <label>キーワード<input id="search" placeholder="問い、分野、きっかけで検索"></label>
+      <label>表示順<select id="sort">
+        <option value="new">新しい順</option>
+        <option value="rating">評価が高い順</option>
+        <option value="comment">コメントが多い順</option>
+      </select></label>
+      <button class="primary" id="reload" type="button">読み込む</button>
+    </section>
+
+    <p class="status" id="status">Kids公開データを読み込み中です。</p>
+    <section class="board" id="board"></section>
+  </main>
+
+  <script>
+    const $ = (selector) => document.querySelector(selector);
+    const firebaseSdkVersion = "12.16.0";
+    const localThemesKey = "tanq-kids-board-local-themes";
+    const localCommentsKey = "tanq-kids-board-comments";
+    const localSupportsKey = "tanq-kids-board-supports";
+    const diagnosisConfigKey = "tanq-inquiry-board-diagnosis-config";
+    const defaultSupportNeeds = ["応援マーク", "コメント", "一緒に調べる", "写真・資料"];
+    const demoThemes = [
+      {
+        id: "demo_public_child_inquiry",
+        text: "子どもの「気になる」は、どんな関わりによって、自分で追い続けたい問いへ育つのか？",
+        domain: "教育・探究",
+        trigger: "ふしぎや写真から問いが育つ流れを観察したい。",
+        reason: "探究心を支える大人の関わり方を検証するため。",
+        next_action: "6週間の観察ログとコメントを集める。",
+        owner_label: "TANQ Pass Kids",
+        board_type: "kids",
+        audience: "kids",
+        source_item_type: "kids-question",
+        maturity: "seed",
+        public_board: true,
+        support_needs: ["応援マーク", "メンター", "IT支援"],
+        thumbnail_data_url: "data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='960'%20height='540'%20viewBox='0%200%20960%20540'%3E%3Crect%20width='960'%20height='540'%20fill='%23fffdf7'/%3E%3Crect%20x='56'%20y='56'%20width='848'%20height='428'%20rx='32'%20fill='%23eef3ed'%20stroke='%2328775d'%20stroke-width='3'/%3E%3Ccircle%20cx='176'%20cy='176'%20r='64'%20fill='%23c38c2a'/%3E%3Ccircle%20cx='152'%20cy='164'%20r='12'%20fill='%23fffdf7'/%3E%3Ccircle%20cx='200'%20cy='164'%20r='12'%20fill='%23fffdf7'/%3E%3Ccircle%20cx='176'%20cy='204'%20r='8'%20fill='%23fffdf7'/%3E%3Ctext%20x='292'%20y='182'%20font-family='system-ui,sans-serif'%20font-size='34'%20font-weight='700'%20fill='%2325231f'%3E%E5%85%AC%E9%96%8B%E6%8E%A2%E7%A9%B6%E3%83%9C%E3%83%BC%E3%83%89%3C/text%3E%3Ctext%20x='292'%20y='248'%20font-family='system-ui,sans-serif'%20font-size='48'%20font-weight='700'%20fill='%2328775d'%3ETANQ%20Inquiry%3C/text%3E%3Ctext%20x='292'%20y='318'%20font-family='system-ui,sans-serif'%20font-size='28'%20fill='%236f685f'%3E%E5%95%8F%E3%81%84%E3%81%AE%E3%82%B5%E3%83%A0%E3%83%8D%E3%82%92%E8%A1%A8%E7%A4%BA%3C/text%3E%3C/svg%3E",
+        created_at: "2026-08-07T00:00:00+09:00"
+      }
+    ];
+    let firebaseDb = null;
+    let firebaseApi = null;
+    let themes = [];
+    let comments = [];
+    let supports = [];
+    let diagnosisByThemeId = {};
+    const diagnosisLoading = new Set();
+
+    function escapeHtml(value = "") {
+      return String(value).replace(/[<>&"]/g, (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "\"": "&quot;" }[char]));
+    }
+
+    function badge(text, tone = "") {
+      return `<span class="badge ${tone}">${escapeHtml(text)}</span>`;
+    }
+
+    function cleanForFirestore(value) {
+      if (Array.isArray(value)) return value.map(cleanForFirestore).filter((item) => item !== undefined);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined).map(([key, item]) => [key, cleanForFirestore(item)]));
+      }
+      return value;
+    }
+
+    async function connectFirebase() {
+      const config = window.TANQ_FIREBASE_CONFIG || null;
+      if (!config?.projectId || !config?.apiKey || !config?.appId) {
+        $("#status").textContent = "Firestore未設定のためデモ表示です。";
+        return null;
+      }
+      try {
+        const appModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-app.js`);
+        const firestoreModule = await import(`https://www.gstatic.com/firebasejs/${firebaseSdkVersion}/firebase-firestore.js`);
+        const app = appModule.getApps().length ? appModule.getApp() : appModule.initializeApp(config);
+        firebaseDb = firestoreModule.getFirestore(app);
+        firebaseApi = firestoreModule;
+        $("#status").textContent = `Firestoreに接続しました: ${config.projectId}`;
+      } catch (error) {
+        $("#status").textContent = `Firestore未接続: ${error.message}`;
+      }
+      return firebaseDb;
+    }
+
+    async function loadCollection(collectionName, maxItems = 120) {
+      if (!firebaseDb || !firebaseApi) return [];
+      const { collection, getDocs, query, limit } = firebaseApi;
+      const snapshot = await getDocs(query(collection(firebaseDb, collectionName), limit(maxItems)));
+      return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    }
+
+    function readLocalComments() {
+      try {
+        return JSON.parse(localStorage.getItem(localCommentsKey) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function readLocalThemes() {
+      try {
+        return publicThemes(JSON.parse(localStorage.getItem(localThemesKey) || "[]"));
+      } catch {
+        return [];
+      }
+    }
+
+    function writeLocalComment(comment) {
+      const next = [comment, ...readLocalComments()].slice(0, 200);
+      localStorage.setItem(localCommentsKey, JSON.stringify(next));
+    }
+
+    function readLocalSupports() {
+      try {
+        return JSON.parse(localStorage.getItem(localSupportsKey) || "[]");
+      } catch {
+        return [];
+      }
+    }
+
+    function writeLocalSupport(record) {
+      const next = [record, ...readLocalSupports()].slice(0, 300);
+      localStorage.setItem(localSupportsKey, JSON.stringify(next));
+    }
+
+    function themeTitle(theme) {
+      return theme.title || theme.text || theme.question || theme.centralQuestion || "無題の探究";
+    }
+
+    function themeSummary(theme) {
+      return theme.summary || theme.reason || theme.trigger || theme.next_action || "この探究テーマにはまだ説明がありません。";
+    }
+
+    function safeImageUrl(value = "") {
+      const url = String(value || "").trim();
+      if (!url) return "";
+      if (url.startsWith("data:image/")) return url;
+      if (/^https?:\/\//i.test(url)) return url;
+      return "";
+    }
+
+    function themeThumbnail(theme = {}) {
+      return safeImageUrl(theme.thumbnail_data_url)
+        || safeImageUrl(theme.image_data_url)
+        || safeImageUrl(theme.thumbnail_url)
+        || safeImageUrl(theme.image_url)
+        || safeImageUrl(theme.imageUrl)
+        || safeImageUrl(theme.cover_image_url)
+        || safeImageUrl(theme.coverImageUrl)
+        || safeImageUrl(theme.photo_observation?.image_data_url)
+        || safeImageUrl(theme.photo?.image_data_url)
+        || safeImageUrl(theme.media?.image_data_url)
+        || safeImageUrl(theme.media?.thumbnail_data_url)
+        || safeImageUrl(theme.images?.[0]?.data_url)
+        || safeImageUrl(theme.images?.[0]?.image_data_url)
+        || safeImageUrl(theme.images?.[0]?.url)
+        || "";
+    }
+
+    function sourceLabel(theme = {}) {
+      return {
+        "kids-question": "Kidsふしぎ",
+        questions: "問い",
+        tasks: "活動ログ",
+        materials: "資料",
+        feedback: "フィードバック",
+        aiConsultations: "AI相談",
+        toolImports: "外部ツール",
+        experienceAssets: "Experience",
+        innovationSeeds: "Innovation",
+        formationCandidates: "Formation"
+      }[theme.source_item_type] || theme.graph_type || "Kidsふしぎ";
+    }
+
+    function isKidsTheme(item = {}) {
+      return item.board_type === "kids"
+        || item.audience === "kids"
+        || item.domain === "Kidsたんけん"
+        || item.source_tool === "TANQ Pass Kids"
+        || item.source_item_type === "kids-question";
+    }
+
+    function publicThemes(items) {
+      return items.filter((item) => isKidsTheme(item) && (item.public_board === true || item.public_visibility === "public" || item.visibility === "public"));
+    }
+
+    function themeComments(themeId) {
+      return comments.filter((item) => item.theme_id === themeId || item.question_id === themeId);
+    }
+
+    function themeSupports(themeId) {
+      return supports.filter((item) => item.theme_id === themeId || item.question_id === themeId);
+    }
+
+    function supportNeeds(theme = {}) {
+      const raw = theme.support_needs || theme.supportNeeds || theme.requested_supports || theme.requestedSupports || theme.support_types;
+      const list = Array.isArray(raw) ? raw : String(raw || "").split(/[、,\n]/);
+      const clean = list.map((item) => String(item).trim()).filter(Boolean);
+      return clean.length ? clean.slice(0, 8) : defaultSupportNeeds;
+    }
+
+    function readDiagnosisConfig() {
+      const fallbackEndpoint = localStorage.getItem("tanq-encore-ai-endpoint")?.replace(/\/api\/encore-coach\/?$/, "/api/inquiry-diagnosis") || "";
+      try {
+        return {
+          endpoint: window.TANQ_INQUIRY_DIAGNOSIS_ENDPOINT || fallbackEndpoint,
+          model: "gpt-4.1-mini",
+          focus: "問いの明確さ、検証可能性、社会性、必要な支援の具体性、次の一手を重視する。",
+          high: "小さく試せる次の行動、協力者の入り口、観察できる成果、支援募集の具体性がある場合は高く評価する。",
+          risk: "課題が大きすぎる、対象者や検証方法が曖昧、法務・医療・金融など専門判断が必要な場合は慎重に評価する。",
+          tone: "短く、前向きに、ただし根拠なく成功を断定しない。",
+          ...(JSON.parse(localStorage.getItem(diagnosisConfigKey) || "{}") || {})
+        };
+      } catch {
+        return { endpoint: window.TANQ_INQUIRY_DIAGNOSIS_ENDPOINT || fallbackEndpoint };
+      }
+    }
+
+    function themeText(theme = {}) {
+      return [themeTitle(theme), themeSummary(theme), theme.trigger, theme.next_action, theme.domain].filter(Boolean).join(" ");
+    }
+
+    function keyTerms(value = "") {
+      const normalized = String(value)
+        .toLowerCase()
+        .replace(/[。、，,.!?！？「」『』（）()【】\[\]・]/g, " ")
+        .split(/\s+/)
+        .flatMap((word) => {
+          if (!word) return [];
+          if (/^[a-z0-9_-]{3,}$/.test(word)) return [word];
+          return word.length >= 4 ? Array.from({ length: Math.min(word.length - 1, 12) }, (_, index) => word.slice(index, index + 2)) : [word];
+        })
+        .filter((word) => word.length >= 2 && !["する", "ため", "こと", "どう", "どの", "なぜ", "から", "でき", "よう", "探究"].includes(word));
+      return [...new Set(normalized)].slice(0, 80);
+    }
+
+    function similarThemes(theme, allThemes = themes) {
+      const baseTerms = keyTerms(themeText(theme));
+      if (!baseTerms.length) return [];
+      return allThemes.filter((item) => item.id !== theme.id).map((item) => {
+        const terms = keyTerms(themeText(item));
+        const overlap = terms.filter((term) => baseTerms.includes(term)).length;
+        const sameDomain = theme.domain && item.domain && theme.domain === item.domain;
+        return { item, overlap, sameDomain };
+      }).filter(({ overlap, sameDomain }) => overlap >= 3 || (sameDomain && overlap >= 1));
+    }
+
+    function feasibilityDiagnosis(theme, commentList, supportList, similarCount) {
+      const summary = themeSummary(theme);
+      let score = 35;
+      if (theme.trigger) score += 10;
+      if (theme.next_action) score += 15;
+      if (summary.length > 40) score += 10;
+      if (supportNeeds(theme).length >= 3) score += 6;
+      score += Math.min(supportList.length * 6, 18);
+      const rating = Number(averageRating(commentList));
+      if (rating) score += Math.min(Math.max((rating - 3) * 6, -8), 12);
+      if (similarCount > 0) score += 4;
+      if (similarCount >= 8) score -= 6;
+      score = Math.max(5, Math.min(96, Math.round(score)));
+      const level = score >= 75 ? "高い" : score >= 55 ? "中程度" : "要検討";
+      const reason = score >= 75
+        ? "問い・次の一手・支援接点がそろい始めています。小さな検証に進めます。"
+        : score >= 55
+          ? "方向性は見えています。検証方法、協力者、必要資源を具体化すると進めやすくなります。"
+          : "問いの背景、次に試すこと、必要な支援をもう少し具体化すると実現可能性が上がります。";
+      return { score, level, reason };
+    }
+
+    function fallbackDiagnosis(theme, commentList, supportList, similarCount) {
+      const base = feasibilityDiagnosis(theme, commentList, supportList, similarCount);
+      return {
+        source: "local",
+        similar_count: similarCount,
+        feasibility_score: base.score,
+        feasibility_level: base.level,
+        diagnosis: base.reason,
+        strengths: [],
+        risks: [],
+        next_actions: [],
+        recommended_supports: supportNeeds(theme).slice(0, 4)
+      };
+    }
+
+    function normalizedAiDiagnosis(data, fallback) {
+      const score = Math.max(5, Math.min(96, Math.round(Number(data.feasibility_score || data.score || fallback.feasibility_score))));
+      return {
+        source: "ai",
+        similar_count: Number(data.similar_count ?? fallback.similar_count),
+        feasibility_score: score,
+        feasibility_level: data.feasibility_level || data.level || (score >= 75 ? "高い" : score >= 55 ? "中程度" : "要検討"),
+        diagnosis: data.diagnosis || data.reason || fallback.diagnosis,
+        strengths: Array.isArray(data.strengths) ? data.strengths.slice(0, 3) : [],
+        risks: Array.isArray(data.risks) ? data.risks.slice(0, 3) : [],
+        next_actions: Array.isArray(data.next_actions) ? data.next_actions.slice(0, 3) : [],
+        recommended_supports: Array.isArray(data.recommended_supports) ? data.recommended_supports.slice(0, 4) : fallback.recommended_supports
+      };
+    }
+
+    function compactTheme(theme) {
+      return {
+        id: theme.id,
+        title: themeTitle(theme),
+        summary: themeSummary(theme),
+        domain: theme.domain || "",
+        trigger: theme.trigger || "",
+        next_action: theme.next_action || "",
+        support_needs: supportNeeds(theme),
+        source: sourceLabel(theme)
+      };
+    }
+
+    async function requestAiDiagnosis(theme, visible) {
+      const config = readDiagnosisConfig();
+      const endpoint = config.endpoint || "";
+      if (!endpoint || diagnosisByThemeId[theme.id] || diagnosisLoading.has(theme.id)) return;
+      diagnosisLoading.add(theme.id);
+      const list = themeComments(theme.id);
+      const supportList = themeSupports(theme.id);
+      const similar = similarThemes(theme, visible);
+      const fallback = fallbackDiagnosis(theme, list, supportList, similar.length);
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            mode: "inquiry_board_diagnosis",
+            criteria: {
+              focus: config.focus,
+              high: config.high,
+              risk: config.risk,
+              tone: config.tone
+            },
+            theme: compactTheme(theme),
+            similar_count: similar.length,
+            similar: similar.slice(0, 8).map(({ item }) => compactTheme(item)),
+            comments: list.slice(0, 8),
+            supports: supportList.slice(0, 8)
+          })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok === false) throw new Error(data.error || "AI diagnosis failed.");
+        diagnosisByThemeId[theme.id] = normalizedAiDiagnosis(data, fallback);
+      } catch (error) {
+        diagnosisByThemeId[theme.id] = { ...fallback, source: "fallback", diagnosis: `${fallback.diagnosis} AI診断APIには接続できなかったため、簡易診断を表示しています。` };
+      } finally {
+        diagnosisLoading.delete(theme.id);
+        render();
+      }
+    }
+
+    function averageRating(items) {
+      const ratings = items.map((item) => Number(item.rating)).filter(Boolean);
+      if (!ratings.length) return "-";
+      return (ratings.reduce((sum, value) => sum + value, 0) / ratings.length).toFixed(1);
+    }
+
+    function sortThemes(items) {
+      const mode = $("#sort").value;
+      const keyword = $("#search").value.trim().toLowerCase();
+      let visible = items.filter((item) => {
+        const haystack = [themeTitle(item), themeSummary(item), item.domain, item.owner_label, item.next_action].join(" ").toLowerCase();
+        return !keyword || haystack.includes(keyword);
+      });
+      if (mode === "rating") {
+        visible = visible.sort((a, b) => Number(averageRating(themeComments(b.id)) || 0) - Number(averageRating(themeComments(a.id)) || 0));
+      } else if (mode === "comment") {
+        visible = visible.sort((a, b) => themeComments(b.id).length - themeComments(a.id).length);
+      } else {
+        visible = visible.sort((a, b) => String(b.public_updated_at || b.created_at || "").localeCompare(String(a.public_updated_at || a.created_at || "")));
+      }
+      return visible;
+    }
+
+    function render() {
+      const visible = sortThemes(themes);
+      $("#board").innerHTML = visible.length ? visible.map((theme) => {
+        const list = themeComments(theme.id);
+        const supportList = themeSupports(theme.id);
+        const needs = supportNeeds(theme);
+        const similarCount = similarThemes(theme, visible).length;
+        const diagnosis = diagnosisByThemeId[theme.id] || fallbackDiagnosis(theme, list, supportList, similarCount);
+        const score = diagnosis.feasibility_score;
+        const thumb = themeThumbnail(theme);
+        return `<article class="theme-card">
+          <div class="theme-main">
+            ${thumb ? `<img class="theme-thumb" src="${escapeHtml(thumb)}" alt="${escapeHtml(themeTitle(theme))}のサムネ">` : ""}
+            <div class="badge-row">
+              ${badge(sourceLabel(theme), "green")}
+              ${badge(theme.domain || "探究テーマ")}
+              ${badge(`評価 ${averageRating(list)}`, "gold")}
+              ${badge(`コメント ${list.length}件`)}
+              ${badge(`支援 ${supportList.length}件`, "green")}
+            </div>
+            <h2 class="theme-title">${escapeHtml(themeTitle(theme))}</h2>
+            <p class="lead">${escapeHtml(themeSummary(theme))}</p>
+            <div class="meta-grid">
+              <div class="meta"><small>きっかけ</small><strong>${escapeHtml(theme.trigger || "未登録")}</strong></div>
+              <div class="meta"><small>次の一手</small><strong>${escapeHtml(theme.next_action || "未設定")}</strong></div>
+              <div class="meta"><small>公開元</small><strong>${escapeHtml(theme.owner_label || theme.source || "TANQ Pass Kids")}</strong></div>
+            </div>
+            <div class="support-index">
+              <strong>支援募集インデックス</strong>
+              <div class="badge-row">${needs.map((item) => badge(item, item === "資金" ? "gold" : "green")).join("")}</div>
+            </div>
+            <div class="ai-diagnosis">
+              <div class="badge-row">${badge(diagnosis.source === "ai" ? "AI診断" : diagnosisLoading.has(theme.id) ? "AI診断中" : "簡易診断", "green")}${badge(`類似課題 ${diagnosis.similar_count}件`)}${badge(`実現可能性 ${diagnosis.feasibility_level}`, score >= 75 ? "green" : score >= 55 ? "gold" : "red")}</div>
+              <strong>${score}%</strong>
+              <div class="meter"><span style="width:${score}%"></span></div>
+              <p>${escapeHtml(diagnosis.diagnosis)}</p>
+              ${diagnosis.strengths?.length ? `<ul class="ai-list">${diagnosis.strengths.map((item) => `<li>強み: ${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+              ${diagnosis.risks?.length ? `<ul class="ai-list">${diagnosis.risks.map((item) => `<li>注意: ${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+              ${diagnosis.next_actions?.length ? `<ul class="ai-list">${diagnosis.next_actions.map((item) => `<li>次: ${escapeHtml(item)}</li>`).join("")}</ul>` : ""}
+            </div>
+            <div class="comments">
+              <strong>支援の申し込み</strong>
+              ${supportList.slice(0, 4).map((item) => `<div class="support-item">
+                <div class="badge-row">${badge(item.support_type || "応援", "green")}${item.amount ? badge(`${Number(item.amount).toLocaleString()}円`, "gold") : ""}${badge(item.supporter || "匿名")}</div>
+                <p>${escapeHtml(item.message || item.comment || "")}</p>
+              </div>`).join("") || `<div class="support-item"><p>まだ支援申し込みはありません。</p></div>`}
+            </div>
+            <div class="comments">
+              <strong>評価・コメント</strong>
+              ${list.slice(0, 5).map((item) => `<div class="comment">
+                <div class="badge-row">${badge(`評価 ${item.rating || "-"}`, "gold")}${badge(item.reviewer || "匿名")}</div>
+                <p>${escapeHtml(item.comment || item.text || "")}</p>
+              </div>`).join("") || `<div class="comment"><p>まだコメントはありません。</p></div>`}
+            </div>
+          </div>
+          <div class="side-stack">
+            <form class="comment-box" data-support-theme-id="${escapeHtml(theme.id)}">
+              <h3>支援を申し込む</h3>
+              <label>支援の種類<select name="support_type">
+                ${needs.map((item) => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join("")}
+              </select></label>
+              <label>金額 任意<input name="amount" type="number" min="0" step="1000" placeholder="資金支援の場合 例: 10000"></label>
+              <label>名前 任意<input name="supporter" placeholder="匿名でも可"></label>
+              <label>連絡先 任意<input name="contact" placeholder="メール、SNS、URLなど"></label>
+              <label>申し込み内容<textarea name="message" placeholder="応援、提供できること、相談したいこと"></textarea></label>
+              <button class="primary" type="submit">支援を申し込む</button>
+            </form>
+            <form class="comment-box" data-comment-theme-id="${escapeHtml(theme.id)}">
+              <h3>評価・コメントを書く</h3>
+              <label>評価<select name="rating">
+                <option value="5">5 とても探究したい</option>
+                <option value="4">4 面白い</option>
+                <option value="3">3 もう少し知りたい</option>
+                <option value="2">2 見直しが必要</option>
+                <option value="1">1 まだ伝わりにくい</option>
+              </select></label>
+              <label>名前 任意<input name="reviewer" placeholder="匿名でも可"></label>
+              <label>コメント<textarea name="comment" placeholder="問いの良い点、気になる点、検証アイデアなど"></textarea></label>
+              <button class="primary" type="submit">送信する</button>
+            </form>
+          </div>
+        </article>`;
+      }).join("") : `<div class="panel empty">公開中のKidsふしぎはまだありません。Kids Toolでふしぎを選び、「Kidsボードに掲載」を押してください。</div>`;
+
+      document.querySelectorAll("[data-comment-theme-id]").forEach((form) => {
+        form.addEventListener("submit", submitComment);
+      });
+      document.querySelectorAll("[data-support-theme-id]").forEach((form) => {
+        form.addEventListener("submit", submitSupport);
+      });
+      visible.slice(0, 20).forEach((theme) => requestAiDiagnosis(theme, visible));
+    }
+
+    async function submitComment(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const commentText = form.elements.comment.value.trim();
+      if (!commentText) {
+        $("#status").textContent = "コメントを入力してください。";
+        return;
+      }
+      const record = {
+        id: `pub_comment_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        theme_id: form.dataset.commentThemeId,
+        rating: Number(form.elements.rating.value),
+        reviewer: form.elements.reviewer.value.trim() || "匿名",
+        comment: commentText,
+        created_at: new Date().toISOString()
+      };
+      comments = [record, ...comments];
+      writeLocalComment(record);
+      if (firebaseDb && firebaseApi) {
+        try {
+          const { doc, setDoc, serverTimestamp } = firebaseApi;
+          await setDoc(doc(firebaseDb, "tanq_public_comments", record.id), {
+            ...cleanForFirestore(record),
+            synced_at: serverTimestamp()
+          }, { merge: true });
+          $("#status").textContent = "コメントを保存しました。";
+        } catch (error) {
+          $("#status").textContent = "ローカルに保存しました。Firestore Rulesに tanq_public_comments を追加してください。";
+        }
+      } else {
+        $("#status").textContent = "ローカルに保存しました。";
+      }
+      form.reset();
+      render();
+    }
+
+    async function submitSupport(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const supportType = form.elements.support_type.value;
+      const message = form.elements.message.value.trim();
+      const amount = Number(form.elements.amount.value || 0);
+      if (!supportType) {
+        $("#status").textContent = "支援の種類を選んでください。";
+        return;
+      }
+      if (supportType !== "応援マーク" && !message && !amount) {
+        $("#status").textContent = "支援内容、または金額を入力してください。";
+        return;
+      }
+      const record = {
+        id: `pub_support_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        theme_id: form.dataset.supportThemeId,
+        support_type: supportType,
+        amount: amount > 0 ? amount : null,
+        supporter: form.elements.supporter.value.trim() || "匿名",
+        contact: form.elements.contact.value.trim(),
+        message: message || (supportType === "応援マーク" ? "応援します。" : ""),
+        status: "offered",
+        created_at: new Date().toISOString()
+      };
+      supports = [record, ...supports];
+      writeLocalSupport(record);
+      if (firebaseDb && firebaseApi) {
+        try {
+          const { doc, setDoc, serverTimestamp } = firebaseApi;
+          await setDoc(doc(firebaseDb, "tanq_public_support_applications", record.id), {
+            ...cleanForFirestore(record),
+            synced_at: serverTimestamp()
+          }, { merge: true });
+          $("#status").textContent = "支援申し込みを保存しました。";
+        } catch (error) {
+          $("#status").textContent = "ローカルに保存しました。Firestore Rulesに tanq_public_support_applications を追加してください。";
+        }
+      } else {
+        $("#status").textContent = "支援申し込みをローカルに保存しました。";
+      }
+      form.reset();
+      render();
+    }
+
+    async function loadBoard() {
+      $("#status").textContent = "Kids公開データを読み込み中です。";
+      await connectFirebase();
+      let cloudThemes = [];
+      let cloudComments = [];
+      let cloudSupports = [];
+      if (firebaseDb && firebaseApi) {
+        const publicSources = [
+          ["tanq_question_seeds", "questions"],
+          ["tanq_activity_logs", "tasks"],
+          ["tanq_materials", "materials"],
+          ["tanq_feedback", "feedback"],
+          ["tanq_ai_consultations", "aiConsultations"],
+          ["tanq_experience_assets", "experienceAssets"],
+          ["tanq_innovation_seeds", "innovationSeeds"],
+          ["tanq_formation_candidates", "formationCandidates"]
+        ];
+        const loaded = [];
+        for (const [collectionName, sourceType] of publicSources) {
+          try {
+            loaded.push(...publicThemes(await loadCollection(collectionName)).map((item) => ({
+              ...item,
+              source_collection: item.source_collection || collectionName,
+              source_item_type: item.source_item_type || sourceType
+            })));
+          } catch (error) {
+            $("#status").textContent = `一部データは読み込み待ちです: ${collectionName}`;
+          }
+        }
+        cloudThemes = loaded;
+        $("#status").textContent = `Kids公開データ ${cloudThemes.length}件を読み込みました。`;
+        try {
+          cloudComments = await loadCollection("tanq_public_comments");
+        } catch (error) {
+          $("#status").textContent = `${$("#status").textContent} コメントはローカル表示です。`;
+        }
+        try {
+          cloudSupports = await loadCollection("tanq_public_support_applications");
+        } catch (error) {
+          $("#status").textContent = `${$("#status").textContent} 支援申し込みはローカル表示です。`;
+        }
+      }
+      const localThemes = readLocalThemes();
+      const mergedThemes = [...localThemes, ...cloudThemes.filter((cloudItem) => !localThemes.some((localItem) => localItem.id === cloudItem.id))];
+      themes = mergedThemes.length ? mergedThemes : demoThemes;
+      comments = [...cloudComments, ...readLocalComments()];
+      supports = [...cloudSupports, ...readLocalSupports()];
+      render();
+    }
+
+    $("#reload").addEventListener("click", loadBoard);
+    $("#search").addEventListener("input", render);
+    $("#sort").addEventListener("change", render);
+    loadBoard();
+  </script>
+</body>
+</html>
