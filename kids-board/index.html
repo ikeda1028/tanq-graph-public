@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TANQ Kids Board</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,200..700,0..1,-50..200&display=swap" rel="stylesheet">
   <script src="../firebase-config.js?v=inquiry-board-20260807"></script>
   <style>
     :root {
@@ -21,8 +24,12 @@
     body {
       margin: 0;
       color: var(--ink);
-      background: var(--bg);
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 1px 1px, rgba(40, 119, 93, .12) 1px, transparent 0),
+        linear-gradient(135deg, rgba(40,119,93,.08), transparent 34%),
+        var(--bg);
+      background-size: 22px 22px, auto, auto;
+      font-family: Quicksand, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
     a { color: var(--green); font-weight: 700; }
     header, main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
@@ -46,10 +53,27 @@
     .badge.green { color: var(--green); background: rgba(40,119,93,.12); }
     .badge.gold { color: var(--gold); background: rgba(164,116,34,.14); }
     .badge.red { color: var(--red); background: rgba(166,78,61,.12); }
+    .badge .material-symbols-outlined { margin-right: 4px; font-size: 16px; }
+    .material-symbols-outlined {
+      font-family: "Material Symbols Outlined";
+      font-weight: 400;
+      font-style: normal;
+      font-size: 22px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-grid;
+      place-items: center;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: "liga";
+      -webkit-font-smoothing: antialiased;
+    }
     .actions, .badge-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
     .button, button, input, select, textarea {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 18px;
       font: inherit;
     }
     .button, button {
@@ -67,36 +91,45 @@
     main { display: grid; gap: 16px; padding-bottom: 40px; }
     .toolbar, .panel, .theme-card {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 28px;
       background: var(--surface);
       box-shadow: 0 12px 32px rgba(55,45,30,.06);
     }
     .toolbar { padding: 14px; display: grid; grid-template-columns: 1fr 220px auto; gap: 10px; align-items: end; }
     .board { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
-    .theme-card { padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 18px; }
+    .theme-card {
+      padding: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 18px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.82), rgba(40,119,93,.05)),
+        var(--surface);
+    }
     .theme-main, .comment-box, .comments, .side-stack { display: grid; gap: 12px; align-content: start; }
     .theme-title { font-size: 24px; line-height: 1.35; }
     .theme-thumb {
       width: 100%;
-      max-height: 260px;
+      max-height: 300px;
       aspect-ratio: 16 / 9;
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      border: 3px solid rgba(40,119,93,.2);
+      border-radius: 28px;
       object-fit: cover;
       background: #f0e8d9;
       display: block;
+      box-shadow: 0 16px 30px rgba(55,45,30,.08);
     }
     .meta-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .meta {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 18px;
       padding: 10px;
       background: #fffaf2;
     }
     .meta small { display: block; color: var(--muted); }
     .support-index {
       border: 1px solid rgba(40,119,93,.24);
-      border-radius: 8px;
+      border-radius: 18px;
       padding: 12px;
       background: linear-gradient(180deg, rgba(40,119,93,.08), #fffaf2);
       display: grid;
@@ -104,7 +137,7 @@
     }
     .ai-diagnosis {
       border: 1px solid rgba(45,95,138,.22);
-      border-radius: 8px;
+      border-radius: 18px;
       padding: 12px;
       background: linear-gradient(180deg, rgba(45,95,138,.08), #fffaf2);
       display: grid;
@@ -121,7 +154,7 @@
     .meter span { display: block; height: 100%; background: var(--green); }
     .support-item {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 18px;
       padding: 10px;
       background: #fffaf2;
       display: grid;
@@ -129,7 +162,7 @@
     }
     .comment {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 18px;
       padding: 10px;
       background: #fffaf2;
       display: grid;
@@ -146,7 +179,7 @@
 <body>
   <header>
     <div class="topline">
-      <span class="badge green">TANQ Kids Board</span>
+      <span class="badge green"><span class="material-symbols-outlined">dashboard</span>TANQ Kids Board</span>
       <div class="actions">
         <a class="button" href="../">TANQ Graph</a>
         <a class="button" href="../kids-tool/">Kids Tool</a>
