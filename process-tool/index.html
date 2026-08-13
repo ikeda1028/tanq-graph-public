@@ -302,10 +302,10 @@
     const seed = {
       project: {
         id: "tp_project_" + Date.now(),
-        name: "地方創生PPP探究",
-        owner: "TANQ Passport",
-        question: "空き店舗を、地域の学び・事業化・交流が生まれる探究拠点として再生できるか。",
-        hypothesis: "学校、自治体、地元企業、大学が共通の評価指標で関わると、継続的な地域PPPプロジェクトになる。"
+        name: "Kidsたんけん工程",
+        owner: "TANQ Pass Kids",
+        question: "気になったふしぎを、どんな順番で試して見せるか。",
+        hypothesis: "写真、コメント、やってみる記録を順番に残すと、ふしぎが探究ステップとして育つ。"
       },
       questions: [],
       tasks: [],
@@ -443,17 +443,51 @@
     let state = readState();
 
     function activeTemplate() {
-      return processTemplates[state.project?.owner] || processTemplates["TANQ Passport"];
+      return processTemplates[state.project?.owner] || processTemplates["TANQ Pass Kids"];
     }
 
     function stageInfo(stage) {
       return activeTemplate().stages[stage] || activeTemplate().stages.question;
     }
 
+    function normalizeInterfaceKey(value = "") {
+      const key = String(value || "").trim().toLowerCase();
+      if (key.includes("passport")) return "passport";
+      if (key.includes("kids")) return "kids";
+      if (key.includes("proofolio")) return "proofolio";
+      if (key.includes("encore")) return "encore";
+      return key;
+    }
+
+    function isKidsProcessContext() {
+      const params = new URLSearchParams(location.search);
+      const session = readIdentitySession();
+      const fromUrl = normalizeInterfaceKey(params.get("interface") || params.get("service") || "");
+      const fromSession = normalizeInterfaceKey(session.interface || session.service || "");
+      const fromOwner = normalizeInterfaceKey(state.project?.owner || "");
+      if (fromUrl && fromUrl !== "kids") return false;
+      return fromUrl === "kids" || fromSession === "kids" || fromOwner === "kids";
+    }
+
     function projectToolUrl() {
       const path = window.location.pathname;
       const target = path.includes("/tanq-graph-public/process-tool/") ? "../project-tool/" : "../tanq-project-tool/index.html";
       return withIdentityUrl(target);
+    }
+
+    function enforceKidsOnlyProcessTool() {
+      if (isKidsProcessContext()) return false;
+      document.body.innerHTML = `
+        <main style="min-height:100vh;display:grid;place-items:center;background:#f5f1e8;color:#24241f;font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px">
+          <section style="max-width:680px;border:1px solid #d7cdb9;background:#fffdf8;padding:28px">
+            <p style="margin:0 0 10px;color:#246b55;font-weight:700;letter-spacing:.12em;text-transform:uppercase">Kids only</p>
+            <h1 style="margin:0;font-size:32px;line-height:1.2">Process ToolはKids専用です</h1>
+            <p style="line-height:1.8;color:#6b6559">Passportでは、Quest Board、Evidence、Storyで探究工程を管理します。Project Toolへ戻ってください。</p>
+            <a href="${projectToolUrl()}" style="display:inline-block;margin-top:12px;background:#246b55;color:white;text-decoration:none;padding:12px 16px">Project Toolへ戻る</a>
+          </section>
+        </main>
+      `;
+      return true;
     }
 
     function setStatus(text) {
@@ -557,6 +591,7 @@
 
     function render() {
       state = readState();
+      if (enforceKidsOnlyProcessTool()) return;
       renderProject();
       renderStageOptions();
       renderTemplate();

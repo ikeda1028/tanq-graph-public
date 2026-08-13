@@ -8,9 +8,9 @@ TANQ Graphは証跡・ポートフォリオ・認証基盤として使い、こ�
 
 ## 役割分担
 
-- TANQ Project Tool: プロジェクトを進める、資料を作る、先生・上司・チームからフィードバックを受ける。
+- TANQ Project Tool: Kids / Passport / Proofolio / Corporateから共通で使う、プロジェクトを進める作業場。
 - TANQ Pass Kids Tool: 低年齢向けに、写真、音声、場所、地図から「ふしぎ」を記録する。
-- TANQ Process Tool: PPM(Project Process Management)として、工程、役割、次の一手、実行ログを独立して管理する。
+- TANQ Process Tool: Kids専用のたんけん工程管理として、ステップ、役割、次の一手、実行ログを独立して管理する。
 - TANQ Graph: その結果を`tanq_projects`、`tanq_activity_logs`、`tanq_materials`、`tanq_feedback`へ保存し、TANQ Passport / Proofolio / Proofolio Encoreへ接続する。
 
 KidsはProject Tool内のタブではなく、独立した`kids-tool/`で開きます。ログインプロフィールで12歳以下の年齢が登録された場合は、TANQ Pass Kids Toolへ自動的に振り分けます。
@@ -19,7 +19,7 @@ Kids ToolにはAI探究ナビゲーターを置きます。APIキーはHTMLに�
 
 AI探究ナビゲーターは`coach-admin/`で管理します。Kids向けのMite Navigator、中高生向けのQuest Navigator、社会人向けのValue Navigator、Proofolio Encore向けのEncore Navigatorを分け、キャラクター、構造的問い、生成的問い、安全境界、API接続先を調整します。
 
-ProcessはProject Tool内のタブではなく、独立したコンテンツとして`process-tool/`で開きます。同じ保存領域を読むため、Project Toolで作ったプロジェクトを引き継いだまま工程だけを扱えます。
+ProcessはKids専用です。Project Toolに`interface=kids`で入った場合だけ`process-tool/`へ進めます。PassportではQuest Board、Evidence、Storyで探究工程を扱います。
 
 ## Firestore接続
 

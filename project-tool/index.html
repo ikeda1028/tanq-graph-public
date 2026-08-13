@@ -72,6 +72,7 @@
       border-color: var(--line);
       box-shadow: 0 8px 20px rgba(54,45,30,.08);
     }
+    .nav button[hidden], .actions button[hidden] { display: none; }
     .session {
       display: grid;
       gap: 10px;
@@ -749,7 +750,7 @@
             </div>
             <div class="actions">
               <button class="secondary" id="open-process-from-project" type="button">Process Toolを別ページで開く</button>
-              <small>工程設計・PPM・実行管理は独立コンテンツとして扱います。</small>
+              <small id="process-tool-note">工程設計・PPM・実行管理はKids専用の独立コンテンツとして扱います。</small>
             </div>
           </div>
         </div>
@@ -1135,7 +1136,7 @@
         guest_session_id: "guest_" + Date.now().toString(36),
         profile_name: "",
         age: "",
-        interface: "kids",
+        interface: "project",
         created_at: null
       },
       project: {
@@ -2878,6 +2879,7 @@
     }
 
     function render() {
+      configureInterfaceNavigation();
       renderIdentity();
       renderTaskStageOptions();
       renderMetrics();
@@ -2927,6 +2929,36 @@
       window.open(passportToolUrl(), "_blank", "noopener");
     }
 
+    function isKidsInterface() {
+      const identityInterface = normalizeInterfaceKey(state.identity?.interface || "");
+      const ownerInterface = normalizeInterfaceKey(state.project?.owner || "");
+      return identityInterface === "kids" || ownerInterface === "kids";
+    }
+
+    function isPassportInterface() {
+      const identityInterface = normalizeInterfaceKey(state.identity?.interface || "");
+      const ownerInterface = normalizeInterfaceKey(state.project?.owner || "");
+      return identityInterface === "passport" || ownerInterface === "passport";
+    }
+
+    function configureInterfaceNavigation() {
+      const kidsOnly = isKidsInterface();
+      const kidsButton = $("#open-kids-tool");
+      const passportButton = $("#open-passport-tool");
+      const processButton = $("#open-process-tool");
+      const processProjectButton = $("#open-process-from-project");
+      if (kidsButton) kidsButton.hidden = !kidsOnly;
+      if (passportButton) passportButton.hidden = kidsOnly || !isPassportInterface();
+      if (processButton) processButton.hidden = !kidsOnly;
+      if (processProjectButton) processProjectButton.hidden = !kidsOnly;
+      const processNote = $("#process-tool-note");
+      if (processNote) {
+        processNote.textContent = kidsOnly
+          ? "工程設計・PPM・実行管理はKids専用の独立コンテンツとして扱います。"
+          : "Process ToolはKids専用です。PassportではQuest Board、Evidence、Storyで探究工程を管理します。";
+      }
+    }
+
     document.querySelectorAll("[data-tab]").forEach((button) => {
       button.addEventListener("click", () => {
         document.querySelectorAll("[data-tab]").forEach((item) => item.classList.toggle("active", item === button));
@@ -2935,8 +2967,12 @@
     });
     $("#open-kids-tool").addEventListener("click", openKidsTool);
     $("#open-passport-tool").addEventListener("click", openPassportTool);
-    $("#open-process-tool").addEventListener("click", openProcessTool);
-    $("#open-process-from-project").addEventListener("click", openProcessTool);
+    $("#open-process-tool").addEventListener("click", () => {
+      if (isKidsInterface()) openProcessTool();
+    });
+    $("#open-process-from-project").addEventListener("click", () => {
+      if (isKidsInterface()) openProcessTool();
+    });
 
     ["#project-name", "#project-owner", "#project-question", "#project-hypothesis", "#project-stage", "#export-targets"].forEach((selector) => {
       $(selector).addEventListener("input", () => {
