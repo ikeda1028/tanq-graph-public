@@ -72,7 +72,7 @@
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
     .metric { padding: 14px; min-height: 88px; }
     .metric b { display: block; font-size: 28px; }
-    .stage-board { display: grid; grid-template-columns: repeat(6, minmax(190px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+    .stage-board { display: grid; grid-template-columns: repeat(9, minmax(190px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 4px; }
     .stage { min-height: 280px; padding: 14px; display: grid; align-content: start; gap: 10px; }
     .stage-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
     .dot { width: 10px; height: 10px; border-radius: 999px; background: var(--green); }
@@ -158,15 +158,15 @@
       <section class="hero">
         <div>
           <p class="eyebrow">TANQ Passport</p>
-          <h1>問いを、進路と社会実装につながる探究資産へ。</h1>
-          <p class="lead">中高生向けのTANQ Passportは、日常の問いをクエスト化し、証跡、協働、振り返り、提出物、Innovation Seedまで育てるインターフェイスです。</p>
+          <h1>内面が動いた瞬間を、探究資産へ。</h1>
+          <p class="lead">TANQ Passportは、問いになる前の違和感・願い・関心・思いを丁寧に受け取り、問い化、探索、推測、構想、実践、振り返り、意味づけへ進めるインターフェイスです。</p>
           <div class="actions" style="margin-top:18px">
             <button class="primary" data-tab-jump="quest" type="button">探究クエストを始める</button>
             <button class="secondary" data-tab-jump="coach" type="button">AI探究ナビゲーターに相談</button>
             <button class="secondary" id="open-project-tool" type="button">Project Toolへ接続</button>
           </div>
         </div>
-        <div class="hero-map"><strong>Question → Evidence → Story → Innovation Seed</strong></div>
+        <div class="hero-map"><strong>内面の動き → 問い化 → 実践 → 次の問い</strong></div>
       </section>
 
       <section id="home" class="tab active">
@@ -248,10 +248,10 @@
         <div class="grid">
           <div class="panel third">
             <h2>問いを追加</h2>
-            <label>問い<textarea id="quest-question" placeholder="例: なぜ地域の空き家は増えるのか"></textarea></label>
-            <label>背景・きっかけ<textarea id="quest-trigger" placeholder="見たこと、聞いたこと、違和感"></textarea></label>
+            <label>内面の動き・問い<textarea id="quest-question" placeholder="例: 公園にゴミが多くて、なんか嫌だった"></textarea></label>
+            <label>背景・きっかけ<textarea id="quest-trigger" placeholder="見たこと、感じたこと、願い、関心、疑問"></textarea></label>
             <label>分野<select id="quest-domain"><option>地域・コミュニティ</option><option>環境</option><option>教育</option><option>テクノロジー</option><option>医療・福祉</option><option>文化・表現</option><option>ビジネス</option></select></label>
-            <label>最初のステージ<select id="quest-stage"><option value="question">問い</option><option value="ideation">アイデア出し</option><option value="hypothesis">仮説</option><option value="master_plan">マスタープラン</option><option value="execution">実行段階</option><option value="submission">提出・事業化</option></select></label>
+            <label>最初のステージ<select id="quest-stage"></select></label>
             <div class="actions">
               <button class="primary" id="add-quest" type="button">追加</button>
               <button class="icon-button" id="voice-question" type="button" title="音声入力">Mic</button>
@@ -369,20 +369,30 @@
     let firebaseApi = null;
 
     const stages = [
-      ["question", "問い", "green"],
-      ["ideation", "アイデア出し", "gold"],
-      ["hypothesis", "仮説", "blue"],
-      ["master_plan", "マスタープラン", "green"],
-      ["execution", "実行段階", "blue"],
-      ["submission", "提出・事業化", "red"]
+      ["inner_signal", "内面が動く", "gold", "違和感、願い、関心、思い、疑問、価値的反応をそのまま残す。"],
+      ["receive", "丁寧に受け取る", "green", "すぐ答えを出さず、何が気になったのか観察・傾聴する。"],
+      ["question", "問い化", "green", "曖昧な感覚を、考えられる問いの形へ変換する。"],
+      ["exploration", "探索", "blue", "問いを持って世界に触れ、観察・調査・対話で判断材料を増やす。"],
+      ["inference", "推測", "gold", "見たこと、知っていること、自分の考えをつないで仮説にする。"],
+      ["design", "構想", "blue", "だったらどうするか、まだ存在していない可能性を考える。"],
+      ["action", "実践", "green", "小さく試し、現実からフィードバックを受け取る。"],
+      ["reflection", "振り返り", "red", "成功・失敗だけでなく、何がわかったかを意味づける。"],
+      ["meaning", "次の問い", "gold", "経験から新しい違和感、願い、問いを生み出す。"]
     ];
+    const stageAliases = {
+      ideation: "design",
+      hypothesis: "inference",
+      master_plan: "design",
+      execution: "action",
+      submission: "reflection"
+    };
 
     const seedState = {
       learner: { name: "TANQ Learner", age: 16, interfaceMode: "passport" },
       quests: [
-        { id: "quest_local_001", question: "なぜ地域の空き家は増えるのか", trigger: "通学路で空き家が増えていることに気づいた。", domain: "地域・コミュニティ", stage: "question", created_at: "2026-07-24T09:00:00+09:00" },
-        { id: "quest_ai_001", question: "AIで地域課題の調査をどう効率化できるか", trigger: "調べる時間より整理する時間が長い。", domain: "テクノロジー", stage: "ideation", created_at: "2026-07-24T09:08:00+09:00" },
-        { id: "quest_ppp_001", question: "空き店舗を探究拠点にできるか", trigger: "学校外の学び場が地域にあると面白い。", domain: "ビジネス", stage: "hypothesis", created_at: "2026-07-24T09:18:00+09:00" }
+        { id: "quest_local_001", question: "公園にゴミが多くて、なんか嫌だった", trigger: "通学路の公園でゴミが落ちているのを見た。", domain: "地域・コミュニティ", stage: "inner_signal", created_at: "2026-07-24T09:00:00+09:00" },
+        { id: "quest_ai_001", question: "どうしたらゴミが捨てられない公園になるんだろう？", trigger: "きれいな公園にしたいという願いから問いにした。", domain: "環境", stage: "question", created_at: "2026-07-24T09:08:00+09:00" },
+        { id: "quest_ppp_001", question: "ベンチの周りにゴミが多いのは、そこで食べた人が捨てているからでは？", trigger: "公園を観察して、ゴミの場所に偏りがあると気づいた。", domain: "地域・コミュニティ", stage: "inference", created_at: "2026-07-24T09:18:00+09:00" }
       ],
       evidence: [
         { id: "ev_001", quest_id: "quest_local_001", title: "商店街観察メモ", url: "", note: "空き店舗の場所と周辺の人通りを記録。", trust: 2, created_at: "2026-07-24T09:20:00+09:00" }
@@ -699,17 +709,29 @@
       return state.quests.find((quest) => quest.id === id) || state.quests[0] || null;
     }
 
+    function normalizeStage(stage) {
+      return stageAliases[stage] || stage || "inner_signal";
+    }
+
+    function stageRecord(stage) {
+      return stages.find(([id]) => id === normalizeStage(stage)) || stages[0];
+    }
+
     function questStageName(stage) {
-      return stages.find(([id]) => id === stage)?.[1] || "問い";
+      return stageRecord(stage)[1] || "内面が動く";
     }
 
     function badgeForQuest(quest) {
-      if (quest.stage === "submission") return "Innovation Seed";
-      if (quest.stage === "execution") return "Action Builder";
-      if (quest.stage === "master_plan") return "Plan Designer";
-      if (quest.stage === "hypothesis") return "Hypothesis Maker";
-      if (quest.stage === "ideation") return "Idea Diver";
-      return "Question Owner";
+      const stage = normalizeStage(quest.stage);
+      if (stage === "meaning") return "Next Question Maker";
+      if (stage === "reflection") return "Meaning Maker";
+      if (stage === "action") return "Action Builder";
+      if (stage === "design") return "Possibility Designer";
+      if (stage === "inference") return "Inference Maker";
+      if (stage === "exploration") return "Field Explorer";
+      if (stage === "question") return "Question Former";
+      if (stage === "receive") return "Listening Navigator";
+      return "Inner Signal Keeper";
     }
 
     function selectedStageQuest() {
@@ -722,6 +744,7 @@
       return {
         ...quest,
         id: quest.id,
+        stage: normalizeStage(quest.stage),
         graph_type: "question_seed",
         source_item_type: "questions",
         title: quest.question,
@@ -789,6 +812,7 @@
         </div>
         <strong>${escapeHtml(quest.question || "問い未設定")}</strong>
         <small>${escapeHtml(quest.trigger || "背景未登録")}</small>
+        <small>${escapeHtml(stageRecord(quest.stage)[3] || "")}</small>
         <div class="actions">
           <button class="${isPublic ? "secondary" : "primary"}" data-stage-public-id="${escapeHtml(quest.id)}" type="button">${isPublic ? "TANQボードから下げる" : "TANQボードへ投稿"}</button>
           <a class="secondary" href="../inquiry-board/" target="_blank" rel="noopener">TANQボードを見る</a>
@@ -803,10 +827,11 @@
       if (!selectedStageQuestId || !state.quests.some((quest) => quest.id === selectedStageQuestId)) {
         selectedStageQuestId = state.quests[0]?.id || "";
       }
-      board.innerHTML = stages.map(([id, label, tone]) => {
-        const quests = state.quests.filter((quest) => quest.stage === id);
+      board.innerHTML = stages.map(([id, label, tone, description]) => {
+        const quests = state.quests.filter((quest) => normalizeStage(quest.stage) === id);
         return `<div class="stage">
           <div class="stage-head"><h3>${label}</h3><span class="dot ${tone}"></span></div>
+          <small>${escapeHtml(description)}</small>
           ${quests.length ? quests.map((quest) => {
             const isPublic = quest.public_board === true || quest.public_visibility === "public";
             return `<div class="quest ${selectedStageQuestId === quest.id ? "active" : ""}" data-stage-quest-id="${escapeHtml(quest.id)}" role="button" tabindex="0">
@@ -814,7 +839,7 @@
             <strong>${escapeHtml(quest.question)}</strong>
             <small>${escapeHtml(quest.trigger || "背景未登録")}</small>
             <select data-stage-select="${escapeHtml(quest.id)}">
-              ${stages.map(([stageId, stageLabel]) => `<option value="${stageId}" ${stageId === quest.stage ? "selected" : ""}>${stageLabel}</option>`).join("")}
+              ${stages.map(([stageId, stageLabel]) => `<option value="${stageId}" ${stageId === normalizeStage(quest.stage) ? "selected" : ""}>${stageLabel}</option>`).join("")}
             </select>
           </div>`;
           }).join("") : `<small>まだクエストはありません。</small>`}
@@ -855,6 +880,8 @@
         $(selector).innerHTML = options;
         if (current) $(selector).value = current;
       });
+      const currentStage = normalizeStage($("#quest-stage").value);
+      $("#quest-stage").innerHTML = stages.map(([id, label]) => `<option value="${id}" ${id === currentStage ? "selected" : ""}>${escapeHtml(label)}</option>`).join("");
     }
 
     function renderEvidence() {
@@ -1310,18 +1337,18 @@
     function readiness() {
       const questScore = Math.min(state.quests.length * 12, 36);
       const evidenceScore = Math.min(state.evidence.length * 12, 36);
-      const stageScore = state.quests.some((quest) => ["master_plan", "execution", "submission"].includes(quest.stage)) ? 18 : 0;
+      const stageScore = state.quests.some((quest) => ["design", "action", "reflection", "meaning"].includes(normalizeStage(quest.stage))) ? 18 : 0;
       const coachScore = state.coachLogs.length ? 10 : 0;
       return Math.min(100, questScore + evidenceScore + stageScore + coachScore);
     }
 
     function buildStory() {
       const mainQuest = state.quests[0];
-      if (!mainQuest) return "まだ問いがありません。まずは一つ、気になることを登録しましょう。";
+      if (!mainQuest) return "まだ内面の動きがありません。まずは、違和感・願い・関心・疑問を一つそのまま残しましょう。";
       const domains = [...new Set(state.quests.map((quest) => quest.domain))].join("、");
       const stageLabel = questStageName(mainQuest.stage);
       const evidenceCount = state.evidence.length;
-      return `私は「${mainQuest.question}」という問いから探究を始めました。きっかけは、${mainQuest.trigger || "日常の違和感"}です。現在は${stageLabel}の段階で、${domains}に関わる複数の視点から考えています。これまでに${evidenceCount}件の証跡を集め、問いを単なる感想ではなく、根拠を持つ探究テーマとして育てています。次は、仮説を検証し、学校での発表、外部コンテスト、地域や企業との実証につなげたいです。`;
+      return `私は「${mainQuest.question}」という内面の動きから探究を始めました。きっかけは、${mainQuest.trigger || "日常の違和感"}です。現在は${stageLabel}の段階で、${domains}に関わる複数の視点から考えています。これまでに${evidenceCount}件の証跡を集め、感じたことを問い、探索、推測、構想、実践へ育てています。次は、経験を振り返り、新しい意味づけと次の問いにつなげたいです。`;
     }
 
     function coachResponse() {
@@ -1335,18 +1362,18 @@
         title: `Quest Navigator: ${quest.question}`,
         prompt,
         structural: [
-          `この問いの対象は誰で、どこで起きている問題ですか？`,
-          `今ある証跡${evidence.length}件だけで、どこまで言えますか？`,
-          `反対意見や別の原因を一つ置くと、仮説はどう変わりますか？`
+          `最初に内面が動いた瞬間は、違和感・願い・関心・疑問のどれに近いですか？`,
+          `何を見た、聞いた、感じたことで、その反応が生まれましたか？`,
+          `すぐ解決策に飛ばず、考えられる問いにするとどんな形になりますか？`
         ],
         generative: [
-          `この問いを地域・学校・企業の3者で解くなら、どんなチームになりますか？`,
-          `小さく試せるMVPを1週間で作るなら何をしますか？`,
-          `将来の進路ストーリーにすると、どんな強みとして語れますか？`
+          `探索するとしたら、どこを観察し、誰に聞き、何を比べますか？`,
+          `見たことと自分の考えをつなぐと、どんな推測ができますか？`,
+          `実践したあと、どんな振り返りから次の問いが生まれそうですか？`
         ],
-        nextEvidence: ["現地観察", "関係者インタビュー", "先行事例URL", "数字で分かる資料"],
+        nextEvidence: evidence.length ? ["観察を比較", "推測を更新", "振り返りを保存"] : ["内面の動きを1件追加", "観察メモまたは写真を保存", "問い化の対話を残す"],
         innovationSeed: {
-          title: `${quest.domain}の探究から生まれる実証アイデア`,
+          title: `${quest.domain}の探究から生まれる次の問い`,
           social_value: 4,
           feasibility: evidence.length >= 2 ? 4 : 3,
           learning_value: 5
@@ -1389,6 +1416,7 @@
         ...quest,
         id: scopedGraphId(quest.id, ownerPersonId),
         local_id: quest.local_id || quest.id,
+        stage: normalizeStage(quest.stage),
         quest_id: quest.quest_id ? scopedGraphId(quest.quest_id, ownerPersonId) : undefined
       }));
       const scopedCoachLogs = state.coachLogs.map((log) => ({
@@ -1418,7 +1446,7 @@
         },
         question_seeds: scopedQuests.map((quest) => ({ ...quest, ...owner, graph_type: "question_seed", owner: "TANQ Passport" })),
         activity_logs: [
-          ...scopedQuests.map((quest) => ({ id: scopedGraphId("log_" + quest.local_id, ownerPersonId), ...owner, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: quest.stage, trust: 2, created_at: quest.created_at })),
+          ...scopedQuests.map((quest) => ({ id: scopedGraphId("log_" + quest.local_id, ownerPersonId), ...owner, graph_type: "activity_log", source: "TANQ Passport", type: "Quest", title: quest.question, summary: quest.trigger, stage: normalizeStage(quest.stage), trust: 2, created_at: quest.created_at })),
           ...scopedCoachLogs.map((log) => ({ id: scopedGraphId("log_" + log.local_id, ownerPersonId), ...owner, graph_type: "activity_log", source: "Quest Navigator", type: "AI Consultation", title: log.title, summary: log.prompt, trust: 1, created_at: log.created_at }))
         ],
         ai_consultations: scopedCoachLogs.map((log) => ({
