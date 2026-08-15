@@ -73,6 +73,13 @@
     .passport-journey-step strong { color: var(--ink); font-size: 14px; line-height: 1.25; }
     .passport-journey-step small { max-width: 112px; line-height: 1.35; }
     .passport-journey-count { min-height: 20px; padding: 2px 7px; border-radius: 999px; background: rgba(47,95,143,.11); color: var(--blue); font-size: 11px; font-weight: 700; }
+    .level-coach { display: grid; grid-template-columns: minmax(0, .9fr) repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .level-card { border: 1px solid var(--line); border-radius: 8px; background: rgba(255,253,247,.78); padding: 14px; display: grid; gap: 8px; align-content: start; }
+    .level-card.primary-card { border-color: rgba(37,107,87,.42); background: linear-gradient(180deg, rgba(37,107,87,.1), rgba(255,253,247,.9)); }
+    .level-card small { line-height: 1.55; }
+    .level-label { color: var(--green); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
+    .level-card b { font-size: 18px; }
+    .level-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
     h1 { margin: 0; font-size: clamp(32px, 4.8vw, 58px); line-height: 1; letter-spacing: 0; }
     h2, h3 { margin: 0; }
     h2 { font-size: 18px; }
@@ -151,6 +158,7 @@
     @media (max-width: 1080px) {
       .shell, .hero { grid-template-columns: 1fr; }
       .passport-journey-head { grid-template-columns: 1fr; }
+      .level-coach { grid-template-columns: 1fr; }
       aside { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
       main { padding: 20px; }
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -197,6 +205,7 @@
           <p>問いになる前の内面の動きから、探索、推測、構想、実践、振り返り、次の問いへ進みます。</p>
         </div>
         <div class="passport-journey-rail" id="passport-journey-rail"></div>
+        <div class="level-coach" id="passport-level-coach"></div>
       </section>
 
       <section class="hero">
@@ -332,8 +341,13 @@
             <h2>Quest Navigator</h2>
             <label>相談したいクエスト<select id="coach-quest"></select></label>
             <label>相談内容<textarea id="coach-prompt" placeholder="問いを深めたい、仮説にしたい、発表用に整理したい、など"></textarea></label>
+            <div class="form-grid">
+              <label>AI探究ナビAPI URL<input id="passport-coach-endpoint" value="https://tanq-graph-ai-api.tanq-graph.workers.dev/api/passport-coach"></label>
+              <label>AI探究ナビAPI Token 任意<input id="passport-coach-token" type="password" placeholder="必要な場合のみ"></label>
+            </div>
             <div class="actions">
               <button class="primary" id="ask-coach" type="button">AI探究ナビ案を作る</button>
+              <button class="secondary" id="save-passport-coach-endpoint" type="button">AI接続を保存</button>
               <button class="secondary" id="save-coach-log" type="button">相談ログとして保存</button>
             </div>
           </div>
@@ -408,6 +422,9 @@
     const keeperThumbnailTokenKey = "tanq-passport-keeper-thumbnail-token";
     const keeperThumbnailStyleKey = "tanq-passport-keeper-thumbnail-style";
     const defaultKeeperThumbnailEndpoint = "https://tanq-graph-ai-api.tanq-graph.workers.dev/api/thumbnail";
+    const passportCoachEndpointKey = "tanq-passport-ai-coach-endpoint";
+    const passportCoachTokenKey = "tanq-passport-ai-coach-token";
+    const defaultPassportCoachEndpoint = "https://tanq-graph-ai-api.tanq-graph.workers.dev/api/passport-coach";
     const firebaseSdkVersion = "10.12.5";
     let firebaseDb = null;
     let firebaseApi = null;
@@ -849,6 +866,131 @@
       }[stageId] || "radio_button_checked";
     }
 
+    const passportLevelGuide = {
+      inner_signal: {
+        level: "L1",
+        action: "気になったこと、違和感、願い、好き・嫌だと思ったことをそのまま残します。",
+        condition: "内面が動いた瞬間を1つ保存する。",
+        next: "丁寧に受け取る"
+      },
+      receive: {
+        level: "L1+",
+        action: "すぐ答えを出さず、何が気になったのかを観察・傾聴します。",
+        condition: "何が気になったか、どこが嫌だったか、何を面白いと思ったかをメモする。",
+        next: "問い化"
+      },
+      question: {
+        level: "L2",
+        action: "曖昧な感覚を、考えられる問いの形へ変換します。",
+        condition: "「なぜ」「どうしたら」「何があれば」で始まる問いを1つ保存する。",
+        next: "探索"
+      },
+      exploration: {
+        level: "L3",
+        action: "問いを持って世界に触れ、観察・調査・聞き取り・資料メモを増やします。",
+        condition: "観察、調査、聞き取り、資料メモのどれかを1つ以上追加する。",
+        next: "推測"
+      },
+      inference: {
+        level: "L4",
+        action: "見たこと、知っていること、自分の考えをつないで仮説にします。",
+        condition: "「もしかしたら○○では？」という推測を1つ書く。",
+        next: "構想"
+      },
+      design: {
+        level: "L5",
+        action: "だったらこうしてみたい、というまだ存在していない可能性を考えます。",
+        condition: "試してみたい案、作ってみたいもの、変えたい状態を1つ決める。",
+        next: "実践"
+      },
+      action: {
+        level: "L6",
+        action: "小さく試し、自分の考えを現実世界に触れさせます。",
+        condition: "実際にやったこと、作ったもの、観察した結果を1つ記録する。",
+        next: "振り返り"
+      },
+      reflection: {
+        level: "L7",
+        action: "成功・失敗だけでなく、やってみて何がわかったかを意味づけます。",
+        condition: "予想と違ったこと、面白かったこと、次に変えることを書く。",
+        next: "次の問い"
+      },
+      meaning: {
+        level: "L8",
+        action: "経験から新しい違和感、願い、問いを生み出します。",
+        condition: "新しく出てきた問い、次に調べたいことを1つ残す。",
+        next: "新しい探究へ"
+      }
+    };
+
+    function nextPassportStage(stageId) {
+      const index = stages.findIndex(([id]) => id === stageId);
+      return stages[Math.min(stages.length - 1, Math.max(0, index + 1))]?.[0] || stageId;
+    }
+
+    function renderPassportLevelCoach() {
+      const coach = $("#passport-level-coach");
+      if (!coach) return;
+      const quest = selectedStageQuest();
+      const stageId = normalizeStage(quest?.stage || "inner_signal");
+      const stage = stageRecord(stageId);
+      const guide = passportLevelGuide[stageId] || passportLevelGuide.inner_signal;
+      const nextStageId = nextPassportStage(stageId);
+      const nextStage = stageRecord(nextStageId);
+      coach.innerHTML = `
+        <div class="level-card primary-card">
+          <span class="level-label">CURRENT</span>
+          <b>${escapeHtml(guide.level)} ${escapeHtml(stage[1])}</b>
+          <small>${escapeHtml(quest?.question || "探究テーマを選ぶと、ここに現在地が表示されます。")}</small>
+        </div>
+        <div class="level-card">
+          <span class="level-label">やること</span>
+          <small>${escapeHtml(guide.action)}</small>
+        </div>
+        <div class="level-card">
+          <span class="level-label">レベルアップ条件</span>
+          <small>${escapeHtml(guide.condition)}</small>
+        </div>
+        <div class="level-card">
+          <span class="level-label">次に進む</span>
+          <b>${escapeHtml(guide.next)}</b>
+          <small>${escapeHtml(nextStage?.[3] || "")}</small>
+          <div class="level-actions">
+            <button class="secondary" id="passport-ai-stage-coach" type="button">AIで次の一歩</button>
+            <button class="primary" id="passport-next-stage" type="button">次へ進む</button>
+            <button class="secondary" data-tab-jump="quest" type="button">記録を追加</button>
+          </div>
+        </div>
+      `;
+      $("#passport-ai-stage-coach")?.addEventListener("click", () => {
+        const currentQuest = selectedStageQuest();
+        if (!currentQuest) return;
+        $("#coach-quest").value = currentQuest.id;
+        $("#coach-prompt").value = `${questStageName(currentQuest.stage)}から${guide.next}へ進むために、今の記録を見て次の一歩を具体的に提案してください。レベルアップ条件も確認してください。`;
+        activateTab("coach");
+        $("#ask-coach")?.click();
+      });
+      $("#passport-next-stage")?.addEventListener("click", () => {
+        const currentQuest = selectedStageQuest();
+        if (!currentQuest) return;
+        selectedStageQuestId = currentQuest.id;
+        state.quests = state.quests.map((item) => item.id === currentQuest.id
+          ? { ...item, stage: nextStageId, updated_at: new Date().toISOString() }
+          : item
+        );
+        saveState();
+        renderStageBoard("#stage-board");
+        renderStageBoard("#quest-board");
+        renderPassportJourney();
+        renderPassportLevelCoach();
+        renderStageDetail();
+        renderSelectors();
+      });
+      coach.querySelector("[data-tab-jump]")?.addEventListener("click", (event) => {
+        activateTab(event.currentTarget.dataset.tabJump);
+      });
+    }
+
     function renderPassportJourney() {
       const rail = $("#passport-journey-rail");
       if (!rail) return;
@@ -883,6 +1025,7 @@
           const stageInput = $("#quest-stage");
           if (stageInput) stageInput.value = stageId;
           renderPassportJourney();
+          renderPassportLevelCoach();
           renderStageBoard("#stage-board");
           renderStageBoard("#quest-board");
           renderStageDetail();
@@ -1484,10 +1627,97 @@
       };
     }
 
+    function stringList(value, fallback = []) {
+      if (Array.isArray(value)) return value.filter((item) => typeof item === "string" && item.trim()).slice(0, 8);
+      if (typeof value === "string" && value.trim()) return [value.trim()];
+      return fallback;
+    }
+
+    function normalizeAiCoachPayload(value, fallback) {
+      const root = value?.data || value?.result || value || {};
+      const raw = root.data || root;
+      const summary = raw.summary || raw.levelAdvice || raw.level_advice || "";
+      return {
+        ...fallback,
+        title: raw.title || fallback.title,
+        prompt: raw.prompt || fallback.prompt,
+        structural: stringList(raw.structural || raw.structuralQuestions || raw.questionSeeds, fallback.structural),
+        generative: stringList(raw.generative || raw.generativeQuestions || raw.hypothesisCandidates, fallback.generative),
+        nextEvidence: stringList(raw.nextEvidence || raw.next_actions || raw.nextActions || raw.evidenceCandidates, fallback.nextEvidence),
+        innovationSeed: {
+          ...fallback.innovationSeed,
+          ...(raw.innovationSeed || raw.innovation_seed || {}),
+          title: raw.innovationSeed?.title || raw.innovation_seed?.title || raw.projectCandidates?.[0] || fallback.innovationSeed.title
+        },
+        levelAdvice: summary,
+        aiProvider: raw.provider || root.provider || "tanq-ai-navigator",
+        aiModel: raw.model || root.model || "",
+        warnings: stringList(raw.warnings || root.warnings, [])
+      };
+    }
+
+    async function aiCoachResponse() {
+      const fallback = coachResponse();
+      if (!fallback) return null;
+      const endpoint = (localStorage.getItem(passportCoachEndpointKey) || defaultPassportCoachEndpoint).trim();
+      if (!endpoint) return fallback;
+      const quest = selectedQuest($("#coach-quest").value);
+      const stageId = normalizeStage(quest.stage);
+      const evidence = state.evidence.filter((item) => item.quest_id === quest.id);
+      const token = (localStorage.getItem(passportCoachTokenKey) || "").trim();
+      try {
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            ...(token ? { authorization: `Bearer ${token}`, "x-tanq-ai-token": token } : {})
+          },
+          body: JSON.stringify({
+            mode: "passport",
+            audience: "tanq-passport-learner",
+            locale: "ja",
+            prompt: fallback.prompt || "次に何をすれば探究レベルが上がるか提案してください。",
+            question: quest.question,
+            goal: passportLevelGuide[stageId]?.condition || "",
+            context: {
+              tanqId: state.linkage.tanqUserId || "",
+              learner: state.learner,
+              quest,
+              stage: {
+                id: stageId,
+                label: questStageName(stageId),
+                guide: passportLevelGuide[stageId],
+                nextId: nextPassportStage(stageId),
+                nextLabel: questStageName(nextPassportStage(stageId))
+              },
+              evidence,
+              recentCoachLogs: state.coachLogs.slice(0, 5)
+            },
+            records: [
+              quest,
+              ...evidence,
+              ...state.coachLogs.slice(0, 5)
+            ]
+          })
+        });
+        if (!response.ok) throw new Error(`AI API ${response.status}`);
+        const json = await response.json();
+        return normalizeAiCoachPayload(json, fallback);
+      } catch (error) {
+        return {
+          ...fallback,
+          warnings: [`AI APIに接続できなかったため、ローカル案を表示しています: ${error.message}`]
+        };
+      }
+    }
+
     function renderCoachOutput(log = state.lastCoach) {
       if (!log) return;
       $("#coach-output").innerHTML = `
         <strong>${escapeHtml(log.title)}</strong>
+        ${log.aiProvider ? `<div><span class="badge blue">AI</span> <small>${escapeHtml(log.aiProvider)} ${escapeHtml(log.aiModel || "")}</small></div>` : ""}
+        ${log.levelAdvice ? `<p>${escapeHtml(log.levelAdvice)}</p>` : ""}
+        ${log.warnings?.length ? `<div class="notice">${log.warnings.map((item) => escapeHtml(item)).join("<br>")}</div>` : ""}
         <div><span class="badge green">構造的問い</span></div>
         <ul>${log.structural.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
         <div><span class="badge gold">生成的問い</span></div>
@@ -1585,6 +1815,7 @@
       renderStageBoard("#stage-board");
       renderStageBoard("#quest-board");
       renderPassportJourney();
+      renderPassportLevelCoach();
       renderStageDetail();
       renderSelectors();
       renderEvidence();
@@ -1603,6 +1834,8 @@
       $("#keeper-thumbnail-endpoint").value = localStorage.getItem(keeperThumbnailEndpointKey) || defaultKeeperThumbnailEndpoint;
       $("#keeper-thumbnail-token").value = localStorage.getItem(keeperThumbnailTokenKey) || "";
       $("#keeper-thumbnail-style").value = localStorage.getItem(keeperThumbnailStyleKey) || "";
+      $("#passport-coach-endpoint").value = localStorage.getItem(passportCoachEndpointKey) || defaultPassportCoachEndpoint;
+      $("#passport-coach-token").value = localStorage.getItem(passportCoachTokenKey) || "";
       $("#session-label").textContent = state.linkage.tanqUserId ? `${state.linkage.tanqUserId} / TANQ Passport` : "TANQ Passport / Local draft";
       setKeeperStatus(state.linkage.imported_at ? `最終取り込み: ${state.linkage.imported_at}` : "未連携");
       renderCoachOutput();
@@ -1676,12 +1909,19 @@
       render();
     });
 
-    $("#ask-coach").addEventListener("click", () => {
-      const log = coachResponse();
+    $("#ask-coach").addEventListener("click", async () => {
+      $("#coach-output").textContent = "AI探究ナビが、今の記録とステージを読んでいます...";
+      const log = await aiCoachResponse();
       if (!log) return;
       state.lastCoach = log;
       renderCoachOutput(log);
       renderPayload();
+    });
+
+    $("#save-passport-coach-endpoint").addEventListener("click", () => {
+      localStorage.setItem(passportCoachEndpointKey, $("#passport-coach-endpoint").value.trim() || defaultPassportCoachEndpoint);
+      localStorage.setItem(passportCoachTokenKey, $("#passport-coach-token").value.trim());
+      $("#coach-output").textContent = "AI探究ナビの接続設定を保存しました。";
     });
 
     $("#save-coach-log").addEventListener("click", () => {
