@@ -871,14 +871,22 @@
       rail.querySelectorAll("[data-passport-stage]").forEach((button) => {
         button.addEventListener("click", () => {
           const stageId = button.dataset.passportStage;
-          const quest = state.quests.find((item) => normalizeStage(item.stage) === stageId);
-          if (quest) selectedStageQuestId = quest.id;
+          const currentQuest = selectedStageQuest();
+          if (currentQuest) {
+            selectedStageQuestId = currentQuest.id;
+            state.quests = state.quests.map((item) => item.id === currentQuest.id
+              ? { ...item, stage: stageId, updated_at: new Date().toISOString() }
+              : item
+            );
+            saveState();
+          }
           const stageInput = $("#quest-stage");
           if (stageInput) stageInput.value = stageId;
           renderPassportJourney();
           renderStageBoard("#stage-board");
           renderStageBoard("#quest-board");
           renderStageDetail();
+          renderSelectors();
         });
       });
     }
