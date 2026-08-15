@@ -3171,7 +3171,17 @@
       const passportButton = $("#open-passport-tool");
       const processButton = $("#open-process-tool");
       const processProjectButton = $("#open-process-from-project");
-      if (kidsButton) kidsButton.hidden = !kidsOnly;
+      if (kidsOnly) {
+        const target = kidsToolUrl();
+        if (!location.pathname.includes("/kids-tool/")) {
+          location.replace(target);
+          return;
+        }
+      }
+      if (kidsButton) {
+        kidsButton.hidden = !kidsOnly;
+        kidsButton.textContent = "Kidsへ戻る";
+      }
       if (passportButton) passportButton.hidden = kidsOnly || !isPassportInterface();
       if (processButton) processButton.hidden = !kidsOnly;
       if (processProjectButton) processProjectButton.hidden = !kidsOnly;
