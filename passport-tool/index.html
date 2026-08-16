@@ -567,7 +567,13 @@
     }
 
     function saveState() {
-      localStorage.setItem(scopedStorageKey({ tanq_id: state.linkage?.tanqUserId || "", email: readIdentitySession().email, guest_session_id: readIdentitySession().guest_session_id }), JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+      try {
+        localStorage.setItem(scopedStorageKey({ tanq_id: state.linkage?.tanqUserId || "", email: readIdentitySession().email, guest_session_id: readIdentitySession().guest_session_id }), JSON.stringify({ ...state, updated_at: new Date().toISOString() }));
+        return true;
+      } catch (error) {
+        console.warn("TANQ Passport state could not be saved.", error);
+        return false;
+      }
     }
 
     function setKeeperStatus(message) {
@@ -1633,6 +1639,33 @@
       return fallback;
     }
 
+    function compactText(value, max = 360) {
+      return typeof value === "string" ? value.replace(/\s+/g, " ").trim().slice(0, max) : "";
+    }
+
+    function compactCoachLog(log) {
+      return {
+        id: log.id || "coach_" + Date.now(),
+        quest_id: log.quest_id || "",
+        title: compactText(log.title || "AI探究ナビ相談", 160),
+        prompt: compactText(log.prompt || "", 600),
+        structural: stringList(log.structural, []).map((item) => compactText(item, 220)).slice(0, 3),
+        generative: stringList(log.generative, []).map((item) => compactText(item, 220)).slice(0, 3),
+        nextEvidence: stringList(log.nextEvidence, []).map((item) => compactText(item, 160)).slice(0, 3),
+        innovationSeed: {
+          title: compactText(log.innovationSeed?.title || "Innovation Seed候補", 160),
+          social_value: Number(log.innovationSeed?.social_value || 0),
+          feasibility: Number(log.innovationSeed?.feasibility || 0),
+          learning_value: Number(log.innovationSeed?.learning_value || 0)
+        },
+        levelAdvice: compactText(log.levelAdvice || "", 360),
+        aiProvider: compactText(log.aiProvider || "", 80),
+        aiModel: compactText(log.aiModel || "", 80),
+        warnings: stringList(log.warnings, []).map((item) => compactText(item, 180)).slice(0, 3),
+        created_at: log.created_at || new Date().toISOString()
+      };
+    }
+
     function normalizeAiCoachPayload(value, fallback) {
       const root = value?.data || value?.result || value || {};
       const raw = root.data || root;
@@ -1927,11 +1960,20 @@
     $("#save-coach-log").addEventListener("click", () => {
       if (!state.lastCoach) state.lastCoach = coachResponse();
       if (!state.lastCoach) return;
-      state.coachLogs.unshift(state.lastCoach);
+      const savedLog = compactCoachLog(state.lastCoach);
+      state.coachLogs.unshift(savedLog);
       if (!state.badges.includes("AI Dialogue Builder")) state.badges.push("AI Dialogue Builder");
       state.lastCoach = null;
-      saveState();
+      if (!saveState()) {
+        state.coachLogs = state.coachLogs.filter((log) => log.id !== savedLog.id);
+        state.lastCoach = savedLog;
+        renderCoachOutput(savedLog);
+        $("#coach-output").insertAdjacentHTML("afterbegin", `<div class="notice">相談ログを保存できませんでした。ブラウザ保存容量が不足している可能性があります。写真や古いログを減らしてから再度保存してください。</div>`);
+        return;
+      }
       render();
+      activateTab("coach");
+      $("#coach-output").innerHTML = `<div class="notice">相談ログとして保存しました。Keeper InboxとGraph Syncに反映されます。</div>`;
     });
 
     $("#generate-story").addEventListener("click", () => {
