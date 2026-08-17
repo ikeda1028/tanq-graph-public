@@ -3269,13 +3269,6 @@
       const passportButton = $("#open-passport-tool");
       const processButton = $("#open-process-tool");
       const processProjectButton = $("#open-process-from-project");
-      if (kidsOnly) {
-        const target = kidsToolUrl();
-        if (!location.pathname.includes("/kids-tool/")) {
-          location.replace(target);
-          return;
-        }
-      }
       if (kidsButton) {
         kidsButton.hidden = !kidsOnly;
         kidsButton.textContent = "Kidsへ戻る";
