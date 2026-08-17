@@ -1404,8 +1404,12 @@
       const interfaceFromQuery = normalizeInterfaceKey(new URLSearchParams(location.search).get("interface"));
       const identity = { ...structuredClone(seed.identity), ...(saved.identity || {}) };
       const tanqIdValue = session.tanq_id || identity.tanq_id;
+      const nextInterface = interfaceFromQuery || session.interface || identity.interface || "passport";
       return {
         ...saved,
+        project: interfaceFromQuery
+          ? { ...(saved.project || seed.project), owner: ownerByInterface(nextInterface) }
+          : saved.project,
         identity: {
           ...identity,
           mode: tanqIdValue ? "linked" : identity.mode,
@@ -1413,7 +1417,7 @@
           guest_session_id: session.guest_session_id || identity.guest_session_id || seed.identity.guest_session_id,
           profile_name: session.profile_name || identity.profile_name || "",
           entry: session.client || identity.entry || "tool",
-          interface: interfaceFromQuery || session.interface || identity.interface || "passport"
+          interface: nextInterface
         }
       };
     }
@@ -3156,6 +3160,7 @@
     function isKidsInterface() {
       const identityInterface = normalizeInterfaceKey(state.identity?.interface || "");
       const ownerInterface = normalizeInterfaceKey(state.project?.owner || "");
+      if (identityInterface && identityInterface !== "kids") return false;
       return identityInterface === "kids" || ownerInterface === "kids";
     }
 
