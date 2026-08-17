@@ -868,7 +868,13 @@
             </div>
           </div>
           <div class="panel full">
-            <h2>問いのリスト</h2>
+            <div class="section-head">
+              <div>
+                <h2>問いのリスト</h2>
+                <p class="lead">ChatGPTやTANQ Graphに保存された問いも、同じTANQ IDから取り込めます。</p>
+              </div>
+              <button class="secondary" id="refresh-graph-questions" type="button">TANQ Graphから読み込む</button>
+            </div>
             <div class="timeline" id="question-list"></div>
           </div>
           <div class="panel full">
@@ -1545,6 +1551,93 @@
       const map = new Map(existing.map((item) => [item.id, item]));
       incoming.forEach((item) => map.set(item.id, { ...map.get(item.id), ...item }));
       return [...map.values()].sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    }
+
+    function normalizeIdentityValue(value = "") {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function recordBelongsToCurrentIdentity(record = {}) {
+      const identity = state.identity || {};
+      const session = readIdentitySession();
+      const currentValues = [
+        identity.tanq_id,
+        session.tanq_id,
+        identity.email,
+        session.email,
+        identity.guest_session_id,
+        session.guest_session_id
+      ].map(normalizeIdentityValue).filter(Boolean);
+      if (!currentValues.length) return true;
+      const recordValues = [
+        record.tanq_id,
+        record.tanqId,
+        record.ownerId,
+        record.owner_id,
+        record.owner_person_id,
+        record.person_id,
+        record.email,
+        record.user_email,
+        record.guest_session_id,
+        record.sessionId
+      ].map(normalizeIdentityValue).filter(Boolean);
+      if (!recordValues.length) return false;
+      return recordValues.some((value) => currentValues.includes(value));
+    }
+
+    function normalizeCloudQuestion(record = {}, source = "TANQ Graph") {
+      const text = record.text || record.question || record.title || record.name || record.summary;
+      if (!text) return null;
+      const created = record.created_at || record.createdAt || record.updated_at || record.public_updated_at || new Date().toISOString();
+      return {
+        id: record.id || record.question_id || record.inquiryId || `${source.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_${Date.now()}`,
+        text,
+        trigger: record.trigger || record.source || source,
+        domain: record.domain || record.category || record.area || "その他",
+        maturity: record.maturity || (record.promoted_project_id || record.graph_type === "project" ? "candidate" : "seed"),
+        reason: record.reason || record.description || record.hypothesis || record.ai_answer || record.insight || "",
+        next_action: record.next_action || record.nextQuestion || record.next_question || record.summary || "",
+        promoted: Boolean(record.promoted || record.promoted_project_id || record.graph_type === "project"),
+        promoted_project_id: record.promoted_project_id || (record.graph_type === "project" ? record.id : ""),
+        public_board: Boolean(record.public_board || record.public_visibility === "public"),
+        imported_from: source,
+        created_at: created
+      };
+    }
+
+    async function refreshGraphQuestions() {
+      setStatus("loading graph questions");
+      await connectFirebase();
+      const [questionSeeds, projects, aiLogs] = await Promise.all([
+        loadRecentCloudCollection("tanq_question_seeds", 120),
+        loadRecentCloudCollection("tanq_projects", 80),
+        loadRecentCloudCollection("tanq_ai_consultations", 80)
+      ]);
+      const imported = [
+        ...questionSeeds
+          .filter(recordBelongsToCurrentIdentity)
+          .map((item) => normalizeCloudQuestion(item, "TANQ Graph")),
+        ...projects
+          .filter(recordBelongsToCurrentIdentity)
+          .map((item) => normalizeCloudQuestion({ ...item, graph_type: "project", text: item.question || item.name || item.title }, "TANQ Project")),
+        ...aiLogs
+          .filter(recordBelongsToCurrentIdentity)
+          .map((item) => normalizeCloudQuestion({
+            ...item,
+            text: item.next_question || item.question || item.title,
+            reason: item.summary || item.ai_answer || item.insight,
+            next_action: item.next_question || ""
+          }, item.source || "ChatGPT"))
+      ].filter(Boolean);
+      if (!imported.length) {
+        setStatus("no graph questions found");
+        return;
+      }
+      state.questions = mergeById(state.questions || [], imported);
+      selectedQuestionId = selectedQuestionId || imported[0].id;
+      saveState(state);
+      render();
+      setStatus(`${imported.length} graph questions loaded`);
     }
 
     function activeProcessTemplate() {
@@ -3492,6 +3585,7 @@
     $("#sync-graph").addEventListener("click", syncToGraph);
     $("#generate-innovation-seed").addEventListener("click", generateInnovationSeed);
     $("#sync-innovation").addEventListener("click", syncInnovationToGraph);
+    $("#refresh-graph-questions").addEventListener("click", refreshGraphQuestions);
     $("#refresh-ai-consultations").addEventListener("click", refreshAiConsultations);
     $("#save-ai-log").addEventListener("click", () => saveAiConsultation());
     $("#save-ai-log-as-question").addEventListener("click", () => saveAiConsultation({ asQuestion: true }));
